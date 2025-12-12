@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# custom native build artifacts
+/frame-processor-v2/build/
+/modules/**/android/.cxx/
+/modules/**/android/build/
+/modules/**/ios/build/
+/modules/**/build/
+/frame-processor-v2/

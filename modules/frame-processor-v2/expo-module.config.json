@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["expo.modules.frameprocessorv2.FrameProcessorV2Module"]
+  }
+}
