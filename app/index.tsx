@@ -1,15 +1,14 @@
-import { Text, View } from "react-native";
+import { Link } from 'expo-router';
+import { Button, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Index() {
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
+    <SafeAreaView>
+      <Text>DiaSupply</Text>
+      <Link href="/scan" asChild>
+        <Button title="Scan Item" onPress={() => {}} />
+      </Link>
+    </SafeAreaView>
   );
 }

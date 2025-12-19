@@ -1,50 +1,94 @@
-# Welcome to your Expo app 👋
+# Diabetes Supply App - Frame Processor V2
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This project contains a high-performance native barcode scanning module optimized for medical supplies (GS1 DataMatrix, etc.).
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Native C++ Implementation**: Uses JNI and pure C++ for maximum performance.
+- **Advanced Preprocessing**: Includes CLAHE, Laplacian Sharpening, and Adaptive Thresholding to handle difficult lighting and low-contrast codes.
+- **Multi-Strategy Detection**: Automatically retries with different image enhancements (Grayscale, Sharpened, Inverted, etc.) if the initial scan fails.
+- **High Resolution Support**: Designed to work with full-resolution images captured by Expo Camera.
 
-   ```bash
-   npm install
-   ```
+## Usage
 
-2. Start the app
+The module is located in `modules/frame-processor-v2`.
 
-   ```bash
-   npx expo start
-   ```
+### Importing
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```typescript
+import { processImage, processBase64 } from '../modules/frame-processor-v2';
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### API
 
-## Learn more
+#### `processImage(imagePath: string): Promise<ProcessingResult>`
 
-To learn more about developing your project with Expo, look at the following resources:
+Processes an image file stored on the device.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- **imagePath**: Absolute path or `file://` URI to the image.
+- **Returns**: A promise resolving to a `ProcessingResult` object.
 
-## Join the community
+#### `processBase64(base64Image: string): Promise<ProcessingResult>`
 
-Join our community of developers creating universal apps.
+Processes a base64-encoded image string.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **base64Image**: The base64 string of the image.
+- **Returns**: A promise resolving to a `ProcessingResult` object.
+
+### Types
+
+```typescript
+interface ProcessingResult {
+  success: boolean;
+  barcodes?: BarcodeResult[];
+  error?: string;
+  processingTimeMs?: number;
+}
+
+interface BarcodeResult {
+  format: string; // e.g., "DATA_MATRIX"
+  text: string;   // The raw content
+  gs1Data?: {     // Parsed GS1 keys if available
+    gtin: string;
+    lot: string;
+    expiry: string;
+    serial: string;
+  };
+}
+```
+
+### Example with Expo Camera
+
+```typescript
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { processImage } from '../modules/frame-processor-v2';
+import { useRef } from 'react';
+
+// ... inside your component
+const cameraRef = useRef<CameraView>(null);
+
+const takePicture = async () => {
+  if (cameraRef.current) {
+    const photo = await cameraRef.current.takePictureAsync({
+      quality: 1.0, // Use maximum quality for best results
+      skipProcessing: true, // Skip internal processing for speed
+    });
+    
+    if (photo) {
+      const result = await processImage(photo.uri);
+      if (result.success && result.barcodes && result.barcodes.length > 0) {
+        console.log('Found barcode:', result.barcodes[0].text);
+      }
+    }
+  }
+};
+```
+
+## Building
+
+This project uses a custom native module. You must build the native app to run it.
+
+```bash
+# Build for Android
+npx expo run:android
+```
