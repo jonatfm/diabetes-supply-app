@@ -49,3 +49,5 @@ app-example
 /modules/**/ios/build/
 /modules/**/build/
 /frame-processor-v2/
+
+_personal.md

@@ -120,6 +120,72 @@ export function parseGS1(gs1String: string): GS1Data {
 }
 
 /**
+ * Parses GS1 human-readable strings like (01)GTIN(10)LOT(17)EXP... into structured data.
+ * Uses parentheses to delimit AI/value pairs, avoiding misinterpretation of fixed-length AIs.
+ */
+export function parseGS1HumanReadable(gs1String: string): GS1Data {
+  const fields: GS1Field[] = [];
+  const re = /\((\d{2,4})\)([^()]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(gs1String)) !== null) {
+    const ai = m[1];
+    const value = m[2].trim();
+    const spec = GS1_AI_SPECS[ai];
+    fields.push({
+      ai,
+      value,
+      name: spec?.name ?? `AI ${ai}`,
+      description: spec?.description ?? 'Unknown Application Identifier',
+    });
+  }
+  return { raw: gs1String, fields };
+}
+
+/**
+ * Unified GS1 parser that detects format and dispatches to the appropriate parser.
+ * - If parentheses are present, uses human-readable parser.
+ * - Otherwise, uses FNC1/fixed-length aware parser.
+ */
+export function parseGS1Unified(gs1String: string): GS1Data {
+  if (gs1String.includes('(')) {
+    return parseGS1HumanReadable(gs1String);
+  }
+  return parseGS1(gs1String);
+}
+
+/**
+ * Convenience: Build a map of AI -> value from parsed GS1 data.
+ */
+export function getAIMap(data: GS1Data): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const f of data.fields) {
+    map[f.ai] = f.value;
+  }
+  return map;
+}
+
+/**
+ * Convenience fields commonly used in medical products.
+ */
+export function getConvenienceFields(data: GS1Data): {
+  gtin: string;
+  lot: string;
+  expiry: string;
+  serial: string;
+  productionDate: string;
+} {
+  const map = getAIMap(data);
+  const gtinRaw = map['01'] ?? '';
+  return {
+    gtin: gtinRaw.replace(/\D+/g, ''),
+    lot: (map['10'] ?? '').trim(),
+    expiry: (map['17'] ?? '').trim(),
+    serial: (map['21'] ?? '').trim(),
+    productionDate: (map['11'] ?? '').trim(),
+  };
+}
+
+/**
  * Formats GS1 data into a human-readable string with parentheses
  * @param data - Parsed GS1 data
  * @returns Human-readable formatted string
