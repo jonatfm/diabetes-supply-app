@@ -3,9 +3,7 @@ import { foreignKey, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 export const products = sqliteTable("products", {
   id: integer("id").primaryKey({autoIncrement: true}),
   name: text("name").notNull(),
-  category: text("category").$type<"sensor" | "insulin" | "needles" | "consumable" | "other">().notNull(),
   imageUri: text("imageUri"),
-  defaultUnit: text("defaultUnit").$type<"piece"|"cartridge"|"strip">().notNull(),
   unitsPerPackDefault: integer("unitsPerPackDefault").notNull(),
   active: integer("active").default(1).notNull(),
 });
@@ -23,5 +21,21 @@ export const product_identifiers = sqliteTable("product_identifiers", {
   }),
 ]);
 
+export const packs = sqliteTable("packs", {
+  id: integer("id").primaryKey({autoIncrement: true}),
+  productId: integer("productId").notNull(),
+  lot: text("lot"),
+  expiry: text("expiry"),
+  productionDate: text("productionDate"),
+  createdAt: integer("createdAt").notNull(),
+  unitsInPack: integer("itemsInPack").notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.productId],
+    foreignColumns: [products.id],
+  })
+]);
+
 export type Product = typeof products.$inferSelect;
 export type ProductIdentifier = typeof product_identifiers.$inferSelect;
+export type Pack = typeof packs.$inferSelect;

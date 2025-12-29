@@ -1,7 +1,10 @@
+import ProductCard from "@/components/ProductCard";
+import { db } from "@/db/migrate";
+import { Product, products } from "@/db/schema";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Button, Platform, Text } from 'react-native';
+import { Button, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Only import and use SQLite on native platforms
@@ -18,6 +21,7 @@ if (Platform.OS !== 'web') {
 
 export default function Index() {
   const [dbReady, setDbReady] = useState(Platform.OS === 'web');
+  const [prods, setProds] = useState<Product[]>([]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' && ensureDbReady) {
@@ -31,6 +35,14 @@ export default function Index() {
     useDrizzleStudio(expoDb);
   }
 
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setProds(await db.select().from(products));
+    };
+    if (dbReady) fetchProducts();
+  }, [dbReady]);
+
+
   if (!dbReady) {
     return (
       <SafeAreaView>
@@ -38,13 +50,18 @@ export default function Index() {
       </SafeAreaView>
     );
   }
-
+  
   return (
     <SafeAreaView>
       <Text>DiaSupply</Text>
       <Link href="/scan" asChild>
         <Button title="Scan Item" onPress={() => {}} />
       </Link>
+            <View>
+        {prods.map((prod) => (
+          <ProductCard key={prod.id} product={prod} />
+        ))}
+      </View>
     </SafeAreaView>
   );
 }

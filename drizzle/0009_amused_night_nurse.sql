@@ -1,0 +1,1 @@
+ALTER TABLE `packs` ADD `itemsInPack` integer NOT NULL;

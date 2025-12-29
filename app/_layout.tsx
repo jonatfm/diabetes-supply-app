@@ -1,3 +1,4 @@
+import { ScanFlowProvider } from '@/state/scanFlow';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
@@ -8,5 +9,9 @@ if (Platform.OS !== 'web') {
 }
 
 export default function RootLayout() {
-  return <Stack />;
+  return (
+    <ScanFlowProvider>
+      <Stack />
+    </ScanFlowProvider>
+  );
 }
