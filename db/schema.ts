@@ -6,6 +6,7 @@ export const products = sqliteTable("products", {
   imageUri: text("imageUri"),
   unitsPerPackDefault: integer("unitsPerPackDefault").notNull(),
   active: integer("active").default(1).notNull(),
+  canHaveExpiry: integer("canHaveExpiry").default(1).notNull(),
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {

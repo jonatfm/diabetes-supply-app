@@ -1,10 +1,12 @@
+import AppWrapper from "@/components/AppWrapper";
 import ProductCard from "@/components/ProductCard";
 import { db } from "@/db/migrate";
 import { Product, products } from "@/db/schema";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Link } from 'expo-router';
+import { useRouter } from "expo-router";
 import { useEffect, useState } from 'react';
-import { Button, Platform, Text, View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Only import and use SQLite on native platforms
@@ -22,6 +24,10 @@ if (Platform.OS !== 'web') {
 export default function Index() {
   const [dbReady, setDbReady] = useState(Platform.OS === 'web');
   const [prods, setProds] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredProds, setFilteredProds] = useState<Product[]>([]);
+  const theme = useTheme();
+  const router = useRouter();
 
   useEffect(() => {
     if (Platform.OS !== 'web' && ensureDbReady) {
@@ -42,6 +48,19 @@ export default function Index() {
     if (dbReady) fetchProducts();
   }, [dbReady]);
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredProds(prods);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredProds(
+        prods.filter((prod) =>
+          prod.name.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, prods]);
+
 
   if (!dbReady) {
     return (
@@ -52,16 +71,31 @@ export default function Index() {
   }
   
   return (
-    <SafeAreaView>
-      <Text>DiaSupply</Text>
-      <Link href="/scan" asChild>
-        <Button title="Scan Item" onPress={() => {}} />
-      </Link>
+    <AppWrapper>
+        <Text variant="headlineLarge">Inventory</Text>
+
+        {prods.length !== 0 ? (
+          <View>
+            <Searchbar 
+              value={searchQuery} 
+              onChangeText={setSearchQuery}
+              placeholder="Search products" 
+              style={{ marginBottom: 16, marginTop: 32 }} 
+            />
             <View>
-        {prods.map((prod) => (
-          <ProductCard key={prod.id} product={prod} />
-        ))}
-      </View>
-    </SafeAreaView>
-  );
+              {filteredProds.map((prod) => (
+                <ProductCard key={prod.id} product={prod} />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+            <Icon source="ghost" size={64} color={theme.colors.primary} />
+            <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No products here yet</Text>
+          </View>
+        )}
+
+        <FAB icon="data-matrix-scan" size="large" onPress={() => {router.push('/scan')}} style={{position: "absolute", bottom: 16, right: 16}} />
+    </AppWrapper>
+  )
 }

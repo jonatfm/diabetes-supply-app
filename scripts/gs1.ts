@@ -165,19 +165,71 @@ export function getAIMap(data: GS1Data): Record<string, string> {
 }
 
 /**
- * Convenience fields commonly used in medical products.
+ * Detect barcode format and extract appropriate identifier.
  */
-export function getConvenienceFields(data: GS1Data): {
-  gtin: string;
+export function detectBarcodeFormat(text: string): {
+  format: 'GS1' | 'EAN13' | 'UNKNOWN';
+  identifier: string;
+  identifierType: 'GTIN' | 'EAN13' | null;
+} {
+  // Check if it looks like GS1 (has parentheses or starts with AI codes)
+  if (text.includes('(') || /^(00|01|02|03|10|11|12|13|15|16|17|20|21|22)/.test(text)) {
+    return {
+      format: 'GS1',
+      identifier: '',
+      identifierType: null,
+    };
+  }
+  
+  // Check if it's EAN13 (13 digits)
+  if (/^\d{13}$/.test(text)) {
+    return {
+      format: 'EAN13',
+      identifier: text,
+      identifierType: 'EAN13',
+    };
+  }
+  
+  return {
+    format: 'UNKNOWN',
+    identifier: '',
+    identifierType: null,
+  };
+}
+
+/**
+ * Convenience fields commonly used in medical products.
+ * Now supports multiple barcode formats.
+ */
+export function getConvenienceFields(data: GS1Data | string): {
+  identifier: string;
+  identifierType: 'GTIN' | 'EAN13' | null;
   lot: string;
   expiry: string;
   serial: string;
   productionDate: string;
 } {
+  // If passed a string (e.g., EAN13), detect format
+  if (typeof data === 'string') {
+    const detected = detectBarcodeFormat(data);
+    return {
+      identifier: detected.identifier,
+      identifierType: detected.identifierType,
+      lot: '',
+      expiry: '',
+      serial: '',
+      productionDate: '',
+    };
+  }
+  
+  // Otherwise, it's GS1Data
   const map = getAIMap(data);
   const gtinRaw = map['01'] ?? '';
+  const gtin = gtinRaw.replace(/\D+/g, '');
+  
   return {
-    gtin: gtinRaw.replace(/\D+/g, ''),
+    identifier: gtin,
+    identifierType: gtin ? 'GTIN' : null,
     lot: (map['10'] ?? '').trim(),
     expiry: (map['17'] ?? '').trim(),
     serial: (map['21'] ?? '').trim(),

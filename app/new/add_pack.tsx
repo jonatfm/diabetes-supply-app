@@ -21,6 +21,8 @@ export default function AddPack() {
   const {convenience, lastBarcodeResult} = useScanFlow();
   const [product, setProduct] = useState<Product | null>(null);
   const [unitsInPack, setUnitsInPack] = useState<number | undefined>(undefined);
+  const [manualExpiry, setManualExpiry] = useState<string>("");
+  const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
   
   useEffect(() => {
     const fetchProduct = async () => {
@@ -35,7 +37,18 @@ export default function AddPack() {
     fetchProduct();
   }, [params.productId]);
 
-  const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; gtin: string, productionDate?: string }) => {
+  const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; identifier: string, productionDate?: string }) => {
+    
+    if (product && unitsInPack && unitsInPack > product.unitsPerPackDefault) {
+      alert(`Error: Cannot add more than ${product.unitsPerPackDefault} units. You entered ${unitsInPack}.`);
+      return;
+    }
+
+    if (canHaveExpiry && !convenience.expiry) {
+      alert("Expiry date is required for this product.");
+      return;
+    }
+    
     await db.insert(packs).values({
       productId,
       lot: convenience.lot,
@@ -51,11 +64,24 @@ export default function AddPack() {
   return (
     <SafeAreaView>
       <Text>Add Pack Screen</Text>
-      <Text>Expiry: {convenience?.expiry ?? '—'}</Text>
+      {product && convenience && canHaveExpiry && convenience.expiry && (
+        <Text>Expiry: {convenience.expiry}</Text>
+      )}
+      {product && canHaveExpiry && !convenience?.expiry && (
+        <>
+          <Text>Please input an expiry date for this product. (YYYYMMDD)</Text>
+          <TextInput
+            value={manualExpiry}
+            onChangeText={setManualExpiry}
+            placeholder="YYYYMMDD"
+            style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }}
+          />
+        </>
+      )}
       <Text>Lot: {convenience?.lot ?? '—'}</Text>
       <Text>Product ID: {params.productId}</Text>
       <Text>Product Name: {product ? product.name : 'Loading…'}</Text>
-      <Text>GTIN: {convenience?.gtin ?? '—'}</Text>
+      <Text>{convenience?.identifierType ?? 'Identifier'}: {convenience?.identifier ?? '—'}</Text>
       <Text>Production Date: {convenience?.productionDate ?? '—'}</Text>
       {product && product.unitsPerPackDefault > 1 && (
         <>
@@ -64,11 +90,11 @@ export default function AddPack() {
         </>
       )}
       <Button title="Add Pack" onPress={() => handleAddNewPack(Number(params.productId), unitsInPack, {
-        expiry: convenience?.expiry,
+        expiry: convenience?.expiry || manualExpiry,
         lot: convenience?.lot,
-        gtin: convenience?.gtin || '',
+        identifier: convenience?.identifier || '',
         productionDate: convenience?.productionDate,
-      })} disabled={!product} />
+      })} disabled={!product || (canHaveExpiry && !convenience?.expiry && !manualExpiry)} />
     </SafeAreaView>
   )
 }

@@ -71,6 +71,13 @@
       "when": 1767002822463,
       "tag": "0009_amused_night_nurse",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1767392474349,
+      "tag": "0010_common_swordsman",
+      "breakpoints": true
     }
   ]
 }

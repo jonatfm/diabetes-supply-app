@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `canHaveExpiry` integer DEFAULT 1 NOT NULL;

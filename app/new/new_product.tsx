@@ -1,28 +1,45 @@
 import { db } from "@/db/client";
 import { product_identifiers, products } from "@/db/schema";
 import { BarcodeResult } from "@/modules/frame-processor-v2/src";
-import { getConvenienceFields, parseGS1Unified } from "@/scripts/gs1";
+import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from "@/scripts/gs1";
 import { useScanFlow } from "@/state/scanFlow";
 import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
+import { Button, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, imageUri?: string): Promise<number | undefined> => {
+const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, canHaveExpiry: boolean, imageUri?: string): Promise<number | undefined> => {
   const text = barcode.text ?? '';
-  const parsed = parseGS1Unified(text);
-  const conv = getConvenienceFields(parsed);
+  console.log('Barcode text:', text);
+  const detected = detectBarcodeFormat(text);
+  console.log('Detected format:', detected.format);
   
-  const gtin = conv.gtin || (barcode.gs1Data?.gtin ?? '').replace(/\D+/g, '');
-  if (!gtin) {
-    alert('No GS1 GTIN (01) found in barcode');
+  let identifier = '';
+  let identifierType: 'GTIN' | 'EAN13' | null = null;
+  
+  if (detected.format === 'GS1') {
+    const parsed = parseGS1Unified(text);
+    console.log('Parsed GS1:', parsed);
+    const conv = getConvenienceFields(parsed);
+    console.log('Convenience fields:', conv);
+    identifier = conv.identifier;
+    identifierType = conv.identifierType;
+  } else if (detected.format === 'EAN13') {
+    const conv = getConvenienceFields(text);
+    identifier = conv.identifier;
+    identifierType = conv.identifierType;
+  }
+  
+  console.log('Final identifier:', identifier, 'type:', identifierType);
+  if (!identifier || !identifierType) {
+    alert('No valid product identifier found in barcode');
     return;
   }
 
-  const existing = await db.select().from(product_identifiers).where(eq(product_identifiers.value, gtin));
+  const existing = await db.select().from(product_identifiers).where(eq(product_identifiers.value, identifier));
   if (existing.length > 0) {
-    alert('Product with this GTIN already exists. This should not happen here :(');
+    alert('Product with this identifier already exists. This should not happen here :(');
     return;
   }
 
@@ -38,17 +55,18 @@ const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack:
     name,
     unitsPerPackDefault: unitsPerPack,
     imageUri,
+    canHaveExpiry: canHaveExpiry ? 1 : 0,
   }).returning({id: products.id});
 
   // Then create product identifier:
   await db.insert(product_identifiers).values({
     productId: product[0].id,
-    value: gtin,
-    type: "GTIN",
+    value: identifier,
+    type: identifierType,
     createdAt: Date.now(),
   });
 
-  alert(`New product created: ${name} (GTIN: ${gtin})`);
+  alert(`New product created: ${name} (${identifierType}: ${identifier})`);
   return product[0].id;
 }
 
@@ -59,6 +77,7 @@ export default function AddNewProduct() {
   const [name, setName] = useState('');
   const [unitsPerPack, setUnitsPerPack] = useState<number | undefined>(undefined);
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
+  const [canHaveExpiry, setCanHaveExpiry] = useState(true);
 
   useEffect(() => {
     if (params.photoUri) {
@@ -96,6 +115,7 @@ export default function AddNewProduct() {
       lastBarcodeResult,
       name,
       unitsPerPack,
+      canHaveExpiry,
       imageUri,
     );
 
@@ -111,7 +131,7 @@ export default function AddNewProduct() {
     <SafeAreaView>
       <Text>Add New Product Screen</Text>
       <View>
-        <Text>GTIN: {convenience?.gtin ?? '—'}</Text>
+        <Text>{convenience?.identifierType ?? 'Identifier'}: {convenience?.identifier ?? '—'}</Text>
         <Text>Name:</Text>
         <TextInput
           value={name}
@@ -120,6 +140,12 @@ export default function AddNewProduct() {
           style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }}
         />
 
+        {!convenience?.expiry && (
+          <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
+            <Text style={{flex: 1}}>No expiry date found in the barcode. Can this product have an expiry date?</Text>
+            <Switch value={canHaveExpiry} onValueChange={setCanHaveExpiry} />
+          </View>
+        )}
         <Text>Units per pack:</Text>
         <TextInput
           value={(unitsPerPack ?? '').toString()}
