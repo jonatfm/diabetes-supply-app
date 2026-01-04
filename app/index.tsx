@@ -1,6 +1,6 @@
 import AppWrapper from "@/components/AppWrapper";
 import ProductCard from "@/components/ProductCard";
-import { db } from "@/db/migrate";
+import { useDatabase } from "@/db";
 import { Product, products } from "@/db/schema";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { useRouter } from "expo-router";
@@ -9,44 +9,25 @@ import { Platform, View } from 'react-native';
 import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Only import and use SQLite on native platforms
-let expoDb: any = null;
-let ensureDbReady: any = null;
-
-if (Platform.OS !== 'web') {
-  const SQLite = require("expo-sqlite");
-  const migrate = require('@/db/migrate');
-  
-  expoDb = SQLite.openDatabaseSync("db.db");
-  ensureDbReady = migrate.ensureDbReady;
-}
-
 export default function Index() {
-  const [dbReady, setDbReady] = useState(Platform.OS === 'web');
+  const { db, ready: dbReady, rawDb } = useDatabase();
   const [prods, setProds] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProds, setFilteredProds] = useState<Product[]>([]);
   const theme = useTheme();
   const router = useRouter();
 
-  useEffect(() => {
-    if (Platform.OS !== 'web' && ensureDbReady) {
-      ensureDbReady().then(() => setDbReady(true)).catch((err: Error) => {
-        console.error("Failed to initialize database:", err);
-      });
-    }
-  }, []);
-
-  if (expoDb) {
-    useDrizzleStudio(expoDb);
+  if (Platform.OS !== 'web') {
+    useDrizzleStudio(rawDb ?? undefined);
   }
 
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!db) return;
       setProds(await db.select().from(products));
     };
-    if (dbReady) fetchProducts();
-  }, [dbReady]);
+    if (dbReady && db) fetchProducts();
+  }, [dbReady, db]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {

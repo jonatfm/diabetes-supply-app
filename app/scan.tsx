@@ -1,7 +1,7 @@
 import AppWrapper from '@/components/AppWrapper';
-import { db } from '@/db/client';
+import { db } from '@/db';
 import { product_identifiers } from '@/db/schema';
-import { processImage } from '@/modules/frame-processor-v2/src';
+import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
 import { useScanFlow } from '@/state/scanFlow';
 import { eq } from 'drizzle-orm';
@@ -61,6 +61,8 @@ export default function Scan() {
           console.log('Extracted identifier:', identifier);
           
           if (identifier) {
+            setFlashEnabled(false);
+
             // Persist the detected barcode in the scanning flow context
             setScanResult(barcode);
             const existing = await db.select().from(product_identifiers).where(eq(product_identifiers.value, identifier));
@@ -84,9 +86,29 @@ export default function Scan() {
     }
   }
 
+  const takeImageDebug = async () => {
+    const debugBarcodeResult: BarcodeResult = {
+      boundingBox: { x: 100, y: 100, width: 200, height: 200 }, 
+      confidence: 1, 
+      format: "DataMatrix", 
+      gs1Data: {
+        expiry: "270131",
+        lot: "1825226005",
+        productionDate: "250801",
+        serial: "893107877699",
+        gtin: "00386270004901",
+      },
+      orientation: -89,
+      position: [],
+      text: "(01)00386270004901(11)250801(17)270131(10)1825226005(21)893107877699(241)STP-GT-002(30)1"}
+
+    setScanResult(debugBarcodeResult);
+    router.push("/new/choose_existing_product");
+  }
+
   return (
     <AppWrapper>
-      <Text variant="headlineLarge">Scan product code</Text>
+      <Text variant="headlineLarge">Scan Product</Text>
       <Card style={{ flex: 1, marginVertical: 16, overflow: 'hidden', flexGrow: 1 }}>
         <View style={{flexGrow: 1, width: '100%', height: "100%"}}>
           <CameraView
@@ -102,6 +124,9 @@ export default function Scan() {
         </Button>
         <Button icon="camera" loading={isScanning} mode="contained" onPress={takePicture} disabled={isScanning}>
           {isScanning ? 'Scanning...' : 'Take Picture'}
+        </Button>
+        <Button icon="bug" mode="outlined" onPress={takeImageDebug}>
+          Debug: Use Sample Barcode
         </Button>
       </View>
     </AppWrapper>

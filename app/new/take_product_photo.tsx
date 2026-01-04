@@ -1,8 +1,10 @@
+import AppWrapper from '@/components/AppWrapper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File, Paths } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Button, Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Button, Card, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TakeProductPhoto() {
@@ -11,12 +13,15 @@ export default function TakeProductPhoto() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [flashEnabled, setFlashEnabled] = useState(false);
 
   if (!permission?.granted) {
     return (
       <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text>Camera permission is required to take a product photo.</Text>
-        <Button title="Grant Permission" onPress={() => requestPermission()} />
+        <Button mode="contained" onPress={() => requestPermission()} >
+          Grant Permission
+        </Button>
       </SafeAreaView>
     );
   }
@@ -29,6 +34,7 @@ export default function TakeProductPhoto() {
         quality: 0.8,
       });
       if (photo?.uri) {
+        setFlashEnabled(false);
         const fileName = `product_${Date.now()}.jpg`;
         const file = new File(Paths.document, fileName);
         const sourceFile = new File(photo.uri);
@@ -50,12 +56,25 @@ export default function TakeProductPhoto() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <CameraView ref={cameraRef} style={{ flex: 1 }} />
-      <View style={{ padding: 12 }}>
-        <Button title={isCapturing ? 'Capturing…' : 'Take Product Photo'} onPress={handleCapture} disabled={isCapturing} />
-        <Button title="Cancel" onPress={() => router.back()} />
+    <AppWrapper>
+      <Text variant="headlineLarge">Take Product Photo</Text>
+      <Card style={{ flex: 1, marginVertical: 16, overflow: 'hidden', flexGrow: 1 }}>
+        <View style={{flexGrow: 1, width: '100%', height: "100%"}}>
+          <CameraView
+            ref={cameraRef}
+            style={{flex: 1, flexGrow: 1, width: '100%'}}
+            enableTorch={flashEnabled}
+          />
+        </View>
+      </Card>
+      <View style={{ gap: 16 }}>
+        <Button icon={flashEnabled ? "flashlight" : "flashlight-off"} mode={flashEnabled ? "contained" : "contained-tonal"} onPress={() => setFlashEnabled(!flashEnabled)}>
+          {flashEnabled ? 'Flash On' : 'Flash Off'}
+        </Button>
+        <Button icon="camera" loading={isCapturing} mode="contained" onPress={handleCapture} disabled={isCapturing}>
+          {isCapturing ? 'Capturing...' : 'Take Picture'}
+        </Button>
       </View>
-    </SafeAreaView>
+    </AppWrapper>
   );
 }

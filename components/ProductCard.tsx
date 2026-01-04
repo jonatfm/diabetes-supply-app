@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { db } from "@/db";
 import { packs, Product } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { useEffect, useState } from "react";
@@ -49,8 +49,7 @@ export default function ProductCard({product}: {product: Product}) {
       if (!result[0]?.earliestExpiry) return;
       let unparsed = result[0]?.earliestExpiry;
 
-      const expiry = '20' + unparsed.slice(0, 2) + '-' + unparsed.slice(2, 4) + '-' + unparsed.slice(4, 6);
-      setEarliestExpiry(expiry);
+      setEarliestExpiry(unparsed);
     };
 
     fetchTotalUnits();

@@ -1,4 +1,5 @@
-import { db } from "@/db/client";
+import AppWrapper from "@/components/AppWrapper";
+import { db } from "@/db";
 import { product_identifiers, products } from "@/db/schema";
 import { BarcodeResult } from "@/modules/frame-processor-v2/src";
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from "@/scripts/gs1";
@@ -6,8 +7,8 @@ import { useScanFlow } from "@/state/scanFlow";
 import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, Switch, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
+import { Button, SegmentedButtons, Text, TextInput } from "react-native-paper";
 
 const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, canHaveExpiry: boolean, imageUri?: string): Promise<number | undefined> => {
   const text = barcode.text ?? '';
@@ -127,45 +128,48 @@ export default function AddNewProduct() {
     }
   };
 
+  const handleCanHaveExpiryToggle = (value: boolean) => {
+    setCanHaveExpiry(value);
+  };
+
   return (
-    <SafeAreaView>
-      <Text>Add New Product Screen</Text>
-      <View>
-        <Text>{convenience?.identifierType ?? 'Identifier'}: {convenience?.identifier ?? '—'}</Text>
-        <Text>Name:</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Glucose Test Strips"
-          style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }}
-        />
+    <AppWrapper>
+      <Text variant="headlineLarge">Create Product</Text>
+      <View style={{gap: 24, marginTop: 16}}>
+        <View style={{gap: 8}}>
+          <Text variant="labelLarge">Enter a product name:</Text>
+          <TextInput
+            label="Product Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Dexcom G7"
+          />
+        </View>
 
         {!convenience?.expiry && (
-          <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
-            <Text style={{flex: 1}}>No expiry date found in the barcode. Can this product have an expiry date?</Text>
-            <Switch value={canHaveExpiry} onValueChange={setCanHaveExpiry} />
+          <View style={{gap: 8}}>
+            <Text variant="labelLarge">Can this product have an expiry date?</Text>
+            <SegmentedButtons value={canHaveExpiry ? "yes" : "no"} onValueChange={(value) => setCanHaveExpiry(value === "yes")} buttons={[{value: "yes", label: "Yes", icon: "check"}, {value: "no", label: "No", icon: "close"}]} />
           </View>
         )}
+        <View>
         <Text>Units per pack:</Text>
-        <TextInput
-          value={(unitsPerPack ?? '').toString()}
-          onChangeText={(text) => {
-            const n = parseInt(text.replace(/\D+/g, ''), 10);
-            setUnitsPerPack(Number.isFinite(n) ? n : undefined);
-          }}
-          keyboardType="number-pad"
-          placeholder="e.g. 50"
-          style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }}
-        />
-        <Text>Picture: </Text>
-        {imageUri ? (
-          <Text>Photo saved ✓</Text>
-        ) : (
-          <Text>No photo yet</Text>
-        )}
-        <Button title="Take Picture" onPress={handleTakeProductPhoto} />
-        <Button title="Save Product" onPress={handleSaveProduct} />
+          <TextInput
+            value={(unitsPerPack ?? '').toString()}
+            onChangeText={(text) => {
+              const n = parseInt(text.replace(/\D+/g, ''), 10);
+              setUnitsPerPack(Number.isFinite(n) ? n : undefined);
+            }}
+            keyboardType="number-pad"
+            placeholder="e.g. 50"
+          />
+        </View>
+
+        <View style={{gap: 8}}>
+          <Button mode={imageUri ? "contained" : "outlined"} icon="camera" onPress={handleTakeProductPhoto}>{imageUri ? "Change Photo" : "Take Photo"}</Button>
+          <Button disabled={!name || !unitsPerPack} mode="contained" icon="content-save" onPress={handleSaveProduct}>Save Product</Button>
+        </View>
       </View>
-    </SafeAreaView>
+    </AppWrapper>
   )
 }

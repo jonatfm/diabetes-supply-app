@@ -1,3 +1,4 @@
+import { ensureDbReady } from '@/db';
 import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { Stack } from 'expo-router';
@@ -6,7 +7,6 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 
 // Only initialize database on native platforms (iOS/Android)
 if (Platform.OS !== 'web') {
-  const { ensureDbReady } = require('@/db/migrate');
   ensureDbReady();
 }
 

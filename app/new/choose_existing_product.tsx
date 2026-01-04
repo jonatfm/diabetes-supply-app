@@ -1,27 +1,114 @@
 import AppWrapper from "@/components/AppWrapper";
-import { Product } from "@/db/schema";
+import { useDatabase } from "@/db";
+import { Product, product_identifiers, products } from "@/db/schema";
 import { useScanFlow } from "@/state/scanFlow";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { useEffect, useState } from "react";
+import { Image, ScrollView, View } from "react-native";
+import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native-paper";
 
 export default function ChooseExistingProduct() {
   const router = useRouter();
   const { convenience } = useScanFlow();
   const [prods, setProds] = useState<Product[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [selectedProductName, setSelectedProductName] = useState<string>('');
+  const {db, ready: dbReady, rawDb} = useDatabase();
+  const theme = useTheme();
+  
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (!db) return;
+      setProds(await db.select().from(products));
+    };
+    if (dbReady && db) fetchProducts();
+  }, [dbReady, db]);
 
+  const handleSelectProduct = async (productId: number) => {
+    // Create a product_identifier entry to link the scanned identifier with the selected product
+    if (db && convenience?.identifier && convenience?.identifierType) {
+      try {
+        await db.insert(product_identifiers).values({
+          productId: productId,
+          value: convenience.identifier,
+          type: convenience.identifierType,
+          createdAt: Date.now(),
+        });
+        console.log(`Linked identifier ${convenience.identifier} to product ${productId}`);
+      } catch (error) {
+        console.error('Failed to create product identifier:', error);
+        alert('Failed to link product identifier. Please try again.');
+        return;
+      }
+    }
+    
+    router.push({
+      pathname: '/new/add_pack',
+      params: { productId: productId.toString() },
+    });
+  };
+
+  const handleProductPress = (productName: string) => {
+    setSelectedProductName(productName);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSelection = () => {
+    const selectedProduct = prods.find(prod => prod.name === selectedProductName);
+    if (selectedProduct) {
+      handleSelectProduct(selectedProduct.id);
+    }
+    setShowConfirmDialog(false);
+  }
 
   return (
     <AppWrapper>
       <Text variant="headlineLarge">Couldn't match this product</Text>
-      <Text variant="bodyMedium">Please select the product from the list below or create a new one.</Text>
-      <ScrollView style={{ flex: 1, marginVertical: 16 }}>
-        
-      </ScrollView>
+      <Text style={{marginVertical: 16}} variant="bodyMedium">Please select the product from the list below or create a new one.</Text>
+
+      {prods.length !== 0 ? (
+        <ScrollView style={{ flex: 1, marginVertical: 16 }}>
+          {prods.map((prod) => (
+            <Card key={prod.id} mode="elevated" style={{marginBottom: 12, overflow: 'hidden'}} onPress={() => handleProductPress(prod.name)}>
+              <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+                <View style={{flexShrink: 0}}>
+                  {prod.imageUri && (
+                    <Image source={{ uri: prod.imageUri || undefined }} style={{ width: 100, height: 100, backgroundColor: '#eee' }} />
+                  ) || (
+                    <View style={{ width: 100, height: 100, backgroundColor: theme.colors.surfaceVariant, justifyContent: 'center', alignItems: 'center' }}>
+                      <Icon source="image-off" size={36} color={theme.colors.onSurfaceVariant} />
+                    </View>
+                  )}
+                </View>
+                <View style={{flex: 1, margin: 12}}>
+                  <Text variant="titleLarge">{prod.name}</Text>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <Icon source="ghost" size={64} color={theme.colors.primary} />
+          <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No products here yet</Text>
+        </View>
+      )}
       <Button icon="plus" mode="contained" onPress={() => {router.push('/new/new_product')}}>
         Create New Product
       </Button>
+
+      <Portal>
+        <Dialog visible={showConfirmDialog} onDismiss={() => setShowConfirmDialog(false)}>
+          <Dialog.Title>Confirm Selection</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Are you sure that the scanned product corresponds to the selected product <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{selectedProductName}</Text>?</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowConfirmDialog(false)}>No</Button>
+            <Button onPress={handleConfirmSelection}>Yes</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </AppWrapper>
   )
 }

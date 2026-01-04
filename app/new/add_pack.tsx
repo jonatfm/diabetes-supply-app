@@ -1,11 +1,13 @@
-import { db } from "@/db/client";
+import AppWrapper from "@/components/AppWrapper";
+import { db } from "@/db";
 import { packs, Product, products } from "@/db/schema";
 import { useScanFlow } from "@/state/scanFlow";
 import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, Text, TextInput } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
+import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { DatePickerInput } from 'react-native-paper-dates';
 
 const getProductInfo = async (productId: number): Promise<Product> => {
   let product = await db.select().from(products).where(eq(products.id, productId));
@@ -15,21 +17,43 @@ const getProductInfo = async (productId: number): Promise<Product> => {
   return product[0];
 }
 
+// Convert YYMMDD format to YYYY-MM-DD, or return as-is if already formatted
+const formatDateString = (dateStr: string | undefined): string | undefined => {
+  if (!dateStr) return undefined;
+  
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Convert from YYMMDD to YYYY-MM-DD
+  if (/^\d{6}$/.test(dateStr)) {
+    const yy = parseInt(dateStr.slice(0, 2), 10);
+    // Assume 20xx
+    const yyyy = `20${dateStr.slice(0, 2)}`;
+    return `${yyyy}-${dateStr.slice(2, 4)}-${dateStr.slice(4, 6)}`;
+  }
+  
+  // Return unchanged if format is unexpected
+  return dateStr;
+}
+
 export default function AddPack() {
   const router = useRouter();
   const params = useLocalSearchParams<{productId: string}>();
   const {convenience, lastBarcodeResult} = useScanFlow();
   const [product, setProduct] = useState<Product | null>(null);
-  const [unitsInPack, setUnitsInPack] = useState<number | undefined>(undefined);
-  const [manualExpiry, setManualExpiry] = useState<string>("");
+  const [unitsInPack, setUnitsInPack] = useState<string | undefined>(undefined);
   const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
+  const [manualExpiryDate, setManualExpiryDate] = useState<Date | undefined>(undefined);
   
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const prod = await getProductInfo(Number(params.productId));
         setProduct(prod);
-        setUnitsInPack(prod.unitsPerPackDefault);
+        setUnitsInPack(prod.unitsPerPackDefault.toString());
       } catch (e) {
         console.warn("Failed to fetch product info", e);
       }
@@ -37,64 +61,84 @@ export default function AddPack() {
     fetchProduct();
   }, [params.productId]);
 
-  const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; identifier: string, productionDate?: string }) => {
-    
-    if (product && unitsInPack && unitsInPack > product.unitsPerPackDefault) {
+
+  //const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; identifier: string, productionDate?: string }) => {
+  const handleAddNewPack = async() => {
+    if (!product) return;
+    if (!convenience) return;
+
+    // Check unitsInPack validity
+    if (unitsInPack && !/^\d+$/.test(unitsInPack)) {
+      alert("Error: Units in pack must be a valid number.");
+      return;
+    }
+
+    if (product && unitsInPack && Number(unitsInPack) > product.unitsPerPackDefault) {
       alert(`Error: Cannot add more than ${product.unitsPerPackDefault} units. You entered ${unitsInPack}.`);
       return;
     }
 
-    if (canHaveExpiry && !convenience.expiry) {
+    if (canHaveExpiry && !convenience.expiry && !manualExpiryDate) {
       alert("Expiry date is required for this product.");
       return;
     }
+
+    // Format manual expiry date as YYYY-MM-DD to match text format in schema
+    const formattedExpiry = manualExpiryDate 
+      ? `${manualExpiryDate.getFullYear()}-${String(manualExpiryDate.getMonth() + 1).padStart(2, '0')}-${String(manualExpiryDate.getDate()).padStart(2, '0')}`
+      : undefined;
     
     await db.insert(packs).values({
-      productId,
+      productId: Number(params.productId),
       lot: convenience.lot,
-      expiry: convenience.expiry,
-      productionDate: convenience.productionDate,
+      expiry: formatDateString(convenience.expiry) || formattedExpiry,
+      productionDate: formatDateString(convenience.productionDate),
       createdAt: Date.now(),
-      unitsInPack: unitsInPack || 1,
+      unitsInPack: parseInt(unitsInPack || '1', 10),
     });
     alert('New pack added successfully');
     router.push('/');
   }
 
   return (
-    <SafeAreaView>
-      <Text>Add Pack Screen</Text>
-      {product && convenience && canHaveExpiry && convenience.expiry && (
-        <Text>Expiry: {convenience.expiry}</Text>
-      )}
-      {product && canHaveExpiry && !convenience?.expiry && (
-        <>
-          <Text>Please input an expiry date for this product. (YYYYMMDD)</Text>
-          <TextInput
-            value={manualExpiry}
-            onChangeText={setManualExpiry}
-            placeholder="YYYYMMDD"
-            style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }}
-          />
-        </>
-      )}
-      <Text>Lot: {convenience?.lot ?? '—'}</Text>
-      <Text>Product ID: {params.productId}</Text>
-      <Text>Product Name: {product ? product.name : 'Loading…'}</Text>
-      <Text>{convenience?.identifierType ?? 'Identifier'}: {convenience?.identifier ?? '—'}</Text>
-      <Text>Production Date: {convenience?.productionDate ?? '—'}</Text>
-      {product && product.unitsPerPackDefault > 1 && (
-        <>
-          <Text>How many out of {product.unitsPerPackDefault} are in this pack?</Text>
-          <TextInput value={unitsInPack !== undefined ? unitsInPack.toString() : product.unitsPerPackDefault.toString()} onChangeText={text => setUnitsInPack(Number(text))} keyboardType="numeric" style={{ borderWidth: 1, borderColor: '#ccc', padding: 8, borderRadius: 6, marginBottom: 8 }} />
-        </>
-      )}
-      <Button title="Add Pack" onPress={() => handleAddNewPack(Number(params.productId), unitsInPack, {
-        expiry: convenience?.expiry || manualExpiry,
-        lot: convenience?.lot,
-        identifier: convenience?.identifier || '',
-        productionDate: convenience?.productionDate,
-      })} disabled={!product || (canHaveExpiry && !convenience?.expiry && !manualExpiry)} />
-    </SafeAreaView>
+    <AppWrapper>
+      <Text variant="headlineLarge">Add Pack to "{product ? product.name : 'Loading…'}"</Text>
+      <View style={{gap: 24, marginTop: 16}}>
+        {product && convenience && canHaveExpiry && convenience.expiry && (
+          <Text variant="labelLarge">Expiry: {formatDateString(convenience.expiry)}</Text>
+        )}
+        {product && canHaveExpiry && !convenience?.expiry && (
+          <>
+            <DatePickerInput
+              locale="en"
+              label="Expiry Date"
+              value={manualExpiryDate}
+              onChange={(d) => setManualExpiryDate(d)}
+              inputMode="start"
+              mode="outlined"
+            />
+          </>
+        )}
+
+        {product && product.unitsPerPackDefault > 1 && (
+          <View style={{gap: 8}}>
+            <Text variant="labelLarge">How many out of {product.unitsPerPackDefault} are in this pack?</Text>
+            <TextInput 
+              error={unitsInPack ? !/^\d+$/.test(unitsInPack) || parseInt(unitsInPack) <= 0 || parseInt(unitsInPack) > product.unitsPerPackDefault : false}
+              label="Units in Pack" 
+              right={<TextInput.Affix text={`/ ${product.unitsPerPackDefault}`} />} 
+              value={unitsInPack} 
+              onChangeText={setUnitsInPack} 
+              keyboardType="numeric" 
+            />
+            <HelperText type="error" visible={unitsInPack ? !/^\d+$/.test(unitsInPack) || parseInt(unitsInPack) <= 0 || parseInt(unitsInPack) > product.unitsPerPackDefault : false}>
+              Please enter a number between 1 and {product.unitsPerPackDefault}
+            </HelperText>
+          </View>
+        )}
+        
+        <Button mode="contained" icon="plus" disabled={!product || (canHaveExpiry && !convenience?.expiry && !manualExpiryDate)} onPress={handleAddNewPack}>Add Pack</Button>
+      </View>
+    </AppWrapper>
   )
 }
