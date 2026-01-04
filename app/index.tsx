@@ -65,7 +65,7 @@ export default function Index() {
             />
             <View>
               {filteredProds.map((prod) => (
-                <ProductCard key={prod.id} product={prod} />
+                <ProductCard key={prod.id} product={prod} onPress={() => router.push(`/product/${prod.id}`)} />
               ))}
             </View>
           </View>

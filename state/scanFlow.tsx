@@ -10,6 +10,7 @@ export type ConvenienceFields = {
   expiry: string;
   serial: string;
   productionDate: string;
+  ais?: Record<string, string>;
 };
 
 export type ScanFlowContextValue = {
@@ -42,8 +43,12 @@ export function ScanFlowProvider({ children }: { children: React.ReactNode }) {
       console.log('setScanResult - parsed GS1:', parsed);
       setGs1(parsed);
       const conv = getConvenienceFields(parsed);
+      // Convert GS1 fields to AIS dictionary
+      const aisDict = Object.fromEntries(
+        parsed.fields.map(field => [field.ai, field.value])
+      );
       console.log('setScanResult - conv:', conv);
-      setConvenience(conv);
+      setConvenience({ ...conv, ais: aisDict });
     } else if (detected.format === 'EAN13') {
       setGs1(null);
       const conv = getConvenienceFields(text);

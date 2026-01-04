@@ -208,6 +208,7 @@ export function getConvenienceFields(data: GS1Data | string): {
   expiry: string;
   serial: string;
   productionDate: string;
+  ais?: Record<string, string>;
 } {
   // If passed a string (e.g., EAN13), detect format
   if (typeof data === 'string') {
@@ -226,6 +227,9 @@ export function getConvenienceFields(data: GS1Data | string): {
   const map = getAIMap(data);
   const gtinRaw = map['01'] ?? '';
   const gtin = gtinRaw.replace(/\D+/g, '');
+  const aisDict = Object.fromEntries(
+    data.fields.map(field => [field.ai, field.value])
+  );
   
   return {
     identifier: gtin,
@@ -234,6 +238,7 @@ export function getConvenienceFields(data: GS1Data | string): {
     expiry: (map['17'] ?? '').trim(),
     serial: (map['21'] ?? '').trim(),
     productionDate: (map['11'] ?? '').trim(),
+    ais: aisDict,
   };
 }
 

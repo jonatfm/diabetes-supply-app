@@ -41,7 +41,7 @@ const formatDateString = (dateStr: string | undefined): string | undefined => {
 export default function AddPack() {
   const router = useRouter();
   const params = useLocalSearchParams<{productId: string}>();
-  const {convenience, lastBarcodeResult} = useScanFlow();
+  const {convenience} = useScanFlow();
   const [product, setProduct] = useState<Product | null>(null);
   const [unitsInPack, setUnitsInPack] = useState<string | undefined>(undefined);
   const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
@@ -90,11 +90,11 @@ export default function AddPack() {
     
     await db.insert(packs).values({
       productId: Number(params.productId),
-      lot: convenience.lot,
       expiry: formatDateString(convenience.expiry) || formattedExpiry,
       productionDate: formatDateString(convenience.productionDate),
       createdAt: Date.now(),
       unitsInPack: parseInt(unitsInPack || '1', 10),
+      ais: convenience.ais || null,
     });
     alert('New pack added successfully');
     router.push('/');

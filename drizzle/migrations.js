@@ -12,6 +12,8 @@ import m0007 from './0007_needy_lorna_dane.sql';
 import m0008 from './0008_supreme_boomer.sql';
 import m0009 from './0009_amused_night_nurse.sql';
 import m0010 from './0010_common_swordsman.sql';
+import m0011 from './0011_zippy_dust.sql';
+import m0012 from './0012_even_madrox.sql';
 
   export default {
     journal,
@@ -26,7 +28,9 @@ m0006,
 m0007,
 m0008,
 m0009,
-m0010
+m0010,
+m0011,
+m0012
     }
   }
   

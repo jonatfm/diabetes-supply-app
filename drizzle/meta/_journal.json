@@ -78,6 +78,20 @@
       "when": 1767392474349,
       "tag": "0010_common_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1767554214604,
+      "tag": "0011_zippy_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1767559487244,
+      "tag": "0012_even_madrox",
+      "breakpoints": true
     }
   ]
 }

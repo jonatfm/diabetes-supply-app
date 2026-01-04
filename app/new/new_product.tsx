@@ -67,7 +67,6 @@ const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack:
     createdAt: Date.now(),
   });
 
-  alert(`New product created: ${name} (${identifierType}: ${identifier})`);
   return product[0].id;
 }
 
@@ -128,9 +127,14 @@ export default function AddNewProduct() {
     }
   };
 
-  const handleCanHaveExpiryToggle = (value: boolean) => {
-    setCanHaveExpiry(value);
-  };
+  useEffect(() => {
+    if (convenience && convenience.ais && convenience.ais["30"]) {
+      const aisUnits = parseInt(convenience.ais["30"], 10);
+      if (Number.isFinite(aisUnits)) {
+        setUnitsPerPack(aisUnits);
+      }
+    }
+  }, [convenience]);
 
   return (
     <AppWrapper>
@@ -152,18 +156,24 @@ export default function AddNewProduct() {
             <SegmentedButtons value={canHaveExpiry ? "yes" : "no"} onValueChange={(value) => setCanHaveExpiry(value === "yes")} buttons={[{value: "yes", label: "Yes", icon: "check"}, {value: "no", label: "No", icon: "close"}]} />
           </View>
         )}
-        <View>
-        <Text>Units per pack:</Text>
-          <TextInput
-            value={(unitsPerPack ?? '').toString()}
-            onChangeText={(text) => {
-              const n = parseInt(text.replace(/\D+/g, ''), 10);
-              setUnitsPerPack(Number.isFinite(n) ? n : undefined);
-            }}
-            keyboardType="number-pad"
-            placeholder="e.g. 50"
-          />
-        </View>
+
+        
+        {convenience && convenience.ais && convenience.ais["30"] ? (
+          <Text>Units per pack: {convenience.ais["30"]} (The scanned code suggests this value.)</Text>
+        ) : (
+          <View style={{gap: 8}}>
+            <Text>Units per pack:</Text>
+            <TextInput
+              value={(unitsPerPack ?? '').toString()}
+              onChangeText={(text) => {
+                const n = parseInt(text.replace(/\D+/g, ''), 10);
+                setUnitsPerPack(Number.isFinite(n) ? n : undefined);
+              }}
+              keyboardType="number-pad"
+              placeholder="e.g. 50"
+            />
+          </View>
+        )}
 
         <View style={{gap: 8}}>
           <Button mode={imageUri ? "contained" : "outlined"} icon="camera" onPress={handleTakeProductPhoto}>{imageUri ? "Change Photo" : "Take Photo"}</Button>

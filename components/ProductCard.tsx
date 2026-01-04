@@ -16,7 +16,7 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
   lowStock: false,
 };
 
-export default function ProductCard({product}: {product: Product}) {
+export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const [totalUnitsInPacks, setTotalUnitsInPacks] = useState<number | undefined>(undefined);
   const [earliestExpiry, setEarliestExpiry] = useState<string | null>(null);
   const [productNotice, setProductNotice] = useState<ProductNotice | null>(null);
@@ -98,7 +98,7 @@ export default function ProductCard({product}: {product: Product}) {
   }, [totalUnitsInPacks, earliestExpiry]);
   
   return (
-    <>
+    <View onTouchEnd={onPress}>
       {productNotice && (
         <Card style={[productNoticeIsCritical[productNotice.type] ? {backgroundColor: theme.colors.errorContainer} : {backgroundColor: theme.colors.primaryContainer}, {padding: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0}]}>
           {productNotice?.type === 'lowStock' && (
@@ -149,6 +149,6 @@ export default function ProductCard({product}: {product: Product}) {
           </View>
         </View>
       </Card>
-    </>
+    </View>
   )
 }

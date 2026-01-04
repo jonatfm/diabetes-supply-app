@@ -89,7 +89,7 @@ export default function ChooseExistingProduct() {
         </ScrollView>
       ) : (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-          <Icon source="ghost" size={64} color={theme.colors.primary} />
+          <Icon source="package-variant-closed-remove" size={64} color={theme.colors.primary} />
           <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No products here yet</Text>
         </View>
       )}

@@ -1,6 +1,6 @@
 import AppWrapper from '@/components/AppWrapper';
 import { db } from '@/db';
-import { product_identifiers } from '@/db/schema';
+import { packs, product_identifiers, products } from '@/db/schema';
 import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
 import { useScanFlow } from '@/state/scanFlow';
@@ -70,9 +70,40 @@ export default function Scan() {
             if (existing.length === 0) {
               router.push("/new/choose_existing_product");
             } else {
+              const productId = existing[0].productId;
+              
+              // If GS1 data exists, check if a pack with the same AIS already exists
+              if (detected.format === 'GS1') {
+                const parsed = parseGS1Unified(barcode.text);
+                const conv = getConvenienceFields(parsed);
+                
+                if (conv.ais) {
+                  const existingPacks = await db.select().from(packs).where(eq(packs.productId, productId));
+                  const aisString = JSON.stringify(conv.ais);
+                  
+                  const duplicatePack = existingPacks.find(pack => {
+                    if (pack.ais === null) return false;
+                    try {
+                      const packAis = typeof pack.ais === 'string' ? JSON.parse(pack.ais) : pack.ais;
+                      return JSON.stringify(packAis) === aisString;
+                    } catch {
+                      return false;
+                    }
+                  });
+                  
+                  if (duplicatePack) {
+                    const product = await db.select().from(products).where(eq(products.id, productId));
+                    const productName = product.length > 0 ? product[0].name : 'Unknown product';
+                    alert(`This exact item (${productName}) has already been scanned and saved.`);
+                    setIsScanning(false);
+                    return;
+                  }
+                }
+              }
+              
               router.push({
                 pathname: "/new/add_pack",
-                params: { productId: String(existing[0].productId) },
+                params: { productId: String(productId) },
               });
             }
           } else {

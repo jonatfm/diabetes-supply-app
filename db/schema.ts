@@ -25,11 +25,11 @@ export const product_identifiers = sqliteTable("product_identifiers", {
 export const packs = sqliteTable("packs", {
   id: integer("id").primaryKey({autoIncrement: true}),
   productId: integer("productId").notNull(),
-  lot: text("lot"),
   expiry: text("expiry"),
   productionDate: text("productionDate"),
   createdAt: integer("createdAt").notNull(),
-  unitsInPack: integer("itemsInPack").notNull(),
+  unitsInPack: integer("unitsInPack").notNull(),
+  ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
 }, (table) => [
   foreignKey({
     columns: [table.productId],
