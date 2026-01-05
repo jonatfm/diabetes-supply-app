@@ -1,6 +1,7 @@
 import AppWrapper from "@/components/AppWrapper";
-import { useDatabase } from "@/db";
-import { Product, product_identifiers, products } from "@/db/schema";
+import { Product } from "@/db/schema";
+import { useProducts } from "@/src/data/hooks/useGetProducts";
+import { useLinkIdentifierToProduct } from "@/src/data/hooks/useLinkIdentifierToProduct";
 import { useScanFlow } from "@/state/scanFlow";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -13,22 +14,21 @@ export default function ChooseExistingProduct() {
   const [prods, setProds] = useState<Product[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedProductName, setSelectedProductName] = useState<string>('');
-  const {db, ready: dbReady, rawDb} = useDatabase();
+  const productsQ = useProducts();
+  const linkIdentifier = useLinkIdentifierToProduct();
   const theme = useTheme();
   
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!db) return;
-      setProds(await db.select().from(products));
-    };
-    if (dbReady && db) fetchProducts();
-  }, [dbReady, db]);
+    if (productsQ.data) {
+      setProds(productsQ.data);
+    }
+  }, [productsQ.data]);
 
   const handleSelectProduct = async (productId: string) => {
     // Create a product_identifier entry to link the scanned identifier with the selected product
-    if (db && convenience?.identifier && convenience?.identifierType) {
+    if (convenience?.identifier && convenience?.identifierType) {
       try {
-        await db.insert(product_identifiers).values({
+        await linkIdentifier.mutateAsync({
           productId: productId,
           value: convenience.identifier,
           type: convenience.identifierType,

@@ -15,6 +15,19 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
 
     async getAllProducts() {
       return db.select().from(products);
+    },
+
+    async findByName(name: string) {
+      return await db.select().from(products).where(eq(products.name, name));
+    },
+
+    async createProduct(params: {name: string; unitsPerPackDefault: number; imageUri?: string; canHaveExpiry: boolean;}) {
+      return await db.insert(products).values({
+        name: params.name,
+        unitsPerPackDefault: params.unitsPerPackDefault,
+        imageUri: params.imageUri,
+        canHaveExpiry: params.canHaveExpiry ? 1 : 0,
+      }).returning({id: products.id});
     }
   }
 }

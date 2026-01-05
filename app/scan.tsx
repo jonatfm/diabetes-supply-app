@@ -1,10 +1,10 @@
 import AppWrapper from '@/components/AppWrapper';
-import { db } from '@/db';
-import { packs, product_identifiers, products } from '@/db/schema';
 import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
+import { useFindDuplicatePackByAis } from '@/src/data/hooks/useFindDuplicatePackByAis';
+import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
+import { useGetProductByIdImmediate } from '@/src/data/hooks/useGetProductByIdImmediate';
 import { useScanFlow } from '@/state/scanFlow';
-import { eq } from 'drizzle-orm';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -16,6 +16,9 @@ export default function Scan() {
   const cameraRef = useRef<CameraView>(null);
   const router = useRouter();
   const { setScanResult } = useScanFlow();
+  const findIdentifier = useFindIdentifierByValue();
+  const findDuplicatePack = useFindDuplicatePackByAis();
+  const fetchProductById = useGetProductByIdImmediate();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
@@ -78,7 +81,7 @@ export default function Scan() {
 
             // Persist the detected barcode in the scanning flow context
             setScanResult(barcode);
-            const existing = await db.select().from(product_identifiers).where(eq(product_identifiers.value, identifier));
+            const existing = await findIdentifier.mutateAsync({ value: identifier });
             console.log('Existing identifiers with this identifier:', existing);
             if (existing.length === 0) {
               router.push("/new/choose_existing_product");
@@ -91,22 +94,11 @@ export default function Scan() {
                 const conv = getConvenienceFields(parsed);
                 
                 if (conv.ais) {
-                  const existingPacks = await db.select().from(packs).where(eq(packs.productId, productId));
-                  const aisString = JSON.stringify(conv.ais);
-                  
-                  const duplicatePack = existingPacks.find(pack => {
-                    if (pack.ais === null) return false;
-                    try {
-                      const packAis = typeof pack.ais === 'string' ? JSON.parse(pack.ais) : pack.ais;
-                      return JSON.stringify(packAis) === aisString;
-                    } catch {
-                      return false;
-                    }
-                  });
+                  const duplicatePack = await findDuplicatePack.mutateAsync({ productId, ais: conv.ais });
                   
                   if (duplicatePack) {
-                    const product = await db.select().from(products).where(eq(products.id, productId));
-                    const productName = product.length > 0 ? product[0].name : 'Unknown product';
+                    const product = await fetchProductById.mutateAsync(productId);
+                    const productName = product?.name ?? 'Unknown product';
                     alert(`This exact item (${productName}) has already been scanned and saved.`);
                     setIsScanning(false);
                     return;

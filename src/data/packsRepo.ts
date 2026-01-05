@@ -34,6 +34,52 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         .where(and(eq(packs.productId, productId), lt(packs.expiry, nowIso)));
     },
 
+    async addPackWithStockEvent(params: {
+      productId: string;
+      expiry?: string;
+      productionDate?: string;
+      units: number;
+      ais?: Record<string, string> | null;
+      note?: string;
+      timestamp?: number;
+    }) {
+      const now = params.timestamp ?? Date.now();
+      const [pack] = await db.insert(packs).values({
+        productId: params.productId,
+        expiry: params.expiry,
+        productionDate: params.productionDate,
+        createdAt: now,
+        unitsRemaining: params.units,
+        ais: params.ais ?? null,
+      }).returning({ id: packs.id });
+
+      await db.insert(stock_events).values({
+        productId: params.productId,
+        packId: pack.id,
+        type: "ADD",
+        deltaUnits: params.units,
+        occuredAt: now,
+        createdAt: now,
+        note: params.note ?? "Via app",
+      });
+
+      return pack.id;
+    },
+
+    async findDuplicatePackByAis(productId: string, ais: Record<string, string>) {
+      const aisString = JSON.stringify(ais);
+      const existingPacks = await db.select().from(packs).where(eq(packs.productId, productId));
+
+      return existingPacks.find((pack) => {
+        if (!pack.ais) return false;
+        try {
+          return JSON.stringify(pack.ais) === aisString;
+        } catch {
+          return false;
+        }
+      }) ?? null;
+    },
+
     async consumeOneUnit(productId: string, packId: string) {
       const [p] = await db.select().from(packs).where(eq(packs.id, packId));
       if (!p) throw new Error("Pack not found");

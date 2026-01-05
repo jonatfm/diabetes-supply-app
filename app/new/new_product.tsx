@@ -1,79 +1,17 @@
 import AppWrapper from "@/components/AppWrapper";
-import { db } from "@/db";
-import { product_identifiers, products } from "@/db/schema";
-import { BarcodeResult } from "@/modules/frame-processor-v2/src";
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from "@/scripts/gs1";
+import { useCreateProductWithIdentifier } from "@/src/data/hooks/useCreateProductWithIdentifier";
 import { useScanFlow } from "@/state/scanFlow";
-import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Button, SegmentedButtons, Text, TextInput } from "react-native-paper";
 
-const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, canHaveExpiry: boolean, imageUri?: string): Promise<string | undefined> => {
-  const text = barcode.text ?? '';
-  console.log('Barcode text:', text);
-  const detected = detectBarcodeFormat(text);
-  console.log('Detected format:', detected.format);
-  
-  let identifier = '';
-  let identifierType: 'GTIN' | 'EAN13' | null = null;
-  
-  if (detected.format === 'GS1') {
-    const parsed = parseGS1Unified(text);
-    console.log('Parsed GS1:', parsed);
-    const conv = getConvenienceFields(parsed);
-    console.log('Convenience fields:', conv);
-    identifier = conv.identifier;
-    identifierType = conv.identifierType;
-  } else if (detected.format === 'EAN13') {
-    const conv = getConvenienceFields(text);
-    identifier = conv.identifier;
-    identifierType = conv.identifierType;
-  }
-  
-  console.log('Final identifier:', identifier, 'type:', identifierType);
-  if (!identifier || !identifierType) {
-    alert('No valid product identifier found in barcode');
-    return;
-  }
-
-  const existing = await db.select().from(product_identifiers).where(eq(product_identifiers.value, identifier));
-  if (existing.length > 0) {
-    alert('Product with this identifier already exists. This should not happen here :(');
-    return;
-  }
-
-  // Check if name is already used
-  const existingName = await db.select().from(products).where(eq(products.name, name));
-  if (existingName.length > 0) {
-    alert('Product name already in use. Please choose a different name.');
-    return;
-  }
-
-  // First create product:
-  let product = await db.insert(products).values({
-    name,
-    unitsPerPackDefault: unitsPerPack,
-    imageUri,
-    canHaveExpiry: canHaveExpiry ? 1 : 0,
-  }).returning({id: products.id});
-
-  // Then create product identifier:
-  await db.insert(product_identifiers).values({
-    productId: product[0].id,
-    value: identifier,
-    type: identifierType,
-    createdAt: Date.now(),
-  });
-
-  return product[0].id;
-}
-
 export default function AddNewProduct() {
   const router = useRouter();
   const params = useLocalSearchParams<{ photoUri?: string; name?: string; unitsPerPack?: string }>();
   const { convenience, lastBarcodeResult } = useScanFlow();
+  const createProductWithIdentifier = useCreateProductWithIdentifier();
   const [name, setName] = useState('');
   const [unitsPerPack, setUnitsPerPack] = useState<number | undefined>(undefined);
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
@@ -110,20 +48,53 @@ export default function AddNewProduct() {
       alert('Please fill in all required fields');
       return;
     }
+    const text = lastBarcodeResult.text ?? '';
+    const detected = detectBarcodeFormat(text);
 
-    const productId = await addNewProduct(
-      lastBarcodeResult,
-      name,
-      unitsPerPack,
-      canHaveExpiry,
-      imageUri,
-    );
+    let identifier = '';
+    let identifierType: 'GTIN' | 'UDI_DI' | 'EAN13' | null = null;
 
-    if (productId) {
-      router.push({
-        pathname: '/new/add_pack',
-        params: { productId: String(productId) },
+    if (detected.format === 'GS1') {
+      const parsed = parseGS1Unified(text);
+      const conv = getConvenienceFields(parsed);
+      identifier = conv.identifier;
+      identifierType = conv.identifierType;
+    } else if (detected.format === 'EAN13') {
+      const conv = getConvenienceFields(text);
+      identifier = conv.identifier;
+      identifierType = conv.identifierType;
+    }
+
+    if (!identifier || !identifierType) {
+      alert('No valid product identifier found in barcode');
+      return;
+    }
+
+    try {
+      const productId = await createProductWithIdentifier.mutateAsync({
+        name,
+        unitsPerPack,
+        canHaveExpiry,
+        imageUri,
+        identifier,
+        identifierType,
       });
+
+      if (productId) {
+        router.push({
+          pathname: '/new/add_pack',
+          params: { productId: String(productId) },
+        });
+      }
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'identifier-exists') {
+        alert('Product with this identifier already exists.');
+      } else if (message === 'name-exists') {
+        alert('Product name already in use. Please choose a different name.');
+      } else {
+        alert('Failed to save product. Please try again.');
+      }
     }
   };
 

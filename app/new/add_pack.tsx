@@ -1,21 +1,13 @@
 import AppWrapper from "@/components/AppWrapper";
-import { db } from "@/db";
-import { packs, Product, products, stock_events } from "@/db/schema";
+import { Product } from "@/db/schema";
+import { useAddPack } from "@/src/data/hooks/useAddPack";
+import { useProduct } from "@/src/data/hooks/useProduct";
 import { useScanFlow } from "@/state/scanFlow";
-import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
-
-const getProductInfo = async (productId: string): Promise<Product> => {
-  let product = await db.select().from(products).where(eq(products.id, productId));
-  if (product.length === 0) {
-    throw new Error("Product not found");
-  }
-  return product[0];
-}
 
 // Convert YYMMDD format to YYYY-MM-DD, or return as-is if already formatted
 const formatDateString = (dateStr: string | undefined): string | undefined => {
@@ -42,24 +34,20 @@ export default function AddPack() {
   const router = useRouter();
   const params = useLocalSearchParams<{productId: string}>();
   const {convenience} = useScanFlow();
+  const productQ = useProduct(params.productId as string);
   const [product, setProduct] = useState<Product | null>(null);
   const [unitsInPack, setUnitsInPack] = useState<string | undefined>(undefined);
   const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
   const [manualExpiryDate, setManualExpiryDate] = useState<Date | undefined>(undefined);
+  const addPack = useAddPack(params.productId as string);
   
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const prod = await getProductInfo(params.productId as string);
-        setProduct(prod);
-        setUnitsInPack(prod.unitsPerPackDefault.toString());
-      } catch (e) {
-        console.warn("Failed to fetch product info", e);
-      }
-    };
-    fetchProduct();
-  }, [params.productId]);
+    if (productQ.data) {
+      setProduct(productQ.data);
+      setUnitsInPack(productQ.data.unitsPerPackDefault.toString());
+    }
+  }, [productQ.data]);
 
 
   //const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; identifier: string, productionDate?: string }) => {
@@ -88,25 +76,13 @@ export default function AddPack() {
       ? `${manualExpiryDate.getFullYear()}-${String(manualExpiryDate.getMonth() + 1).padStart(2, '0')}-${String(manualExpiryDate.getDate()).padStart(2, '0')}`
       : undefined;
     
-    let newPack = await db.insert(packs).values({
-      productId: params.productId as string,
+    await addPack.mutateAsync({
       expiry: formatDateString(convenience.expiry) || formattedExpiry,
       productionDate: formatDateString(convenience.productionDate),
-      createdAt: Date.now(),
-      unitsRemaining: parseInt(unitsInPack || '1', 10),
+      units: parseInt(unitsInPack || '1', 10),
       ais: convenience.ais || null,
-    }).returning({id: packs.id});
-
-    // Insert stock event
-    await db.insert(stock_events).values({
-      productId: params.productId as string,
-      packId: newPack[0].id,
-      type: "ADD",
-      deltaUnits: parseInt(unitsInPack || '1', 10),
-      occuredAt: Date.now(),
-      createdAt: Date.now(),
       note: "Via app",
-    })
+    });
 
     alert('New pack added successfully');
     router.push('/');
