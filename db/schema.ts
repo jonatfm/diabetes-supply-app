@@ -31,6 +31,7 @@ export const packs = sqliteTable("packs", {
   createdAt: integer("createdAt").notNull(),
   unitsRemaining: integer("unitsRemaining").notNull(),
   ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
+  active: integer("active").default(1),
 }, (table) => [
   foreignKey({
     columns: [table.productId],
@@ -40,7 +41,7 @@ export const packs = sqliteTable("packs", {
 
 export const stock_events = sqliteTable("stock_events", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
-  producId: text("productId").notNull(),
+  productId: text("productId").notNull(),
   packId: text("packId"),
   
   type: text("type").$type<"ADD" | "TAKE" | "DISCARD" | "ADJUST" | "UNDO">().notNull(),
@@ -55,7 +56,7 @@ export const stock_events = sqliteTable("stock_events", {
   meta: text("meta", { mode: "json" }).$type<Record<string, any> | null>(),
 }, (table) => [
   foreignKey({
-    columns: [table.producId],
+    columns: [table.productId],
     foreignColumns: [products.id],
   }),
   foreignKey({
@@ -67,3 +68,4 @@ export const stock_events = sqliteTable("stock_events", {
 export type Product = typeof products.$inferSelect;
 export type ProductIdentifier = typeof product_identifiers.$inferSelect;
 export type Pack = typeof packs.$inferSelect;
+export type StockEvent = typeof stock_events.$inferSelect;

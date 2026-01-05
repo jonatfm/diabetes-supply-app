@@ -1,0 +1,1 @@
+ALTER TABLE `packs` DROP COLUMN `active`;

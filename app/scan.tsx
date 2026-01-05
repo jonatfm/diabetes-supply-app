@@ -10,7 +10,6 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function Scan() {
@@ -24,10 +23,24 @@ export default function Scan() {
 
   if (!permission?.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>Camera permission is required to scan barcodes.</Text>
-        <Button onPress={() => requestPermission()}>Grant Permission</Button>
-      </SafeAreaView>
+      <AppWrapper>
+        <View style={{ marginBottom: 16 }}>
+          <Button 
+            mode="text" 
+            onPress={() => router.back()} 
+            icon="arrow-left"
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Back
+          </Button>
+        </View>
+        <View>
+          <Card style={{ padding: 16 }}>
+            <Text variant="bodyMedium" style={{ marginBottom: 16 }}>Camera permission is required to scan barcodes.</Text>
+            <Button onPress={() => requestPermission()} mode="contained" icon="camera">Grant Permission</Button>
+          </Card>
+        </View>
+      </AppWrapper>
     );
   }
 

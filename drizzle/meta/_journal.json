@@ -113,6 +113,27 @@
       "when": 1767607912013,
       "tag": "0015_yielding_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1767629548643,
+      "tag": "0016_gifted_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1767630035994,
+      "tag": "0017_marvelous_vision",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1767630069484,
+      "tag": "0018_regular_moon_knight",
+      "breakpoints": true
     }
   ]
 }

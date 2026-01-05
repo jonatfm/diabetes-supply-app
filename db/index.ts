@@ -68,7 +68,10 @@ export function useDatabase() {
     if (Platform.OS === 'web') return;
     ensureDbReady()
       .then(() => setReady(true))
-      .catch((err: Error) => setError(err));
+      .catch((err: Error) => {
+        console.error('Database migration error:', err);
+        setError(err);
+      });
   }, []);
 
   return {

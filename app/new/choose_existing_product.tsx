@@ -24,7 +24,7 @@ export default function ChooseExistingProduct() {
     if (dbReady && db) fetchProducts();
   }, [dbReady, db]);
 
-  const handleSelectProduct = async (productId: number) => {
+  const handleSelectProduct = async (productId: string) => {
     // Create a product_identifier entry to link the scanned identifier with the selected product
     if (db && convenience?.identifier && convenience?.identifierType) {
       try {

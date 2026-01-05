@@ -1,6 +1,6 @@
 import AppWrapper from "@/components/AppWrapper";
 import { db } from "@/db";
-import { packs, Product, products } from "@/db/schema";
+import { packs, Product, products, stock_events } from "@/db/schema";
 import { useScanFlow } from "@/state/scanFlow";
 import { eq } from "drizzle-orm";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -88,14 +88,26 @@ export default function AddPack() {
       ? `${manualExpiryDate.getFullYear()}-${String(manualExpiryDate.getMonth() + 1).padStart(2, '0')}-${String(manualExpiryDate.getDate()).padStart(2, '0')}`
       : undefined;
     
-    await db.insert(packs).values({
+    let newPack = await db.insert(packs).values({
       productId: params.productId as string,
       expiry: formatDateString(convenience.expiry) || formattedExpiry,
       productionDate: formatDateString(convenience.productionDate),
       createdAt: Date.now(),
       unitsRemaining: parseInt(unitsInPack || '1', 10),
       ais: convenience.ais || null,
-    });
+    }).returning({id: packs.id});
+
+    // Insert stock event
+    await db.insert(stock_events).values({
+      productId: params.productId as string,
+      packId: newPack[0].id,
+      type: "ADD",
+      deltaUnits: parseInt(unitsInPack || '1', 10),
+      occuredAt: Date.now(),
+      createdAt: Date.now(),
+      note: "Via app",
+    })
+
     alert('New pack added successfully');
     router.push('/');
   }

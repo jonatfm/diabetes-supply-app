@@ -10,7 +10,7 @@ import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Index() {
-  const { db, ready: dbReady, rawDb } = useDatabase();
+  const { db, ready: dbReady, rawDb, error } = useDatabase();
   const [prods, setProds] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProds, setFilteredProds] = useState<Product[]>([]);
@@ -47,6 +47,7 @@ export default function Index() {
     return (
       <SafeAreaView>
         <Text>Loading...</Text>
+        {error && <Text style={{ color: 'red' }}>Error: {error.message}</Text>}
       </SafeAreaView>
     );
   }
