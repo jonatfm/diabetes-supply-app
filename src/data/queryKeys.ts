@@ -1,4 +1,6 @@
+
 export const qk = {
+  products: () => ["products"] as const,
   product: (id: string) => ["product", id] as const,
   identifiers: (id: string) => ["productIdentifiers", id] as const,
   packs: (id: string) => ["packs", id] as const,

@@ -1,7 +1,7 @@
-import { db } from "@/db";
-import { packs, Product } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { useEffect, useState } from "react";
+import { Product } from "@/db/schema";
+import { usePacks } from "@/src/data/hooks/usePacks";
+import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
+import { useMemo } from "react";
 import { Image, View } from "react-native";
 import { Card, Icon, Text, useTheme } from "react-native-paper";
 
@@ -17,85 +17,47 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
 };
 
 export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
-  const [totalUnitsInPacks, setTotalUnitsInPacks] = useState<number | undefined>(undefined);
-  const [earliestExpiry, setEarliestExpiry] = useState<string | null>(null);
-  const [productNotice, setProductNotice] = useState<ProductNotice | null>(null);
+  const totalUnitsQ = useTotalUnitsByProduct(product.id);
+  const packsQ = usePacks(product.id);
   const theme = useTheme();
 
-  useEffect(() => {
-    const fetchTotalUnits = async () => {
-      const result = await db.select({
-        total: sql<number>`cast(sum(${packs.unitsRemaining}) as int)`,
-      })
-        .from(packs)
-        .where(eq(packs.productId, product.id));
-      
-      const units = result[0]?.total ?? 0;
-      setTotalUnitsInPacks(units);
-    };
+  // Get earliest expiry from packs (already sorted by expiry)
+  const earliestExpiry = useMemo(() => {
+    if (!product.canHaveExpiry || !packsQ.data?.length) return null;
+    return packsQ.data[0]?.expiry ?? null;
+  }, [product.canHaveExpiry, packsQ.data]);
 
-    const fetchEarliestExpiry = async () => {
-      if (!product.canHaveExpiry) {
-        setEarliestExpiry(null);
-        return;
-      }
+  // Compute product notice based on stock and expiry
+  const productNotice = useMemo((): ProductNotice | null => {
+    const totalUnits = totalUnitsQ.data;
+    if (totalUnits === undefined) return null;
 
-      const result = await db.select({
-        earliestExpiry: sql<string>`min(${packs.expiry})`,
-      })
-        .from(packs)
-        .where(eq(packs.productId, product.id));
-      
-      if (!result[0]?.earliestExpiry) return;
-      let unparsed = result[0]?.earliestExpiry;
-
-      setEarliestExpiry(unparsed);
-    };
-
-    fetchTotalUnits();
-    fetchEarliestExpiry();
-  }, [product.id, product.canHaveExpiry]);
-
-  // Set possible product notices
-  useEffect(() => {
-    if (totalUnitsInPacks === undefined) return;
-    setProductNotice(null);
-
-    // Then low stock
-    if (totalUnitsInPacks < 5 && totalUnitsInPacks > 0) {
-      setProductNotice({
-        type: 'lowStock',
-      });
+    // Highest priority: no stock
+    if (totalUnits === 0) {
+      return { type: 'noStock' };
     }
 
-    // Then expiring soon
+    // Check expiry status
     if (earliestExpiry) {
       const expiryDate = new Date(earliestExpiry);
       const now = new Date();
       const diffTime = expiryDate.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays <= 7 && diffDays >= 0) {
-        setProductNotice({
-          type: 'expiringSoon',
-        });
-        return;
-      } else if (diffDays < 0) {
-        setProductNotice({
-          type: 'expired',
-        });
-        return;
+      if (diffDays < 0) {
+        return { type: 'expired' };
+      } else if (diffDays <= 7) {
+        return { type: 'expiringSoon' };
       }
     }
 
-    // Highest priority: no stock
-    if (totalUnitsInPacks === 0) {
-      setProductNotice({
-        type: 'noStock',
-      });
-      return;
+    // Low stock warning
+    if (totalUnits < 5) {
+      return { type: 'lowStock' };
     }
-  }, [totalUnitsInPacks, earliestExpiry]);
+
+    return null;
+  }, [totalUnitsQ.data, earliestExpiry]);
   
   return (
     <View onTouchEnd={onPress}>
@@ -140,7 +102,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
           </View>
           <View style={{flex: 1, margin: 12}}>
             <Text variant="titleLarge">{product.name}</Text>
-            <Text variant="bodyLarge">{totalUnitsInPacks ?? 'Loading…'} units left</Text>
+            <Text variant="bodyLarge">{totalUnitsQ.data ?? 'Loading…'} units left</Text>
             {product.canHaveExpiry ? (
               <Text>Earliest expiry: {earliestExpiry ?? 'Loading…'}</Text>
             ) : (

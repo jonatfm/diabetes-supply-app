@@ -11,7 +11,6 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         .from(packs)
         .where(and(eq(packs.productId, productId), ne(packs.unitsRemaining, 0), eq(packs.active, 1)));
 
-      // Put your sorting rule HERE so every screen behaves the same
       return result.sort((a: any, b: any) => {
         const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
         const bExpiry = b.expiry ? new Date(b.expiry).getTime() : Infinity;

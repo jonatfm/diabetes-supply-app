@@ -11,6 +11,10 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         .from(products)
         .where(eq(products.id, productId));
       return result[0] || null;
+    },
+
+    async getAllProducts() {
+      return db.select().from(products);
     }
   }
 }

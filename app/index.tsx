@@ -1,62 +1,48 @@
 import AppWrapper from "@/components/AppWrapper";
 import ProductCard from "@/components/ProductCard";
-import { useDatabase } from "@/db";
-import { Product, products } from "@/db/schema";
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
+import { Product } from "@/db/schema";
+import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Index() {
-  const { db, ready: dbReady, rawDb, error } = useDatabase();
-  const [prods, setProds] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const productsQ = useProducts();
   const [filteredProds, setFilteredProds] = useState<Product[]>([]);
   const theme = useTheme();
   const router = useRouter();
 
-  if (Platform.OS !== 'web') {
-    useDrizzleStudio(rawDb ?? undefined);
-  }
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!db) return;
-      setProds(await db.select().from(products));
-    };
-    if (dbReady && db) fetchProducts();
-  }, [dbReady, db]);
+    if (!productsQ.data) return;
 
-  useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredProds(prods);
+      setFilteredProds(productsQ.data);
     } else {
       const query = searchQuery.toLowerCase();
       setFilteredProds(
-        prods.filter((prod) =>
+        productsQ.data.filter((prod: Product) =>
           prod.name.toLowerCase().includes(query)
         )
       );
     }
-  }, [searchQuery, prods]);
+  }, [searchQuery, productsQ.data]);
 
-
-  if (!dbReady) {
+  if (!productsQ.data) {
     return (
-      <SafeAreaView>
-        <Text>Loading...</Text>
-        {error && <Text style={{ color: 'red' }}>Error: {error.message}</Text>}
-      </SafeAreaView>
-    );
+      <AppWrapper>
+        <Text>Loading products...</Text>
+      </AppWrapper>
+    )
   }
   
   return (
     <AppWrapper>
         <Text variant="headlineLarge">Inventory</Text>
 
-        {prods.length !== 0 ? (
+        {productsQ.data.length !== 0 ? (
           <View>
             <Searchbar 
               value={searchQuery} 
