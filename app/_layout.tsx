@@ -1,6 +1,7 @@
 import { ensureDbReady } from '@/db';
 import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from 'expo-router';
 import { Platform, useColorScheme } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
@@ -9,6 +10,8 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 if (Platform.OS !== 'web') {
   ensureDbReady();
 }
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -20,10 +23,12 @@ export default function RootLayout() {
     : {...MD3LightTheme, colors: {...MD3LightTheme.colors, ...theme.light}};
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <ScanFlowProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ScanFlowProvider>
-    </PaperProvider>
+    <QueryClientProvider client={queryClient}>
+      <PaperProvider theme={paperTheme}>
+        <ScanFlowProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ScanFlowProvider>
+      </PaperProvider>
+    </QueryClientProvider>
   );
 }
