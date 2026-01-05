@@ -9,7 +9,7 @@ import { View } from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
 
-const getProductInfo = async (productId: number): Promise<Product> => {
+const getProductInfo = async (productId: string): Promise<Product> => {
   let product = await db.select().from(products).where(eq(products.id, productId));
   if (product.length === 0) {
     throw new Error("Product not found");
@@ -51,7 +51,7 @@ export default function AddPack() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const prod = await getProductInfo(Number(params.productId));
+        const prod = await getProductInfo(params.productId as string);
         setProduct(prod);
         setUnitsInPack(prod.unitsPerPackDefault.toString());
       } catch (e) {
@@ -89,11 +89,11 @@ export default function AddPack() {
       : undefined;
     
     await db.insert(packs).values({
-      productId: Number(params.productId),
+      productId: params.productId as string,
       expiry: formatDateString(convenience.expiry) || formattedExpiry,
       productionDate: formatDateString(convenience.productionDate),
       createdAt: Date.now(),
-      unitsInPack: parseInt(unitsInPack || '1', 10),
+      unitsRemaining: parseInt(unitsInPack || '1', 10),
       ais: convenience.ais || null,
     });
     alert('New pack added successfully');

@@ -1,7 +1,8 @@
 import { foreignKey, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import uuid from "react-native-uuid";
 
 export const products = sqliteTable("products", {
-  id: integer("id").primaryKey({autoIncrement: true}),
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
   name: text("name").notNull(),
   imageUri: text("imageUri"),
   unitsPerPackDefault: integer("unitsPerPackDefault").notNull(),
@@ -10,8 +11,8 @@ export const products = sqliteTable("products", {
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {
-  id: integer("id").primaryKey({autoIncrement: true}),
-  productId: integer("productId").notNull(),
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  productId: text("productId").notNull(),
   type: text("type").$type<"GTIN"|"UDI_DI"|"EAN13">().notNull(),
   value: text("value").notNull(),
   createdAt: integer("createdAt").notNull(),
@@ -23,18 +24,44 @@ export const product_identifiers = sqliteTable("product_identifiers", {
 ]);
 
 export const packs = sqliteTable("packs", {
-  id: integer("id").primaryKey({autoIncrement: true}),
-  productId: integer("productId").notNull(),
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  productId: text("productId").notNull(),
   expiry: text("expiry"),
   productionDate: text("productionDate"),
   createdAt: integer("createdAt").notNull(),
-  unitsInPack: integer("unitsInPack").notNull(),
+  unitsRemaining: integer("unitsRemaining").notNull(),
   ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
 }, (table) => [
   foreignKey({
     columns: [table.productId],
     foreignColumns: [products.id],
   })
+]);
+
+export const stock_events = sqliteTable("stock_events", {
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  producId: text("productId").notNull(),
+  packId: text("packId"),
+  
+  type: text("type").$type<"ADD" | "TAKE" | "DISCARD" | "ADJUST" | "UNDO">().notNull(),
+  deltaUnits: integer("deltaUnits").notNull(),
+
+  occuredAt: integer("occurredAt").notNull(),
+  createdAt: integer("createdAt").notNull(),
+
+  relatedEventId: text("relatedEventId"), // points to original on UNDO
+
+  note: text("note"),
+  meta: text("meta", { mode: "json" }).$type<Record<string, any> | null>(),
+}, (table) => [
+  foreignKey({
+    columns: [table.producId],
+    foreignColumns: [products.id],
+  }),
+  foreignKey({
+    columns: [table.packId],
+    foreignColumns: [packs.id],
+  }),
 ]);
 
 export type Product = typeof products.$inferSelect;

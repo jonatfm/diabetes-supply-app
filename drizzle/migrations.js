@@ -14,6 +14,9 @@ import m0009 from './0009_amused_night_nurse.sql';
 import m0010 from './0010_common_swordsman.sql';
 import m0011 from './0011_zippy_dust.sql';
 import m0012 from './0012_even_madrox.sql';
+import m0013 from './0013_certain_deathstrike.sql';
+import m0014 from './0014_chubby_big_bertha.sql';
+import m0015 from './0015_yielding_hannibal_king.sql';
 
   export default {
     journal,
@@ -30,7 +33,10 @@ m0008,
 m0009,
 m0010,
 m0011,
-m0012
+m0012,
+m0013,
+m0014,
+m0015
     }
   }
   

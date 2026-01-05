@@ -37,7 +37,7 @@ export default function ProductPage() {
     const fetchProduct = async () => {
       if (!db || !id) return;
       
-      const result = await db.select().from(products).where(eq(products.id, parseInt(id)));
+      const result = await db.select().from(products).where(eq(products.id, id as string));
       if (result.length > 0) {
         setProduct(result[0]);
       }
@@ -46,7 +46,7 @@ export default function ProductPage() {
     const fetchProductIdentifiers = async () => {
       if (!db || !id) return;
       
-      const result = await db.select().from(product_identifiers).where(eq(product_identifiers.productId, parseInt(id)));
+      const result = await db.select().from(product_identifiers).where(eq(product_identifiers.productId, id as string));
       setProductIdentifiers(result);
       
       // Check if it's a GS1 item (has GTIN identifier)
@@ -57,7 +57,7 @@ export default function ProductPage() {
     const fetchPacks = async () => {
       if (!db || !id) return;
       
-      const result = await db.select().from(packs).where(eq(packs.productId, parseInt(id)));
+      const result = await db.select().from(packs).where(eq(packs.productId, id as string));
       
       // Sort by expiry date if available, otherwise by date added
       const sorted = result.sort((a, b) => {
@@ -80,10 +80,10 @@ export default function ProductPage() {
       if (!db || !id) return;
       
       const result = await db.select({
-        total: sql<number>`cast(sum(${packs.unitsInPack}) as int)`,
+        total: sql<number>`cast(sum(${packs.unitsRemaining}) as int)`,
       })
         .from(packs)
-        .where(eq(packs.productId, parseInt(id)));
+        .where(eq(packs.productId, id as string));
       
       setTotalUnits(result[0]?.total ?? 0);
     };
@@ -133,7 +133,7 @@ export default function ProductPage() {
       expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
       identifier,
       identifierType: chosenPack.ais && chosenPack.ais["21"] ? "Serial" : "Code",
-      unitsLeftInPack: chosenPack.unitsInPack,
+      unitsLeftInPack: chosenPack.unitsRemaining,
     });
   }
 
@@ -245,7 +245,7 @@ export default function ProductPage() {
                 {!isGS1 && productIdentifiers.length > 0 && (
                   <DataTable.Cell>{productIdentifiers[0]?.value.substring(0, 20) || '-'}</DataTable.Cell>
                 )}
-                <DataTable.Cell>{pack.unitsInPack}</DataTable.Cell>
+                <DataTable.Cell>{pack.unitsRemaining}</DataTable.Cell>
                 <DataTable.Cell>
                   {pack.expiry ? new Date(pack.expiry).toLocaleDateString() : '-'}
                 </DataTable.Cell>

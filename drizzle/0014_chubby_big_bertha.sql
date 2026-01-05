@@ -1,0 +1,1 @@
+ALTER TABLE `packs` RENAME COLUMN "unitsInPack" TO "unitsRemaining";

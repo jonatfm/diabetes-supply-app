@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Button, SegmentedButtons, Text, TextInput } from "react-native-paper";
 
-const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, canHaveExpiry: boolean, imageUri?: string): Promise<number | undefined> => {
+const addNewProduct = async (barcode: BarcodeResult, name: string, unitsPerPack: number, canHaveExpiry: boolean, imageUri?: string): Promise<string | undefined> => {
   const text = barcode.text ?? '';
   console.log('Barcode text:', text);
   const detected = detectBarcodeFormat(text);

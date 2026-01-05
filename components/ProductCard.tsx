@@ -25,7 +25,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
   useEffect(() => {
     const fetchTotalUnits = async () => {
       const result = await db.select({
-        total: sql<number>`cast(sum(${packs.unitsInPack}) as int)`,
+        total: sql<number>`cast(sum(${packs.unitsRemaining}) as int)`,
       })
         .from(packs)
         .where(eq(packs.productId, product.id));
