@@ -98,7 +98,7 @@ export default function AddPack() {
         {product && canHaveExpiry && !convenience?.expiry && (
           <>
             <DatePickerInput
-              locale="en"
+              locale="de"
               label="Expiry Date"
               value={manualExpiryDate}
               onChange={(d) => setManualExpiryDate(d)}

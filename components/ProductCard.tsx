@@ -16,6 +16,19 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
   lowStock: false,
 };
 
+const formatDateString = (dateStr: string | undefined): string | undefined => {
+  if (!dateStr) return undefined;
+
+  // Format YYYY-MM-DD to DD.MM.YYYY
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${day}.${month}.${year}`;
+  }
+
+  return dateStr;
+}
+
 export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
   const packsQ = usePacks(product.id);
@@ -104,7 +117,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
             <Text variant="titleLarge">{product.name}</Text>
             <Text variant="bodyLarge">{totalUnitsQ.data ?? 'Loading…'} units left</Text>
             {product.canHaveExpiry ? (
-              <Text>Earliest expiry: {earliestExpiry ?? 'Loading…'}</Text>
+              <Text>Earliest expiry: {earliestExpiry ? formatDateString(earliestExpiry) : 'Loading…'}</Text>
             ) : (
               <Text>(No expiry)</Text>
             )}
