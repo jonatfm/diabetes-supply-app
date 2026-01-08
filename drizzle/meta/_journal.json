@@ -134,6 +134,20 @@
       "when": 1767630069484,
       "tag": "0018_regular_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1767900157015,
+      "tag": "0019_curious_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1767904131839,
+      "tag": "0020_rare_sway",
+      "breakpoints": true
     }
   ]
 }

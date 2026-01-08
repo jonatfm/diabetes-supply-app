@@ -1,26 +1,21 @@
 import { useDatabase } from "@/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { packsRepo } from "../packsRepo";
+import { ChangesFormat, packsRepo } from "../packsRepo";
 import { qk } from "../queryKeys";
 
-export function useAddPack(productId: string) {
+export function useSaveManualPacksChanges(productId: string) {
   const { db } = useDatabase();
   const repo = useMemo(() => (db ? packsRepo(db) : null), [db]);
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: {
-      expiry?: string;
-      productionDate?: string;
-      units: number;
-      ais?: Record<string, string> | null;
-      note?: string;
-      timestamp?: number;
-      dateSetManually?: boolean;
-    }) => repo!.addPackWithStockEvent({ ...params, productId }),
+    mutationFn: async (changes: ChangesFormat) => {
+      await repo!.manualDataUpdate(changes);
+    },
     onSuccess: async () => {
       await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.product(productId) }),
         qc.invalidateQueries({ queryKey: qk.packs(productId) }),
         qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
         qc.invalidateQueries({ queryKey: qk.history(productId) }),

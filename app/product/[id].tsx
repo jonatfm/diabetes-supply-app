@@ -249,8 +249,13 @@ export default function ProductPage() {
             </Button>
           )}
         </View>
-
-        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Packs</Text>
+        
+        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
+          <Text variant="titleLarge">Packs</Text>
+          {productQ.data && productQ.data.id && packsQ.data && packsQ.data.length > 0 && (
+            <Button icon="pencil" onPress={() => router.push(`/product/edit/${productQ.data!.id}`)}>Edit</Button>
+          )}
+        </View>
         {packsQ.data && (
           packsQ.data.length > 0 ? (
             <Card style={{ marginBottom: 12 }}>
@@ -317,7 +322,11 @@ export default function ProductPage() {
               {productHistoryQ.data.map((event) => (
                 <DataTable.Row key={event.id}>
                   <DataTable.Cell>{event.type}</DataTable.Cell>
-                  <DataTable.Cell><Text variant="labelLarge" style={{color: event.deltaUnits > 0 ? 'green' : 'red'}}>{event.deltaUnits > 0 ? '+' : ''}{event.deltaUnits}</Text></DataTable.Cell>
+                  {event.deltaUnits ? (
+                    <DataTable.Cell><Text variant="labelLarge" style={{color: event.deltaUnits > 0 ? 'green' : 'red'}}>{event.deltaUnits > 0 ? '+' : ''}{event.deltaUnits}</Text></DataTable.Cell>
+                  ) : (
+                    <DataTable.Cell>-</DataTable.Cell>
+                  )}
                   <DataTable.Cell>{formatRelativeTime(event.occuredAt, now)}</DataTable.Cell>
                   <DataTable.Cell>{event.note || '-'}</DataTable.Cell>
                 </DataTable.Row>

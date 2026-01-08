@@ -3,6 +3,14 @@ import { and, eq, lt, ne, sql } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 
+export type ChangesFormat = {
+  [packId: string]: {
+    unitsRemaining: number | null;
+    expiry: string | null;
+  };
+}
+
+
 export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$client: SQLiteDatabase;})) {
   return {
     async listActiveNonEmptyByProduct(productId: string): Promise<Pack[]> {
@@ -42,6 +50,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       ais?: Record<string, string> | null;
       note?: string;
       timestamp?: number;
+      dateSetManually?: boolean;
     }) {
       const now = params.timestamp ?? Date.now();
       const [pack] = await db.insert(packs).values({
@@ -51,6 +60,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         createdAt: now,
         unitsRemaining: params.units,
         ais: params.ais ?? null,
+        dateSetManually: params.dateSetManually ? 1 : 0,
       }).returning({ id: packs.id });
 
       await db.insert(stock_events).values({
@@ -97,5 +107,31 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         note: "Via app",
       });
     },
+
+    async manualDataUpdate(changes: ChangesFormat) {
+      // Manually apply changes to packs
+      for (const packId in changes) {
+        const change = changes[packId];
+        
+        // Get the pack's productId before updating
+        const [pack] = await db.select({ productId: packs.productId }).from(packs).where(eq(packs.id, packId));
+        if (!pack) throw new Error("Pack not found");
+
+        await db.update(packs).set({
+          unitsRemaining: change.unitsRemaining !== null ? change.unitsRemaining : undefined,
+          expiry: change.expiry !== null ? change.expiry : undefined,
+        }).where(eq(packs.id, packId));
+
+        // Insert a stock event to track the adjustment
+        await db.insert(stock_events).values({
+          productId: pack.productId,
+          packId: packId,
+          type: "ADJUST",
+          occuredAt: Date.now(),
+          createdAt: Date.now(),
+          note: "Manual adjustment via app",
+        });
+      }
+    }
   };
 }

@@ -116,10 +116,16 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
           <View style={{flex: 1, margin: 12}}>
             <Text variant="titleLarge">{product.name}</Text>
             <Text variant="bodyLarge">{totalUnitsQ.data ?? 'Loading…'} units left</Text>
-            {product.canHaveExpiry ? (
-              <Text>Earliest expiry: {earliestExpiry ? formatDateString(earliestExpiry) : 'Loading…'}</Text>
+            {packsQ.data && packsQ.data.length > 0 ? (
+              <>
+                {product.canHaveExpiry ? (
+                  <Text variant="bodyLarge">Earliest expiry: {earliestExpiry ? formatDateString(earliestExpiry) : 'Loading…'}</Text>
+                ) : (
+                  <Text variant="bodyLarge">(No expiry)</Text>
+                )}
+              </>
             ) : (
-              <Text>(No expiry)</Text>
+              <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>No packs available!</Text>
             )}
           </View>
         </View>

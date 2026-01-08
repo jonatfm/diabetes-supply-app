@@ -32,6 +32,7 @@ export const packs = sqliteTable("packs", {
   unitsRemaining: integer("unitsRemaining").notNull(),
   ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
   active: integer("active").default(1),
+  dateSetManually: integer("dateSetManually").default(0).notNull(),
 }, (table) => [
   foreignKey({
     columns: [table.productId],
@@ -45,7 +46,7 @@ export const stock_events = sqliteTable("stock_events", {
   packId: text("packId"),
   
   type: text("type").$type<"ADD" | "TAKE" | "DISCARD" | "ADJUST" | "UNDO">().notNull(),
-  deltaUnits: integer("deltaUnits").notNull(),
+  deltaUnits: integer("deltaUnits"),
 
   occuredAt: integer("occurredAt").notNull(),
   createdAt: integer("createdAt").notNull(),

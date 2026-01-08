@@ -82,6 +82,7 @@ export default function AddPack() {
       units: parseInt(unitsInPack || '1', 10),
       ais: convenience.ais || null,
       note: "Via app",
+      dateSetManually: !!manualExpiryDate,
     });
 
     alert('New pack added successfully');
