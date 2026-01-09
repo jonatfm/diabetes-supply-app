@@ -1,7 +1,9 @@
 import AppWrapper from "@/components/AppWrapper";
 import { useDatabase } from "@/db";
 import { Pack } from "@/db/schema";
+import { GS1_AI_SPECS } from "@/scripts/gs1";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
+import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
@@ -9,9 +11,10 @@ import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, ScrollView, View } from "react-native";
+import { Image, Pressable, ScrollView, View } from "react-native";
 import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 
 function formatRelativeTime(date: Date | number, nowMs: number): string {
@@ -52,6 +55,8 @@ export default function ProductPage() {
   const [now, setNow] = useState<number>(Date.now());
   const [isSnackbarVisible, setIsSnackbarVisible] = useState<boolean>(false);
   const [isDiscardDialogVisible, setIsDiscardDialogVisible] = useState<boolean>(false);
+  const [lastConsumedPackId, setLastConsumedPackId] = useState<string | null>(null);
+  const [lastConsumedAt, setLastConsumedAt] = useState<Date | null>(null);
   const packsQ = usePacks(id);
   const productQ = useProduct(id);
   const productIdentifiersQ = useProductIdentifiers(id);
@@ -60,10 +65,18 @@ export default function ProductPage() {
   const productHistoryQ = useGetStockHistoryByProduct(id);
   const discardExpiredM = useHandleDiscardExpired(id);
   const undoLastTakeActionM = useUndoLastTakeActionFromProduct(id);
+  const lastConsumedPackQ = useFetchPack(lastConsumedPackId ?? '');
   
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const theme = useTheme();
   const router = useRouter();
+
+  const historyEventColors: Record<string, string> = {
+    "ADD": "green",
+    "ADJUST": theme.colors.primary,
+    "TAKE": "red",
+    "UNDO": "orange"
+  };
 
   // Calculate pagination values dynamically
   const from = currentPacksPage * itemsPerPage;
@@ -77,6 +90,16 @@ export default function ProductPage() {
   useEffect(() => {
     setCurrentPacksPage(0);
   }, [itemsPerPage]);
+
+  useEffect(() => {
+    if (productHistoryQ.data && productHistoryQ.data.length > 0) {
+      const lastTakeEvent = productHistoryQ.data.find(event => event.type === "TAKE");
+      if (lastTakeEvent?.packId) {
+        setLastConsumedPackId(lastTakeEvent.packId);
+        setLastConsumedAt(new Date(lastTakeEvent.occuredAt));
+      }
+    }
+  }, [productHistoryQ.data]);
 
   const handlePressConsume = () => {
     if (!packsQ.data) return;
@@ -206,6 +229,11 @@ export default function ProductPage() {
                   <Text variant="labelLarge" style={{ color: theme.colors.error }}>Has expired packs</Text>
                 </Chip>
               )}
+              {packsQ.data && packsQ.data.length === 0 && (
+                <Chip icon={({size}) => <Icon source="alert" size={size} color={theme.colors.error} />} mode="flat" style={{ backgroundColor: theme.colors.errorContainer }}>
+                  <Text variant="labelLarge" style={{ color: theme.colors.error }}>No packs available</Text>
+                </Chip>
+              )}
               <Chip icon="package" mode="flat">
                 {totalUnitsQ.data} units in stock
               </Chip>
@@ -230,6 +258,7 @@ export default function ProductPage() {
           </Card.Content>
         </Card>
         
+        {packsQ.data && packsQ.data.length > 0 && (
         <View style={{marginBottom: 24, gap: 8}}>
           <Button 
             mode="contained" 
@@ -249,7 +278,49 @@ export default function ProductPage() {
             </Button>
           )}
         </View>
-        
+        )}
+
+
+        {/* Show a card with the current item active. It should only show when the products code is of gs1 type. The item shown here should be the one of the last TAKE event */}
+        {isGS1 && lastConsumedPackQ.data && lastConsumedPackQ.data.ais && productIdentifiersQ.data?.some(pack => pack.type === "GTIN") && (() => {
+          const pack = lastConsumedPackQ.data;
+          return (
+            <View>
+              <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
+                <Text variant="titleLarge">Last consumed item</Text>
+                <Button icon="eye" onPress={() => router.push(`/product/lastConsumedItem/${productQ.data!.id}`)}>See more</Button>
+
+              </View>
+              <Card style={{ marginBottom: 24 }}>
+                <Card.Content style={{ gap: 12 }}>
+                  {lastConsumedAt && (
+                    <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
+                      Consumed {lastConsumedAt.toLocaleString()}
+                    </Text>
+                  )}
+                  {Object.entries(pack.ais!).map(([ai, value]) => {
+                    const spec = GS1_AI_SPECS[ai];
+                    const name = spec?.name || `AI ${ai}`;
+                    return (
+                      <View key={ai} style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.surfaceVariant, paddingBottom: 8 }}>
+                        <Text variant="labelSmall" style={{ color: theme.colors.secondary, marginBottom: 4 }}>
+                          {name} ({ai})
+                        </Text>
+                        <Pressable onPress={() => {Clipboard.setString(value)}} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text variant="bodyMedium" style={{ fontWeight: '500' }}>
+                            {value}
+                          </Text>
+                          <Icon source="content-copy" size={12} color={theme.colors.primary} />
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </Card.Content>
+              </Card>
+            </View>
+          );
+        })()}
+
         <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
           <Text variant="titleLarge">Packs</Text>
           {productQ.data && productQ.data.id && packsQ.data && packsQ.data.length > 0 && (
@@ -309,30 +380,35 @@ export default function ProductPage() {
           )
         )}
 
-        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Product History</Text>
         {productHistoryQ.data && productHistoryQ.data.length > 0 ? (
-          <Card style={{ marginBottom: 12 }}>
-            <DataTable>
-              <DataTable.Header>
-                <DataTable.Title>Type</DataTable.Title>
-                <DataTable.Title>Units</DataTable.Title>
-                <DataTable.Title>Time</DataTable.Title>
-                <DataTable.Title>Note</DataTable.Title>
-              </DataTable.Header>
-              {productHistoryQ.data.map((event) => (
-                <DataTable.Row key={event.id}>
-                  <DataTable.Cell>{event.type}</DataTable.Cell>
-                  {event.deltaUnits ? (
-                    <DataTable.Cell><Text variant="labelLarge" style={{color: event.deltaUnits > 0 ? 'green' : 'red'}}>{event.deltaUnits > 0 ? '+' : ''}{event.deltaUnits}</Text></DataTable.Cell>
-                  ) : (
-                    <DataTable.Cell>-</DataTable.Cell>
-                  )}
-                  <DataTable.Cell>{formatRelativeTime(event.occuredAt, now)}</DataTable.Cell>
-                  <DataTable.Cell>{event.note || '-'}</DataTable.Cell>
-                </DataTable.Row>
-              ))}
-            </DataTable>
-          </Card>
+          <>
+            <Text variant="titleLarge">Product History</Text>
+
+            <Card style={{ marginBottom: 12 }}>
+              <DataTable>
+                <DataTable.Header>
+                  <DataTable.Title>Type</DataTable.Title>
+                  <DataTable.Title>Units</DataTable.Title>
+                  <DataTable.Title>Time</DataTable.Title>
+                  <DataTable.Title>Note</DataTable.Title>
+                </DataTable.Header>
+                {productHistoryQ.data.map((event) => (
+                  <DataTable.Row key={event.id}>
+                    <DataTable.Cell>
+                      <Text variant="labelLarge" style={{ color: historyEventColors[event.type] || theme.colors.onSurface }}>{event.type}</Text>
+                    </DataTable.Cell>
+                    {event.deltaUnits ? (
+                      <DataTable.Cell><Text variant="labelLarge" style={{color: event.deltaUnits > 0 ? 'green' : 'red'}}>{event.deltaUnits > 0 ? '+' : ''}{event.deltaUnits}</Text></DataTable.Cell>
+                    ) : (
+                      <DataTable.Cell>-</DataTable.Cell>
+                    )}
+                    <DataTable.Cell>{formatRelativeTime(event.occuredAt, now)}</DataTable.Cell>
+                    <DataTable.Cell>{event.note || '-'}</DataTable.Cell>
+                  </DataTable.Row>
+                ))}
+              </DataTable>
+            </Card>
+          </>
         ) : (
           <Card style={{ marginBottom: 12 }}>
             <Card.Content style={{ alignItems: 'center', paddingVertical: 32 }}>

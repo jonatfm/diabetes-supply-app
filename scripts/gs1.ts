@@ -16,7 +16,7 @@ export type GS1Data = {
 };
 
 // GS1 Application Identifier definitions
-const GS1_AI_SPECS: Record<string, { name: string; description: string; length?: number }> = {
+export const GS1_AI_SPECS: Record<string, { name: string; description: string; length?: number }> = {
   '00': { name: 'SSCC', description: 'Serial Shipping Container Code', length: 18 },
   '01': { name: 'GTIN', description: 'Global Trade Item Number', length: 14 },
   '02': { name: 'CONTENT', description: 'Identification of trade items contained in a logistic unit', length: 14 },

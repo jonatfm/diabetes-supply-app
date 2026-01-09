@@ -1,4 +1,5 @@
 import { Product } from "@/db/schema";
+import { useAverageTimeBetweenTakes } from "@/src/data/hooks/useAverageTimeBetweenTakes";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useMemo } from "react";
@@ -32,6 +33,7 @@ const formatDateString = (dateStr: string | undefined): string | undefined => {
 export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
   const packsQ = usePacks(product.id);
+  const averageTimeBetweenTakesQ = useAverageTimeBetweenTakes(product.id);
   const theme = useTheme();
 
   // Get earliest expiry from packs (already sorted by expiry)
@@ -126,6 +128,11 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
               </>
             ) : (
               <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>No packs available!</Text>
+            )}
+            {averageTimeBetweenTakesQ.data && totalUnitsQ.data && totalUnitsQ.data > 0 &&(
+              <Text variant="bodyLarge">
+                 {averageTimeBetweenTakesQ.data.estimatedDaysUntilOOS?.toFixed(2)} days until out of stock.
+              </Text>
             )}
           </View>
         </View>

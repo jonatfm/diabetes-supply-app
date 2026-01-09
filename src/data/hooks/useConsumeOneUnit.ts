@@ -11,11 +11,12 @@ export function useConsumeOneUnit(productId: string) {
 
   return useMutation({
     mutationFn: ({ packId }: { packId: string }) => repo!.consumeOneUnit(productId, packId),
-    onSuccess: async () => {
+    onSuccess: async (_, { packId }) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.packs(productId) }),
         qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
         qc.invalidateQueries({ queryKey: qk.history(productId) }),
+        qc.invalidateQueries({ queryKey: qk.pack(packId) }),
       ]);
     },
   });

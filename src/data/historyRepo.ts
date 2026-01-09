@@ -1,5 +1,5 @@
 import { packs, stock_events } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 
@@ -57,6 +57,27 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       return await db.update(packs)
         .set({unitsRemaining: pack[0].unitsRemaining + 1})
         .where(eq(packs.id, eventToUndo.packId));
+    },
+
+    async getTakeEventsByProduct(productId: string, periodInDays?: number) {
+      let conditions = [
+        eq(stock_events.productId, productId),
+        eq(stock_events.type, "TAKE")
+      ];
+
+      if (periodInDays) {
+        const cutoffTime = Date.now() - (periodInDays * 24 * 60 * 60 * 1000);
+        conditions.push(gte(stock_events.occuredAt, cutoffTime));
+      }
+
+      return await db
+        .select({
+          id: stock_events.id,
+          occuredAt: stock_events.occuredAt,
+        })
+        .from(stock_events)
+        .where(and(...conditions))
+        .orderBy(desc(stock_events.occuredAt));
     }
   }
 }

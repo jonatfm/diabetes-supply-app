@@ -113,25 +113,54 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       for (const packId in changes) {
         const change = changes[packId];
         
-        // Get the pack's productId before updating
-        const [pack] = await db.select({ productId: packs.productId }).from(packs).where(eq(packs.id, packId));
+        // Get the pack's productId, current unitsRemaining, expiry and active before updating
+        const [pack] = await db.select({ productId: packs.productId, unitsRemaining: packs.unitsRemaining, expiry: packs.expiry, active: packs.active }).from(packs).where(eq(packs.id, packId));
         if (!pack) throw new Error("Pack not found");
 
+        // Calculate deltaUnits only when unitsRemaining is provided in the change
+        const oldUnits = typeof pack.unitsRemaining === "number" ? pack.unitsRemaining : 0;
+        const unitsProvided = change.unitsRemaining !== null;
+        const newUnits = unitsProvided ? change.unitsRemaining as number : oldUnits;
+        const deltaUnits = unitsProvided ? (newUnits - oldUnits) : 0;
+
+        // Build a meta object describing before/after for traceability
+        const metaObj = {
+          change,
+          before: {
+            unitsRemaining: oldUnits,
+            expiry: pack.expiry ?? null,
+            active: typeof pack.active === 'number' ? pack.active : 1,
+          },
+          after: {
+            unitsRemaining: unitsProvided ? newUnits : oldUnits,
+            expiry: change.expiry !== null ? change.expiry : (pack.expiry ?? null),
+            active: unitsProvided && newUnits === 0 ? 0 : (typeof pack.active === 'number' ? pack.active : 1),
+          },
+        } as Record<string, any>;
+
         await db.update(packs).set({
-          unitsRemaining: change.unitsRemaining !== null ? change.unitsRemaining : undefined,
+          unitsRemaining: unitsProvided ? newUnits : undefined,
           expiry: change.expiry !== null ? change.expiry : undefined,
+          active: unitsProvided && newUnits === 0 ? 0 : undefined,
         }).where(eq(packs.id, packId));
 
-        // Insert a stock event to track the adjustment
+        // Insert a stock event to track the adjustment (include deltaUnits)
         await db.insert(stock_events).values({
           productId: pack.productId,
           packId: packId,
           type: "ADJUST",
+          deltaUnits: deltaUnits,
+          meta: metaObj,
           occuredAt: Date.now(),
           createdAt: Date.now(),
           note: "Manual adjustment via app",
         });
       }
+    },
+
+    async fetchPackById(packId: string): Promise<Pack | null> {
+      const packsFound = await db.select().from(packs).where(eq(packs.id, packId));
+      return packsFound.length > 0 ? packsFound[0] : null;
     }
   };
 }
