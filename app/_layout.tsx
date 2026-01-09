@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from 'expo-router';
 import { Platform, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, Text } from 'react-native-paper';
 
 // Only initialize database on native platforms (iOS/Android)
@@ -40,12 +41,14 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={paperTheme}>
-        <ScanFlowProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </ScanFlowProvider>
-      </PaperProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <PaperProvider theme={paperTheme}>
+          <ScanFlowProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </ScanFlowProvider>
+        </PaperProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

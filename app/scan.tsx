@@ -9,7 +9,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Button, Card, Text } from 'react-native-paper';
+import { runOnJS } from 'react-native-reanimated';
 
 
 export default function Scan() {
@@ -23,6 +25,17 @@ export default function Scan() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [zoom, setZoom] = useState(0);
+
+  const updateZoom = (newZoom: number) => {
+    setZoom(newZoom);
+  };
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      const newZoom = Math.max(0, Math.min(zoom + (e.scale - 1) * 0.05, 1));
+      runOnJS(updateZoom)(newZoom);
+    });
 
   if (!permission?.granted) {
     return (
@@ -147,11 +160,14 @@ export default function Scan() {
       <Text variant="headlineLarge">Scan Product</Text>
       <Card style={{ flex: 1, marginVertical: 16, overflow: 'hidden', flexGrow: 1 }}>
         <View style={{flexGrow: 1, width: '100%', height: "100%"}}>
-          <CameraView
-            ref={cameraRef}
-            style={{flex: 1, flexGrow: 1, width: '100%'}}
-            enableTorch={flashEnabled}
-          />
+          <GestureDetector gesture={pinchGesture}>
+            <CameraView
+              ref={cameraRef}
+              style={{flex: 1, flexGrow: 1, width: '100%'}}
+              enableTorch={flashEnabled}
+              zoom={zoom}
+            />
+          </GestureDetector>
         </View>
       </Card>
       <View style={{ gap: 16 }}>
