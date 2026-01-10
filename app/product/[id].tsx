@@ -326,9 +326,8 @@ export default function ProductPage() {
 
         {/* Show a card with the current item active. It should only show when the products code is of gs1 type. The item shown here should be the one of the last TAKE event */}
         {isGS1 && lastConsumedPackQ.data && lastConsumedPackQ.data.ais && productIdentifiersQ.data?.some(pack => pack.type === "GTIN") && (() => {
-          const pack = lastConsumedPackQ.data;
           return (
-            <View>
+            <View style={{ marginBottom: 12 }}>
               <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
                 <Text variant="titleLarge">Last consumed item</Text>
                 <Button icon="eye" onPress={() => router.push(`/product/lastConsumedItem/${productQ.data!.id}`)}>See more</Button>
