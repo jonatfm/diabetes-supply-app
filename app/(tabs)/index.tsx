@@ -32,9 +32,9 @@ export default function Index() {
 
   if (!productsQ.data) {
     return (
-      <AppWrapper>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Loading products...</Text>
-      </AppWrapper>
+      </View>
     )
   }
   

@@ -4,7 +4,7 @@ import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Stack } from 'expo-router';
+import { Slot } from 'expo-router';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, Text } from 'react-native-paper';
@@ -45,7 +45,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <PaperProvider theme={paperTheme}>
           <ScanFlowProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <Slot />
           </ScanFlowProvider>
         </PaperProvider>
       </QueryClientProvider>
