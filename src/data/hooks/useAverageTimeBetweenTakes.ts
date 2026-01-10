@@ -23,7 +23,7 @@ export function useAverageTimeBetweenTakes(productId: string, periodInDays?: num
       // Calculate time differences between consecutive events
       const timeDifferences: number[] = [];
       for (let i = 0; i < takeEvents.length - 1; i++) {
-        const diff = takeEvents[i].occuredAt - takeEvents[i + 1].occuredAt;
+        const diff = takeEvents[i].occurredAt - takeEvents[i + 1].occurredAt;
         timeDifferences.push(diff);
       }
 

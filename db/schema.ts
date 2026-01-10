@@ -1,6 +1,16 @@
 import { foreignKey, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import uuid from "react-native-uuid";
 
+export const SESSION_OUTCOMES = [
+  "completed",
+  "failed",
+  "removed_early",
+  "lost",
+  "unknown",
+] as const;
+
+export type SessionOutcome = typeof SESSION_OUTCOMES[number];
+
 export const products = sqliteTable("products", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   name: text("name").notNull(),
@@ -8,6 +18,8 @@ export const products = sqliteTable("products", {
   unitsPerPackDefault: integer("unitsPerPackDefault").notNull(),
   active: integer("active").default(1).notNull(),
   canHaveExpiry: integer("canHaveExpiry").default(1).notNull(),
+  isSessionBased: integer("isSessionBased").default(0).notNull(),
+  nominalSessionTimeDays: integer("nominalSessionTimeDays"),
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {
@@ -48,10 +60,11 @@ export const stock_events = sqliteTable("stock_events", {
   type: text("type").$type<"ADD" | "TAKE" | "DISCARD" | "ADJUST" | "UNDO">().notNull(),
   deltaUnits: integer("deltaUnits"),
 
-  occuredAt: integer("occurredAt").notNull(),
+  occurredAt: integer("occurredAt").notNull(),
   createdAt: integer("createdAt").notNull(),
 
   relatedEventId: text("relatedEventId"), // points to original on UNDO
+  relatedSessionId: text("relatedSessionId"), // points to session on TAKE
 
   note: text("note"),
   meta: text("meta", { mode: "json" }).$type<Record<string, any> | null>(),
@@ -66,7 +79,24 @@ export const stock_events = sqliteTable("stock_events", {
   }),
 ]);
 
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  productId: text("productId").notNull(),
+  packId: text("packId"),             // the pack/unit used
+  startedAt: integer("startedAt").notNull(),
+  endedAt: integer("endedAt"),
+  outcome: text("outcome").$type<SessionOutcome>(),
+  reason: text("reason"),
+  note: text("note"),
+  meta: text("meta", { mode: "json" }).$type<Record<string, any> | null>(),
+}, (t) => [
+  foreignKey({ columns: [t.productId], foreignColumns: [products.id] }),
+  foreignKey({ columns: [t.packId], foreignColumns: [packs.id] }),
+]);
+
+
 export type Product = typeof products.$inferSelect;
 export type ProductIdentifier = typeof product_identifiers.$inferSelect;
 export type Pack = typeof packs.$inferSelect;
 export type StockEvent = typeof stock_events.$inferSelect;
+export type Session = typeof sessions.$inferSelect;

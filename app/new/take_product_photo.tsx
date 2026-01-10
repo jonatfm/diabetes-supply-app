@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TakeProductPhoto() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string }>();
+  const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -45,6 +45,8 @@ export default function TakeProductPhoto() {
             photoUri: file.uri,
             name: params.name ?? '',
             unitsPerPack: params.unitsPerPack ?? '',
+            isSessionBased: params.isSessionBased ?? '',
+            nominalSessionTimeDays: params.nominalSessionTimeDays ?? '',
           }
         });
       }

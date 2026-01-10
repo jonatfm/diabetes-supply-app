@@ -129,9 +129,9 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
             ) : (
               <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>No packs available!</Text>
             )}
-            {averageTimeBetweenTakesQ.data && totalUnitsQ.data && totalUnitsQ.data > 0 &&(
+            {averageTimeBetweenTakesQ.data && (totalUnitsQ.data ?? 0) > 0 && (
               <Text variant="bodyLarge">
-                 {averageTimeBetweenTakesQ.data.estimatedDaysUntilOOS?.toFixed(2)} days until out of stock.
+                {averageTimeBetweenTakesQ.data.estimatedDaysUntilOOS?.toFixed(2)} days until out of stock.
               </Text>
             )}
           </View>

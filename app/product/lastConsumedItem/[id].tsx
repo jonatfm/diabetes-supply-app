@@ -28,7 +28,7 @@ export default function LastConsumedItemPage() {
 
   const currentEvent = takeEvents[currentIndex];
   const packQ = useFetchPack(currentEvent?.packId ?? "");
-  const consumedAt = currentEvent ? new Date(currentEvent.occuredAt) : null;
+  const consumedAt = currentEvent ? new Date(currentEvent.occurredAt) : null;
 
   const handlePrev = () => setCurrentIndex((idx) => Math.min(takeEvents.length - 1, idx + 1)); // Go to older event
   const handleNext = () => setCurrentIndex((idx) => Math.max(0, idx - 1)); // Go to newer event

@@ -20,6 +20,8 @@ export function useCreateProductWithIdentifier() {
       imageUri?: string;
       identifier: string;
       identifierType: ProductIdentifier["type"];
+      isSessionBased: boolean;
+      nominalSessionTimeDays?: number;
     }) => {
       if (!repo || !identifiers) throw new Error("Database not ready");
 
@@ -38,6 +40,8 @@ export function useCreateProductWithIdentifier() {
         unitsPerPackDefault: params.unitsPerPack,
         imageUri: params.imageUri,
         canHaveExpiry: params.canHaveExpiry,
+        isSessionBased: params.isSessionBased,
+        nominalSessionTimeDays: params.nominalSessionTimeDays,
       });
 
       await identifiers.createIdentifier({
@@ -49,8 +53,12 @@ export function useCreateProductWithIdentifier() {
 
       return product.id;
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: qk.products() });
+    onSuccess: async (productId) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.products() }),
+        qc.invalidateQueries({ queryKey: qk.product(productId) }),
+        qc.invalidateQueries({ queryKey: qk.identifiers(productId) }),
+      ]);
     },
   });
 }

@@ -9,4 +9,6 @@ export const qk = {
   totalUnits: (id: string) => ["totalUnits", id] as const,
   history: (id: string) => ["stockHistory", id] as const,
   averageTimeBetweenTakes: (id: string, period?: number) => ["averageTimeBetweenTakes", id, period] as const,
+  sessions: () => ["sessions"] as const,
+  session: (id: string) => ["session", id] as const,
 };

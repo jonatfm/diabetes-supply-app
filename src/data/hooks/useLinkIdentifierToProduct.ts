@@ -14,7 +14,10 @@ export function useLinkIdentifierToProduct() {
     mutationFn: (params: { productId: string; value: string; type: ProductIdentifier["type"]; createdAt?: number }) =>
       repo!.createIdentifier(params),
     onSuccess: async (_, variables) => {
-      await qc.invalidateQueries({ queryKey: qk.identifiers(variables.productId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.identifiers(variables.productId) }),
+        qc.invalidateQueries({ queryKey: qk.product(variables.productId) }),
+      ]);
     },
   });
 }

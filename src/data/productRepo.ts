@@ -21,12 +21,14 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       return await db.select().from(products).where(eq(products.name, name));
     },
 
-    async createProduct(params: {name: string; unitsPerPackDefault: number; imageUri?: string; canHaveExpiry: boolean;}) {
+    async createProduct(params: {name: string; unitsPerPackDefault: number; imageUri?: string; canHaveExpiry: boolean; isSessionBased: boolean; nominalSessionTimeDays?: number}) {
       return await db.insert(products).values({
         name: params.name,
         unitsPerPackDefault: params.unitsPerPackDefault,
         imageUri: params.imageUri,
         canHaveExpiry: params.canHaveExpiry ? 1 : 0,
+        isSessionBased: params.isSessionBased ? 1 : 0,
+        nominalSessionTimeDays: params.nominalSessionTimeDays ?? null,
       }).returning({id: products.id});
     }
   }

@@ -1,9 +1,11 @@
 import AppWrapper from "@/components/AppWrapper";
 import { useDatabase } from "@/db";
-import { Pack } from "@/db/schema";
+import { Pack, SESSION_OUTCOMES } from "@/db/schema";
 import { GS1_AI_SPECS } from "@/scripts/gs1";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
+import { useEndSession } from "@/src/data/hooks/useEndSession";
 import { useFetchPack } from "@/src/data/hooks/useFetchPack";
+import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
@@ -15,7 +17,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
-import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, Snackbar, Text, useTheme } from "react-native-paper";
+import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, Snackbar, Text, useTheme } from "react-native-paper";
 
 function formatRelativeTime(date: Date | number, nowMs: number): string {
   const timestamp = typeof date === 'number' ? date : date.getTime();
@@ -66,7 +68,12 @@ export default function ProductPage() {
   const discardExpiredM = useHandleDiscardExpired(id);
   const undoLastTakeActionM = useUndoLastTakeActionFromProduct(id);
   const lastConsumedPackQ = useFetchPack(lastConsumedPackId ?? '');
-  
+  const getActiveSessionQ = useGetActiveSession(id);
+  const endSessionM = useEndSession();
+
+  const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
+  const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
+
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const theme = useTheme();
   const router = useRouter();
@@ -96,8 +103,14 @@ export default function ProductPage() {
       const lastTakeEvent = productHistoryQ.data.find(event => event.type === "TAKE");
       if (lastTakeEvent?.packId) {
         setLastConsumedPackId(lastTakeEvent.packId);
-        setLastConsumedAt(new Date(lastTakeEvent.occuredAt));
+        setLastConsumedAt(new Date(lastTakeEvent.occurredAt));
+      } else {
+        setLastConsumedPackId(null);
+        setLastConsumedAt(null);
       }
+    } else {
+      setLastConsumedPackId(null);
+      setLastConsumedAt(null);
     }
   }, [productHistoryQ.data]);
 
@@ -160,6 +173,18 @@ export default function ProductPage() {
   const handleUndoLastAction = async () => {
     if (!db || !id || !consumtionDialogInfo) return;
     await undoLastTakeActionM.mutateAsync({productId: id});
+  }
+
+  const handleStopSession = async () => {
+    if (!getActiveSessionQ.data) return;
+
+    await endSessionM.mutateAsync({
+      sessionId: getActiveSessionQ.data.id,
+      endedAt: new Date(),
+      outcome: selectedSessionOutcome,
+    });
+
+    setIsEndSessionDialogVisible(false);
   }
 
   if (!dbReady || productQ.isPending || packsQ.isPending) {
@@ -234,12 +259,22 @@ export default function ProductPage() {
                   <Text variant="labelLarge" style={{ color: theme.colors.error }}>No packs available</Text>
                 </Chip>
               )}
+              {productQ.data.isSessionBased && (
+                <Chip icon="timer-sand" mode="flat">
+                  <Text variant="labelLarge">Session-based</Text>
+                </Chip>
+              )}
+              {getActiveSessionQ.data && (
+                <Chip icon={({size}) => <Icon source="hand-okay" size={size} color="#fff" />} mode="flat" style={{ backgroundColor: "#4caf50" }}>
+                  <Text variant="labelLarge" style={{ color: "#fff" }}>Session active</Text>
+                </Chip>
+              )}
               <Chip icon="package" mode="flat">
-                {totalUnitsQ.data} units in stock
+                <Text variant="labelLarge">{totalUnitsQ.data} units in stock</Text>
               </Chip>
               {productQ.data.canHaveExpiry ? (
                 <Chip icon="calendar-clock" mode="flat">
-                  Expires
+                  <Text variant="labelLarge">Expires</Text>
                 </Chip>
               ) : null}
             </View>
@@ -258,15 +293,28 @@ export default function ProductPage() {
           </Card.Content>
         </Card>
         
-        {packsQ.data && packsQ.data.length > 0 && (
+        {(packsQ.data && packsQ.data.length > 0) || (productQ.data.isSessionBased && getActiveSessionQ.data) && (
         <View style={{marginBottom: 24, gap: 8}}>
-          <Button 
-            mode="contained" 
-            icon="needle" 
-            onPress={handlePressConsume}
-          >
-            Consume item
-          </Button>
+          {!productQ.data.isSessionBased || !(productQ.data.isSessionBased && getActiveSessionQ.data) && (
+            <Button 
+              mode="contained" 
+              icon="needle" 
+              onPress={handlePressConsume}
+            >
+              Consume item
+            </Button>
+          )}
+          {productQ.data.isSessionBased && getActiveSessionQ.data && (
+            <Button
+              mode="contained"
+              icon="stop"
+              onPress={() => setIsEndSessionDialogVisible(true)}
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+            >
+              Stop active session
+            </Button>
+          )}
 
           {productQ.data.canHaveExpiry && packsQ.data?.some(pack => pack.expiry && new Date(pack.expiry) < new Date()) && (
             <Button
@@ -289,7 +337,6 @@ export default function ProductPage() {
               <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
                 <Text variant="titleLarge">Last consumed item</Text>
                 <Button icon="eye" onPress={() => router.push(`/product/lastConsumedItem/${productQ.data!.id}`)}>See more</Button>
-
               </View>
               <Card style={{ marginBottom: 24 }}>
                 <Card.Content style={{ gap: 12 }}>
@@ -402,7 +449,7 @@ export default function ProductPage() {
                     ) : (
                       <DataTable.Cell>-</DataTable.Cell>
                     )}
-                    <DataTable.Cell>{formatRelativeTime(event.occuredAt, now)}</DataTable.Cell>
+                    <DataTable.Cell>{formatRelativeTime(event.occurredAt, now)}</DataTable.Cell>
                     <DataTable.Cell>{event.note || '-'}</DataTable.Cell>
                   </DataTable.Row>
                 ))}
@@ -453,6 +500,29 @@ export default function ProductPage() {
           <Dialog.Actions>
             <Button onPress={() => setIsDiscardDialogVisible(false)}>Cancel</Button>
             <Button onPress={handleDiscardExpired}>Discard</Button>  
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={isEndSessionDialogVisible} onDismiss={() => setIsEndSessionDialogVisible(false)}>
+          <Dialog.Title>End Session</Dialog.Title>
+          <Dialog.Content>
+            <Text>Are you sure you want to end the current session? This will allow you to start a new one.</Text>
+            <Text>Please select an outcome for the session:</Text>
+            <RadioButton.Group onValueChange={newValue => setSelectedSessionOutcome(newValue as typeof SESSION_OUTCOMES[number])} value={selectedSessionOutcome}>
+              {SESSION_OUTCOMES.map((outcome) => (
+                <RadioButton.Item
+                  key={outcome}
+                  value={outcome}
+                  label={(outcome.charAt(0).toUpperCase() + outcome.slice(1)).replace("_", " ")}
+                  color={theme.colors.primary}
+                  labelVariant="bodyMedium"
+                />
+              ))}
+            </RadioButton.Group>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setIsEndSessionDialogVisible(false)}>Cancel</Button>
+            <Button onPress={handleStopSession} disabled={!selectedSessionOutcome}>End Session</Button>
           </Dialog.Actions>
         </Dialog>
 

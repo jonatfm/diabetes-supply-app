@@ -1,7 +1,8 @@
-import { Pack, packs, stock_events } from "@/db/schema";
+import { Pack, packs, products, stock_events } from "@/db/schema";
 import { and, eq, lt, ne, sql } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
+import { sessionsRepo } from "./sessionsRepo";
 
 export type ChangesFormat = {
   [packId: string]: {
@@ -68,7 +69,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         packId: pack.id,
         type: "ADD",
         deltaUnits: params.units,
-        occuredAt: now,
+        occurredAt: now,
         createdAt: now,
         note: params.note ?? "Via app",
       });
@@ -95,6 +96,16 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       if (!p) throw new Error("Pack not found");
       if (p.unitsRemaining <= 0) throw new Error("No units left");
 
+      // Check if product is session based
+      const product = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+      if (product.length === 0) throw new Error("Product not found");
+
+      let relatedSessionId: string | null = null;
+      if (product[0].isSessionBased) {
+        // Create a new session
+        relatedSessionId = await sessionsRepo(db).startSession(productId, packId, new Date());
+      }
+
       await db.update(packs).set({ unitsRemaining: p.unitsRemaining - 1 }).where(eq(packs.id, packId));
 
       await db.insert(stock_events).values({
@@ -102,9 +113,10 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         packId,
         type: "TAKE",
         deltaUnits: -1,
-        occuredAt: Date.now(),
+        occurredAt: Date.now(),
         createdAt: Date.now(),
         note: "Via app",
+        relatedSessionId,
       });
     },
 
@@ -151,7 +163,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
           type: "ADJUST",
           deltaUnits: deltaUnits,
           meta: metaObj,
-          occuredAt: Date.now(),
+          occurredAt: Date.now(),
           createdAt: Date.now(),
           note: "Manual adjustment via app",
         });

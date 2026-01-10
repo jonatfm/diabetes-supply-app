@@ -1,4 +1,4 @@
-import { packs, stock_events } from "@/db/schema";
+import { packs, sessions, stock_events } from "@/db/schema";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
@@ -12,9 +12,10 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         packId: stock_events.packId,
         type: stock_events.type,
         deltaUnits: stock_events.deltaUnits,
-        occuredAt: stock_events.occuredAt,
+        occurredAt: stock_events.occurredAt,
         createdAt: stock_events.createdAt,
         relatedEventId: stock_events.relatedEventId,
+        relatedSessionId: stock_events.relatedSessionId,
         note: stock_events.note,
         meta: stock_events.meta,
       })
@@ -22,7 +23,7 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       .where(
         eq(stock_events.productId, productId)
       )
-      .orderBy(desc(stock_events.occuredAt));
+      .orderBy(desc(stock_events.occurredAt));
     },
 
     async undoLastTakeActionFromProduct(productId: string) {
@@ -35,7 +36,7 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
             eq(stock_events.type, "TAKE")
           )
         )
-        .orderBy(desc(stock_events.occuredAt))
+        .orderBy(desc(stock_events.occurredAt))
         .limit(1);
 
       if (lastTakeEvent.length === 0) {
@@ -52,6 +53,24 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         .delete(stock_events)
         .where(eq(stock_events.id, eventToUndo.id));
       
+      // Check if there is an associated session and delete it. Reopen the last session by deleting the endedAt and outcome.
+      if (eventToUndo.relatedSessionId) {
+        await db.delete(sessions).where(eq(sessions.id, eventToUndo.relatedSessionId));
+        //const lastSession = await db
+        //  .select({ id: sessions.id })
+        //  .from(sessions)
+        //  .where(eq(sessions.productId, productId))
+        //  .orderBy(desc(sessions.startedAt))
+        //  .limit(1);
+        //
+        //if (lastSession.length > 0) {
+        //  await db
+        //    .update(sessions)
+        //    .set({ endedAt: null, outcome: null })
+        //    .where(eq(sessions.id, lastSession[0].id));
+        //}
+      }
+
       // Restore the unit to the pack
       const pack = await db.select().from(packs).where(eq(packs.id, eventToUndo.packId));
       return await db.update(packs)
@@ -67,17 +86,17 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
 
       if (periodInDays) {
         const cutoffTime = Date.now() - (periodInDays * 24 * 60 * 60 * 1000);
-        conditions.push(gte(stock_events.occuredAt, cutoffTime));
+        conditions.push(gte(stock_events.occurredAt, cutoffTime));
       }
 
       return await db
         .select({
           id: stock_events.id,
-          occuredAt: stock_events.occuredAt,
+          occurredAt: stock_events.occurredAt,
         })
         .from(stock_events)
         .where(and(...conditions))
-        .orderBy(desc(stock_events.occuredAt));
+        .orderBy(desc(stock_events.occurredAt));
     }
   }
 }

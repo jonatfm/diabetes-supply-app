@@ -22,6 +22,10 @@ import m0017 from './0017_marvelous_vision.sql';
 import m0018 from './0018_regular_moon_knight.sql';
 import m0019 from './0019_curious_archangel.sql';
 import m0020 from './0020_rare_sway.sql';
+import m0021 from './0021_wide_proemial_gods.sql';
+import m0022 from './0022_swift_electro.sql';
+import m0023 from './0023_mighty_the_fallen.sql';
+import m0024 from './0024_giant_psynapse.sql';
 
   export default {
     journal,
@@ -46,7 +50,11 @@ m0016,
 m0017,
 m0018,
 m0019,
-m0020
+m0020,
+m0021,
+m0022,
+m0023,
+m0024
     }
   }
   

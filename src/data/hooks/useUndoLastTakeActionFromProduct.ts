@@ -16,6 +16,10 @@ export function useUndoLastTakeActionFromProduct(productId: string) {
         qc.invalidateQueries({ queryKey: qk.history(productId) }),
         qc.invalidateQueries({ queryKey: qk.packs(productId) }),
         qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
+        qc.invalidateQueries({ queryKey: qk.session(productId) }),
+        qc.invalidateQueries({ queryKey: qk.sessions() }),
+        qc.invalidateQueries({ queryKey: qk.product(productId) }),
+        qc.invalidateQueries({ queryKey: qk.identifiers(productId) }),
       ]);
     },
   })
