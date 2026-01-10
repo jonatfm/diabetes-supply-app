@@ -1,9 +1,7 @@
 import AppWrapper from '@/components/AppWrapper';
 import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
-import { useFindDuplicatePackByAis } from '@/src/data/hooks/useFindDuplicatePackByAis';
 import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
-import { useGetProductByIdImmediate } from '@/src/data/hooks/useGetProductByIdImmediate';
 import { useScanFlow } from '@/state/scanFlow';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
@@ -19,8 +17,7 @@ export default function Scan() {
   const router = useRouter();
   const { setScanResult } = useScanFlow();
   const findIdentifier = useFindIdentifierByValue();
-  const findDuplicatePack = useFindDuplicatePackByAis();
-  const fetchProductById = useGetProductByIdImmediate();
+  
 
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
@@ -100,24 +97,6 @@ export default function Scan() {
               router.push("/new/choose_existing_product");
             } else {
               const productId = existing[0].productId;
-              
-              // If GS1 data exists, check if a pack with the same AIS already exists
-              if (detected.format === 'GS1') {
-                const parsed = parseGS1Unified(barcode.text);
-                const conv = getConvenienceFields(parsed);
-                
-                if (conv.ais) {
-                  const duplicatePack = await findDuplicatePack.mutateAsync({ productId, ais: conv.ais });
-                  
-                  if (duplicatePack) {
-                    const product = await fetchProductById.mutateAsync(productId);
-                    const productName = product?.name ?? 'Unknown product';
-                    alert(`This exact item (${productName}) has already been scanned and saved.`);
-                    setIsScanning(false);
-                    return;
-                  }
-                }
-              }
               
               router.push({
                 pathname: "/new/add_pack",

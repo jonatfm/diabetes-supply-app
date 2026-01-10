@@ -18,9 +18,11 @@ export type ScanFlowContextValue = {
   gs1: GS1Data | null;
   convenience: ConvenienceFields | null;
   selectedProductId?: number;
+  scannedPackId: string | null;
   setScanResult: (barcode: BarcodeResult) => void;
   reset: () => void;
   setSelectedProduct: (id: number | undefined) => void;
+  setScannedPackId: (packId: string | null) => void;
 };
 
 const ScanFlowContext = createContext<ScanFlowContextValue | undefined>(undefined);
@@ -30,6 +32,7 @@ export function ScanFlowProvider({ children }: { children: React.ReactNode }) {
   const [gs1, setGs1] = useState<GS1Data | null>(null);
   const [convenience, setConvenience] = useState<ConvenienceFields | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | undefined>(undefined);
+  const [scannedPackId, setScannedPackId] = useState<string | null>(null);
 
   const setScanResult = useCallback((barcode: BarcodeResult) => {
     setLastBarcodeResult(barcode);
@@ -65,6 +68,7 @@ export function ScanFlowProvider({ children }: { children: React.ReactNode }) {
     setGs1(null);
     setConvenience(null);
     setSelectedProductId(undefined);
+    setScannedPackId(null);
   }, []);
 
   const value = useMemo<ScanFlowContextValue>(() => ({
@@ -72,10 +76,12 @@ export function ScanFlowProvider({ children }: { children: React.ReactNode }) {
     gs1,
     convenience,
     selectedProductId,
+    scannedPackId,
     setScanResult,
     reset,
     setSelectedProduct: setSelectedProductId,
-  }), [lastBarcodeResult, gs1, convenience, selectedProductId, setScanResult, reset]);
+    setScannedPackId,
+  }), [lastBarcodeResult, gs1, convenience, selectedProductId, scannedPackId, setScanResult, reset]);
 
   return (
     <ScanFlowContext.Provider value={value}>

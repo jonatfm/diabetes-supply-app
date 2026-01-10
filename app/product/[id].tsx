@@ -18,7 +18,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
-import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, Snackbar, Text, useTheme } from "react-native-paper";
+import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
 
 function formatRelativeTime(date: Date | number, nowMs: number): string {
   const timestamp = typeof date === 'number' ? date : date.getTime();
@@ -85,6 +85,7 @@ export default function ProductPage() {
 
   const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
   const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
+  const [consumeSortPreference, setConsumeSortPreference] = useState<'expiry' | 'fewest_units'>('expiry');
 
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const theme = useTheme();
@@ -137,11 +138,10 @@ export default function ProductPage() {
     setSessionOutcomePieData(pieData);
   }, [getSessionOutcomeStatsByProductQ.data]);
 
-  const handlePressConsume = () => {
-    if (!packsQ.data) return;
-    setIsConsumeDialogVisible(true);
+  const calculateChosenPack = (sortPreference: 'expiry' | 'fewest_units'): ConsumtionDialogInfo | null => {
+    if (!packsQ.data) return null;
     
-    // Never choose a pack that is expired, recommend the one with the nearest expiry date
+    // Never choose a pack that is expired
     const now = new Date();
     const validPacks = packsQ.data?.filter(pack => {
       if (!pack.expiry) return true;
@@ -150,30 +150,47 @@ export default function ProductPage() {
     });
 
     if (validPacks.length === 0) {
-      alert("No valid packs available to consume from.");
-      setIsConsumeDialogVisible(false);
-      return;
+      return null;
     }
 
-    // Choose the pack with the nearest expiry date
+    // Choose the pack based on sorting preference
     let chosenPack: Pack;
-    validPacks.sort((a, b) => {
-      const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
-      const bExpiry = b.expiry ? new Date(b.expiry).getTime() : Infinity;
-      return aExpiry - bExpiry;
-    });
+    if (sortPreference === 'expiry') {
+      validPacks.sort((a, b) => {
+        const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
+        const bExpiry = b.expiry ? new Date(b.expiry).getTime() : Infinity;
+        return aExpiry - bExpiry;
+      });
+    } else {
+      // Sort by fewest units remaining
+      validPacks.sort((a, b) => a.unitsRemaining - b.unitsRemaining);
+    }
     chosenPack = validPacks[0];
 
     // Get identifier / serial for the dialog
     const identifier = chosenPack.ais && chosenPack.ais["21"] ? chosenPack.ais["21"] : (productIdentifiersQ.data?.[0]?.value || 'N/A');
 
-    setConsumtionDialogInfo({
+    return {
       expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
       identifier,
       identifierType: chosenPack.ais && chosenPack.ais["21"] ? "Serial" : "Code",
       unitsLeftInPack: chosenPack.unitsRemaining,
       packId: chosenPack.id,
-    });
+    };
+  };
+
+  const handlePressConsume = () => {
+    if (!packsQ.data) return;
+    
+    const chosenPackInfo = calculateChosenPack(consumeSortPreference);
+    
+    if (!chosenPackInfo) {
+      alert("No valid packs available to consume from.");
+      return;
+    }
+
+    setConsumtionDialogInfo(chosenPackInfo);
+    setIsConsumeDialogVisible(true);
   }
 
   const handleDiscardExpired = async () => {
@@ -282,7 +299,7 @@ export default function ProductPage() {
                   <Text variant="labelLarge" style={{ color: theme.colors.error }}>No packs available</Text>
                 </Chip>
               )}
-              {productQ.data.isSessionBased && (
+              {!!productQ.data.isSessionBased && (
                 <Chip icon="timer-sand" mode="flat">
                   <Text variant="labelLarge">Session-based</Text>
                 </Chip>
@@ -316,9 +333,9 @@ export default function ProductPage() {
           </Card.Content>
         </Card>
         
-        {((packsQ.data && packsQ.data.length > 0) || (productQ.data.isSessionBased && getActiveSessionQ.data)) && (
+        {((packsQ.data && packsQ.data.length > 0) || (!!productQ.data.isSessionBased && getActiveSessionQ.data)) && (
           <View style={{marginBottom: 24, gap: 8}}>
-            {!productQ.data.isSessionBased || (productQ.data.isSessionBased && !getActiveSessionQ.data) && (
+            {(!productQ.data.isSessionBased || (!!productQ.data.isSessionBased && !getActiveSessionQ.data)) && (
               <Button 
                 mode="contained"
                 icon="needle"
@@ -327,7 +344,7 @@ export default function ProductPage() {
                 Consume item
               </Button>
             )}
-            {productQ.data.isSessionBased && getActiveSessionQ.data && (
+            {!!productQ.data.isSessionBased && getActiveSessionQ.data && (
               <Button
                 mode="contained"
                 icon="stop"
@@ -371,15 +388,18 @@ export default function ProductPage() {
             <Button icon="pencil" onPress={() => router.push(`/product/edit/${productQ.data!.id}`)}>Edit</Button>
           )}
         </View>
-        {packsQ.data && (
-          packsQ.data.length > 0 ? (
+        {packsQ.data && productIdentifiersQ.data && (
+          packsQ.data.length > 0 ? (() => {
+            // Check if ANY pack has a serial number (ais["21"])
+            const hasAnySerial = packsQ.data.some(pack => pack.ais && pack.ais["21"]);
+            
+            return (
             <Card style={{ marginBottom: 12 }}>
               <DataTable>
                 <DataTable.Header>
-                  {packsQ.data[0].ais && packsQ.data[0].ais["21"] && (
+                  {hasAnySerial ? (
                     <DataTable.Title>Serial</DataTable.Title>
-                  )}
-                  {!isGS1 && productIdentifiersQ.data && productIdentifiersQ.data.length > 0 && (
+                  ) : (
                     <DataTable.Title>Code</DataTable.Title>
                   )}
                   <DataTable.Title>Units left</DataTable.Title>
@@ -387,10 +407,9 @@ export default function ProductPage() {
                 </DataTable.Header>
                 {packsQ.data.slice(from, to).map((pack) => (
                   <DataTable.Row key={pack.id} style={{ backgroundColor: pack.expiry && new Date(pack.expiry) < new Date() ? theme.colors.errorContainer : 'transparent' }}>
-                    {pack.ais && pack.ais["21"] ? (
-                      <DataTable.Cell>{pack.ais["21"]}</DataTable.Cell>
-                    ) : null}
-                    {!isGS1 && productIdentifiersQ.data && productIdentifiersQ.data.length > 0 && (
+                    {hasAnySerial ? (
+                      <DataTable.Cell>{pack.ais?.["21"] || '-'}</DataTable.Cell>
+                    ) : (
                       <DataTable.Cell>{productIdentifiersQ.data[0]?.value.substring(0, 20) || '-'}</DataTable.Cell>
                     )}
                     <DataTable.Cell>{pack.unitsRemaining}</DataTable.Cell>
@@ -412,7 +431,8 @@ export default function ProductPage() {
                 />
               </DataTable>
             </Card>
-          ) : (
+            );
+          })() : (
             <Card style={{ marginBottom: 12 }}>
               <Card.Content style={{ alignItems: 'center', paddingVertical: 32 }}>
                 <Icon source="package-variant-closed-remove" size={48} color={theme.colors.secondary} />
@@ -428,8 +448,7 @@ export default function ProductPage() {
           <Text variant="titleLarge">Statistics</Text>
           <Card style={{marginTop: 12}}>
             <Card.Content>
-              {/* Session-only stats */}
-              {productQ.data.isSessionBased && getSessionOutcomeStatsByProductQ.data && (
+              {!!productQ.data.isSessionBased && !!getSessionOutcomeStatsByProductQ.data && (
                 <View style={{gap: 16}}>
                   <Text variant="bodyMedium">Session results</Text>
                   <View style={{flex: 1, flexDirection: "row"}}>
@@ -451,7 +470,6 @@ export default function ProductPage() {
                         </Text>
                       )}
                     />
-                    {/* Legend */}
                     <View style={{flex: 1, justifyContent: "space-between"}}>
                       {Object.entries(getSessionOutcomeStatsByProductQ.data).map(([outcome, count]) => (
                         <View key={outcome} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16}}>
@@ -515,7 +533,31 @@ export default function ProductPage() {
         <Dialog visible={isConsumeDialogVisible} onDismiss={() => setIsConsumeDialogVisible(false)}>
           <Dialog.Title>Consume Item</Dialog.Title>
           <Dialog.Content>
-            <Text>Please make sure to take exactly one unit from a pack with these <Text style={{ fontWeight: 'bold' }}>exact</Text> attributes:</Text>
+            <Text style={{ marginBottom: 12 }}>Sort packs by:</Text>
+            <SegmentedButtons
+              value={consumeSortPreference}
+              onValueChange={(value) => {
+                const newPreference = value as 'expiry' | 'fewest_units';
+                setConsumeSortPreference(newPreference);
+                const newPackInfo = calculateChosenPack(newPreference);
+                if (newPackInfo) {
+                  setConsumtionDialogInfo(newPackInfo);
+                }
+              }}
+              buttons={[
+                {
+                  value: 'expiry',
+                  label: 'Nearest expiry',
+                  icon: 'calendar-clock',
+                },
+                {
+                  value: 'fewest_units',
+                  label: 'Fewest units',
+                  icon: 'package-variant',
+                },
+              ]}
+            />
+            <Text style={{ marginTop: 16 }}>Please make sure to take exactly one unit from a pack with these <Text style={{ fontWeight: 'bold' }}>exact</Text> attributes:</Text>
             {consumtionDialogInfo ? (
               <View style={{ marginTop: 16 }}>
                 <Text>{consumtionDialogInfo.identifierType}: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.identifier}</Text></Text>
