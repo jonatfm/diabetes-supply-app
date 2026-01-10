@@ -176,6 +176,20 @@
       "when": 1767994945117,
       "tag": "0024_giant_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1768082795798,
+      "tag": "0025_cheerful_gravity",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1768084152123,
+      "tag": "0026_moaning_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

@@ -26,6 +26,8 @@ import m0021 from './0021_wide_proemial_gods.sql';
 import m0022 from './0022_swift_electro.sql';
 import m0023 from './0023_mighty_the_fallen.sql';
 import m0024 from './0024_giant_psynapse.sql';
+import m0025 from './0025_cheerful_gravity.sql';
+import m0026 from './0026_moaning_bloodstorm.sql';
 
   export default {
     journal,
@@ -54,7 +56,9 @@ m0020,
 m0021,
 m0022,
 m0023,
-m0024
+m0024,
+m0025,
+m0026
     }
   }
   
