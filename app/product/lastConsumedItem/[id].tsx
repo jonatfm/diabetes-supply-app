@@ -1,12 +1,10 @@
 import AppWrapper from "@/components/AppWrapper";
-import { GS1_AI_SPECS } from "@/scripts/gs1";
-import { useFetchPack } from "@/src/data/hooks/useFetchPack";
+import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
-import Clipboard from "@react-native-clipboard/clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
-import { Button, Card, Icon, Text, useTheme } from "react-native-paper";
+import { View } from "react-native";
+import { Button, Card, Text, useTheme } from "react-native-paper";
 
 export default function LastConsumedItemPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,8 +25,6 @@ export default function LastConsumedItemPage() {
   }, [takeEvents.length]);
 
   const currentEvent = takeEvents[currentIndex];
-  const packQ = useFetchPack(currentEvent?.packId ?? "");
-  const consumedAt = currentEvent ? new Date(currentEvent.occurredAt) : null;
 
   const handlePrev = () => setCurrentIndex((idx) => Math.min(takeEvents.length - 1, idx + 1)); // Go to older event
   const handleNext = () => setCurrentIndex((idx) => Math.max(0, idx - 1)); // Go to newer event
@@ -100,43 +96,7 @@ export default function LastConsumedItemPage() {
           </Button>
         </View>
 
-        <Card>
-          <Card.Content style={{ gap: 12 }}>
-            {consumedAt && (
-              <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
-                Consumed {consumedAt.toLocaleString()} {currentIndex === 0 ? <Text style={{color: "green", fontWeight: "bold"}}>(Current)</Text> : null}
-              </Text>
-            )}
-
-            {packQ.isPending && (
-              <Text variant="bodyMedium">Loading pack details...</Text>
-            )}
-
-            {!packQ.isPending && !packQ.data && (
-              <Text variant="bodyMedium" style={{ color: theme.colors.error }}>
-                Pack details unavailable.
-              </Text>
-            )}
-
-            {packQ.data?.ais && Object.entries(packQ.data.ais).map(([ai, value]) => {
-              const spec = GS1_AI_SPECS[ai];
-              const name = spec?.name || `AI ${ai}`;
-              return (
-                <View key={ai} style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.surfaceVariant, paddingBottom: 8 }}>
-                  <Text variant="labelSmall" style={{ color: theme.colors.secondary, marginBottom: 4 }}>
-                    {name} ({ai})
-                  </Text>
-                  <Pressable onPress={() => Clipboard.setString(value)} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Text variant="bodyMedium" style={{ fontWeight: "500" }}>
-                      {value}
-                    </Text>
-                    <Icon source="content-copy" size={12} color={theme.colors.primary} />
-                  </Pressable>
-                </View>
-              );
-            })}
-          </Card.Content>
-        </Card>
+        <LastConsumedItemCard productId={productId} packId={currentEvent.packId!} />
       </View>
     </AppWrapper>
   );

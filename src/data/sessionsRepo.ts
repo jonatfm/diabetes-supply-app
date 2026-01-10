@@ -51,5 +51,12 @@ export function sessionsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & 
       );
       return activeSessions.length > 0 ? activeSessions[0] : null;
     },
+
+    async getSessionForPack(packId: string) {
+      const sessionForPack = await db.select().from(sessions).where(
+        eq(sessions.packId, packId)
+      );
+      return sessionForPack[0] || null;
+    }
   }
 }

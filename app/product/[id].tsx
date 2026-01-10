@@ -1,7 +1,7 @@
 import AppWrapper from "@/components/AppWrapper";
+import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useDatabase } from "@/db";
 import { Pack, SESSION_OUTCOMES } from "@/db/schema";
-import { GS1_AI_SPECS } from "@/scripts/gs1";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
 import { useEndSession } from "@/src/data/hooks/useEndSession";
 import { useFetchPack } from "@/src/data/hooks/useFetchPack";
@@ -13,10 +13,9 @@ import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
-import Clipboard from '@react-native-clipboard/clipboard';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
 import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, Snackbar, Text, useTheme } from "react-native-paper";
 
 function formatRelativeTime(date: Date | number, nowMs: number): string {
@@ -58,7 +57,6 @@ export default function ProductPage() {
   const [isSnackbarVisible, setIsSnackbarVisible] = useState<boolean>(false);
   const [isDiscardDialogVisible, setIsDiscardDialogVisible] = useState<boolean>(false);
   const [lastConsumedPackId, setLastConsumedPackId] = useState<string | null>(null);
-  const [lastConsumedAt, setLastConsumedAt] = useState<Date | null>(null);
   const packsQ = usePacks(id);
   const productQ = useProduct(id);
   const productIdentifiersQ = useProductIdentifiers(id);
@@ -103,14 +101,11 @@ export default function ProductPage() {
       const lastTakeEvent = productHistoryQ.data.find(event => event.type === "TAKE");
       if (lastTakeEvent?.packId) {
         setLastConsumedPackId(lastTakeEvent.packId);
-        setLastConsumedAt(new Date(lastTakeEvent.occurredAt));
       } else {
         setLastConsumedPackId(null);
-        setLastConsumedAt(null);
       }
     } else {
       setLastConsumedPackId(null);
-      setLastConsumedAt(null);
     }
   }, [productHistoryQ.data]);
 
@@ -293,39 +288,39 @@ export default function ProductPage() {
           </Card.Content>
         </Card>
         
-        {(packsQ.data && packsQ.data.length > 0) || (productQ.data.isSessionBased && getActiveSessionQ.data) && (
-        <View style={{marginBottom: 24, gap: 8}}>
-          {!productQ.data.isSessionBased || !(productQ.data.isSessionBased && getActiveSessionQ.data) && (
-            <Button 
-              mode="contained" 
-              icon="needle" 
-              onPress={handlePressConsume}
-            >
-              Consume item
-            </Button>
-          )}
-          {productQ.data.isSessionBased && getActiveSessionQ.data && (
-            <Button
-              mode="contained"
-              icon="stop"
-              onPress={() => setIsEndSessionDialogVisible(true)}
-              buttonColor={theme.colors.error}
-              textColor={theme.colors.onError}
-            >
-              Stop active session
-            </Button>
-          )}
+        {((packsQ.data && packsQ.data.length > 0) || (productQ.data.isSessionBased && getActiveSessionQ.data)) && (
+          <View style={{marginBottom: 24, gap: 8}}>
+            {!productQ.data.isSessionBased || (productQ.data.isSessionBased && !getActiveSessionQ.data) && (
+              <Button 
+                mode="contained"
+                icon="needle"
+                onPress={handlePressConsume}
+              >
+                Consume item
+              </Button>
+            )}
+            {productQ.data.isSessionBased && getActiveSessionQ.data && (
+              <Button
+                mode="contained"
+                icon="stop"
+                onPress={() => setIsEndSessionDialogVisible(true)}
+                buttonColor={theme.colors.error}
+                textColor={theme.colors.onError}
+              >
+                Stop active session
+              </Button>
+            )}
 
-          {productQ.data.canHaveExpiry && packsQ.data?.some(pack => pack.expiry && new Date(pack.expiry) < new Date()) && (
-            <Button
-              mode="outlined"
-              icon="delete"
-              onPress={() => setIsDiscardDialogVisible(true)}
-            >
-              Discard expired packs
-            </Button>
-          )}
-        </View>
+            {productQ.data.canHaveExpiry && packsQ.data?.some(pack => pack.expiry && new Date(pack.expiry) < new Date()) && (
+              <Button
+                mode="outlined"
+                icon="delete"
+                onPress={() => setIsDiscardDialogVisible(true)}
+              >
+                Discard expired packs
+              </Button>
+            )}
+          </View>
         )}
 
 
@@ -338,32 +333,7 @@ export default function ProductPage() {
                 <Text variant="titleLarge">Last consumed item</Text>
                 <Button icon="eye" onPress={() => router.push(`/product/lastConsumedItem/${productQ.data!.id}`)}>See more</Button>
               </View>
-              <Card style={{ marginBottom: 24 }}>
-                <Card.Content style={{ gap: 12 }}>
-                  {lastConsumedAt && (
-                    <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
-                      Consumed {lastConsumedAt.toLocaleString()}
-                    </Text>
-                  )}
-                  {Object.entries(pack.ais!).map(([ai, value]) => {
-                    const spec = GS1_AI_SPECS[ai];
-                    const name = spec?.name || `AI ${ai}`;
-                    return (
-                      <View key={ai} style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.surfaceVariant, paddingBottom: 8 }}>
-                        <Text variant="labelSmall" style={{ color: theme.colors.secondary, marginBottom: 4 }}>
-                          {name} ({ai})
-                        </Text>
-                        <Pressable onPress={() => {Clipboard.setString(value)}} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Text variant="bodyMedium" style={{ fontWeight: '500' }}>
-                            {value}
-                          </Text>
-                          <Icon source="content-copy" size={12} color={theme.colors.primary} />
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </Card.Content>
-              </Card>
+              <LastConsumedItemCard productId={productQ.data!.id} packId={lastConsumedPackQ.data!.id} />
             </View>
           );
         })()}
