@@ -18,6 +18,7 @@ export function useConsumeOneUnit(productId: string) {
         qc.invalidateQueries({ queryKey: qk.history(productId) }),
         qc.invalidateQueries({ queryKey: qk.pack(packId) }),
         qc.invalidateQueries({ queryKey: qk.session(productId) }),
+        qc.invalidateQueries({ queryKey: qk.sessionOutcomeStatsByProduct(productId) }),
       ]);
     },
   });

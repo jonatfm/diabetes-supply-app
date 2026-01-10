@@ -57,6 +57,26 @@ export function sessionsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & 
         eq(sessions.packId, packId)
       );
       return sessionForPack[0] || null;
-    }
+    },
+
+    async getSessionOutcomeStatsByProduct(productId: string) {
+      const sessionsList = await db.select().from(sessions).where(
+        eq(sessions.productId, productId)
+      );
+
+      const stats: Record<SessionOutcome, number> = {
+        "completed": 0,
+        "failed": 0,
+        "removed_early": 0,
+        "lost": 0,
+        "unknown": 0,
+      };
+      sessionsList.forEach((session) => {
+        if (session.outcome && session.outcome in stats) {
+          stats[session.outcome as SessionOutcome]++;
+        }
+      });
+      return stats;
+    },
   }
 }

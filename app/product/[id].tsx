@@ -6,6 +6,7 @@ import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
 import { useEndSession } from "@/src/data/hooks/useEndSession";
 import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
+import { useGetSessionOutcomeStatsByProduct } from "@/src/data/hooks/useGetSessionOutcomeStatsByProduct";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
@@ -16,6 +17,7 @@ import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTa
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
+import { PieChart, pieDataItem } from "react-native-gifted-charts";
 import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, Snackbar, Text, useTheme } from "react-native-paper";
 
 function formatRelativeTime(date: Date | number, nowMs: number): string {
@@ -46,6 +48,15 @@ type ConsumtionDialogInfo = {
   packId: string;
 }
 
+
+const sessionStatusColors: Record<string, string> = {
+  completed: "#81C784",      // green
+  failed: "#E57373",         // red
+  removed_early: "#F57C00",  // orange
+  lost: "#9E9E9E",           // neutral / inactive (Material Grey 500)
+  unknown: "#BDBDBD",        // lighter neutral / placeholder (Grey 400)
+};
+
 export default function ProductPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { db, ready: dbReady } = useDatabase();
@@ -68,6 +79,9 @@ export default function ProductPage() {
   const lastConsumedPackQ = useFetchPack(lastConsumedPackId ?? '');
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
+
+  const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
+  const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
 
   const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
   const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
@@ -108,6 +122,20 @@ export default function ProductPage() {
       setLastConsumedPackId(null);
     }
   }, [productHistoryQ.data]);
+
+  useEffect(() => {
+    if (!getSessionOutcomeStatsByProductQ.data) return;
+
+    const pieData: pieDataItem[] = SESSION_OUTCOMES.map(outcome => {
+      const percentage = getSessionOutcomeStatsByProductQ.data![outcome] / Object.values(getSessionOutcomeStatsByProductQ.data!).reduce((a, b) => a + b, 0) * 100;
+      return {
+        value: getSessionOutcomeStatsByProductQ.data![outcome] || 0,
+        text:  percentage.toFixed(0) + '%',
+        color: sessionStatusColors[outcome],
+      }
+    });
+    setSessionOutcomePieData(pieData);
+  }, [getSessionOutcomeStatsByProductQ.data]);
 
   const handlePressConsume = () => {
     if (!packsQ.data) return;
@@ -395,6 +423,51 @@ export default function ProductPage() {
             </Card>
           )
         )}
+
+        <View style={{marginBottom: 12}}>
+          <Text variant="titleLarge">Statistics</Text>
+          <Card style={{marginTop: 12}}>
+            <Card.Content>
+              {/* Session-only stats */}
+              {productQ.data.isSessionBased && getSessionOutcomeStatsByProductQ.data && (
+                <View style={{gap: 16}}>
+                  <Text variant="bodyMedium">Session results</Text>
+                  <View style={{flex: 1, flexDirection: "row"}}>
+                    <PieChart
+                      data={sessionOutcomePieData}
+                      showText
+                      textSize={20}
+                      radius={70}
+                      fontWeight="bold"
+                      strokeWidth={2}
+                      donut
+                      innerCircleBorderWidth={2}
+                      showValuesAsLabels
+                      backgroundColor={theme.colors.elevation.level1}
+                      strokeColor={theme.colors.inverseSurface}
+                      centerLabelComponent={() => (
+                        <Text variant="headlineMedium" style={{ fontWeight: 'bold' }}>
+                          {Object.values(getSessionOutcomeStatsByProductQ.data!).reduce((a, b) => a + b, 0)}
+                        </Text>
+                      )}
+                    />
+                    {/* Legend */}
+                    <View style={{flex: 1, justifyContent: "space-between"}}>
+                      {Object.entries(getSessionOutcomeStatsByProductQ.data).map(([outcome, count]) => (
+                        <View key={outcome} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16}}>
+                          <View style={{ width: 16, height: 16, backgroundColor: sessionStatusColors[outcome], marginRight: 8 }} />
+                          <Text variant="bodyMedium" style={{ textTransform: 'capitalize' }}>
+                            {outcome.replace("_", " ")}: {count}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              )}
+            </Card.Content>
+          </Card>
+        </View>
 
         {productHistoryQ.data && productHistoryQ.data.length > 0 ? (
           <>

@@ -11,4 +11,5 @@ export const qk = {
   averageTimeBetweenTakes: (id: string, period?: number) => ["averageTimeBetweenTakes", id, period] as const,
   sessions: () => ["sessions"] as const,
   session: (id: string) => ["session", id] as const,
+  sessionOutcomeStatsByProduct: (productId: string) => ["sessionOutcomeStatsByProduct", productId] as const,
 };

@@ -48,8 +48,9 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
     // Calculate the days between either startedAt and endedAt, or startedAt and now if no endedAt
     const startDate = new Date(sessionForPackQ.data.startedAt);
     const endDate = sessionForPackQ.data.endedAt ? new Date(sessionForPackQ.data.endedAt) : new Date();
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const diffDays = Math.floor(diffTime / (60 * 60 * 24)) + 1; // +1 to count the starting day
+    const diffMs = Math.max(0, endDate.getTime() - startDate.getTime());
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const diffDays = Math.floor(diffMs / MS_PER_DAY) + 1; // +1 to count the starting day
     setDaysCompleted(diffDays);
   }, [sessionForPackQ.data]);
 
@@ -82,7 +83,12 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
                 <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
                   Session status: <Text variant="bodyMedium" style={{color: sessionStatusColors[sessionStatus || "unknown"]}}>{sessionStatus || "N/A"}</Text>
                 </Text>
-                <DaysProgressBar totalDays={productQ.data.nominalSessionTimeDays} currentDay={daysCompleted || 5} colorForeground={sessionStatusColors[sessionStatus || "unknown"]} colorBackground={theme.colors.onPrimary} />
+                <DaysProgressBar
+                  totalDays={productQ.data.nominalSessionTimeDays}
+                  currentDay={Math.max(1, Math.min(daysCompleted ?? 1, productQ.data.nominalSessionTimeDays))}
+                  colorForeground={sessionStatusColors[sessionStatus || "unknown"]}
+                  colorBackground={theme.colors.onPrimary}
+                />
               </>
             )}
             {Object.entries(packQ.data.ais!).map(([ai, value]) => {
