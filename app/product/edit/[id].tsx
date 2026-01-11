@@ -12,7 +12,7 @@ import { ChangesFormat } from "@/src/data/packsRepo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Keyboard, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { Button, Card, FAB, Icon, Modal, Portal, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, FAB, Icon, Modal, Portal, Text, useTheme } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -360,7 +360,12 @@ export default function EditProductPage() {
         </Button>
       </View>
       <View style={{ flex: 1 }}>
-        {productQ.data && packsQ.data && (
+        {(productQ.isPending || packsQ.isPending) ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>Loading packs...</Text>
+          </View>
+        ) : productQ.data && packsQ.data && (
           <>
             <Text variant="titleLarge" style={{ marginBottom: 16 }}>Edit {productQ.data.name}</Text>
 

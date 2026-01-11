@@ -20,7 +20,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       const result = await db
         .select()
         .from(packs)
-        .where(and(eq(packs.productId, productId), ne(packs.unitsRemaining, 0), eq(packs.active, 1)));
+        .where(and(eq(packs.productId, productId), ne(packs.unitsRemaining, 0), eq(packs.active, true)));
 
       return result.sort((a: any, b: any) => {
         const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
@@ -34,14 +34,14 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       const res = await db
         .select({ total: sql<number>`cast(sum(${packs.unitsRemaining}) as int)` })
         .from(packs)
-        .where(and(eq(packs.productId, productId), eq(packs.active, 1)));
+        .where(and(eq(packs.productId, productId), eq(packs.active, true)));
       return res[0]?.total ?? 0;
     },
 
     async discardExpiredByProduct(productId: string, nowIso = new Date().toISOString()) {
       await db
         .update(packs)
-        .set({ active: 0 })
+        .set({ active: true })
         .where(and(eq(packs.productId, productId), lt(packs.expiry, nowIso)));
     },
 
@@ -63,7 +63,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         createdAt: now,
         unitsRemaining: params.units,
         ais: params.ais ?? null,
-        dateSetManually: params.dateSetManually ? 1 : 0,
+        dateSetManually: params.dateSetManually,
       }).returning({ id: packs.id });
 
       await db.insert(stock_events).values({
@@ -167,7 +167,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         await db.update(packs).set({
           unitsRemaining: unitsProvided ? newUnits : undefined,
           expiry: change.expiry !== null ? change.expiry : undefined,
-          active: unitsProvided && newUnits === 0 ? 0 : undefined,
+          active: unitsProvided && newUnits === 0 ? false : undefined,
         }).where(eq(packs.id, packId));
 
         // Insert a stock event to track the adjustment (include deltaUnits)

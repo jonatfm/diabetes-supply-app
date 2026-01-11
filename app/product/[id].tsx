@@ -21,7 +21,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
-import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
 
 type PackColoredDots = {
   [packId: string]: string[];
@@ -273,10 +273,23 @@ export default function ProductPage() {
     setIsEndSessionDialogVisible(false);
   }
 
-  if (!dbReady || productQ.isPending || packsQ.isPending) {
+  if (!dbReady || productQ.isPending) {
     return (
       <AppWrapper>
-        <Text>Loading...</Text>
+        <View style={{ marginBottom: 16 }}>
+          <Button 
+            mode="text" 
+            onPress={() => router.back()} 
+            icon="arrow-left"
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Back
+          </Button>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>Loading product...</Text>
+        </View>
       </AppWrapper>
     );
   }
@@ -441,7 +454,16 @@ export default function ProductPage() {
             )}
           </View>
         </View>
-        {packsQ.data && productIdentifiersQ.data && (
+        {packsQ.isPending ? (
+          <Card style={{ marginBottom: 12 }}>
+            <Card.Content style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
+                Loading packs...
+              </Text>
+            </Card.Content>
+          </Card>
+        ) : packsQ.data && productIdentifiersQ.data && (
           packsQ.data.length > 0 ? (() => {
             // Check if ANY pack has a serial number (ais["21"])
             const hasAnySerial = packsQ.data.some(pack => pack.ais && pack.ais["21"]);
@@ -558,7 +580,16 @@ export default function ProductPage() {
         </View>
 
         <Text variant="titleLarge">Product History</Text>
-        {productHistoryQ.data && productHistoryQ.data.length > 0 ? (
+        {productHistoryQ.isPending ? (
+          <Card style={{ marginBottom: 12 }}>
+            <Card.Content style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
+                Loading history...
+              </Text>
+            </Card.Content>
+          </Card>
+        ) : productHistoryQ.data && productHistoryQ.data.length > 0 ? (
           <>
             <Card style={{ marginBottom: 12 }}>
               <DataTable>

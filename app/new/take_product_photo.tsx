@@ -1,11 +1,56 @@
 import AppWrapper from '@/components/AppWrapper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File, Paths } from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Card, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+/**
+ * Normalizes an image to portrait orientation by reading EXIF data and rotating if needed.
+ * This handles the common issue where photos taken in landscape mode have incorrect orientation.
+ */
+async function normalizeImageOrientation(uri: string): Promise<string> {
+  try {
+    // Read the image info to get dimensions
+    const imageInfo = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { format: ImageManipulator.SaveFormat.JPEG }
+    );
+    
+    // Get dimensions to determine if image needs rotation
+    // If width > height, the image is in landscape and needs rotation
+    const response = await fetch(imageInfo.uri);
+    const blob = await response.blob();
+    
+    // Create a simple check based on image dimensions by re-reading the manipulated image
+    const checkResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { format: ImageManipulator.SaveFormat.JPEG, base64: false }
+    );
+    
+    // If the image is landscape (width > height), rotate it to portrait
+    if (checkResult.width > checkResult.height) {
+      const rotatedResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ rotate: -90 }],
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 }
+      );
+      return rotatedResult.uri;
+    }
+    
+    // Image is already in portrait or square, return the original
+    return checkResult.uri;
+  } catch (error) {
+    console.warn('Failed to normalize image orientation:', error);
+    // Return original URI if manipulation fails
+    return uri;
+  }
+}
 
 export default function TakeProductPhoto() {
   const router = useRouter();
@@ -35,10 +80,25 @@ export default function TakeProductPhoto() {
       });
       if (photo?.uri) {
         setFlashEnabled(false);
+        
+        // Normalize the image orientation to always be portrait
+        const normalizedUri = await normalizeImageOrientation(photo.uri);
+        
         const fileName = `product_${Date.now()}.jpg`;
         const file = new File(Paths.document, fileName);
-        const sourceFile = new File(photo.uri);
+        const sourceFile = new File(normalizedUri);
         sourceFile.copy(file);
+        
+        // Clean up temporary file if it's different from original
+        if (normalizedUri !== photo.uri) {
+          try {
+            const tempFile = new File(normalizedUri);
+            tempFile.delete();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+        
         if (params.returnTo) {
           router.replace({
             pathname: '/product/settings/[id]',

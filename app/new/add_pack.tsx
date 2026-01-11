@@ -10,7 +10,7 @@ import { useProduct } from "@/src/data/hooks/useProduct";
 import { normalizeExpiryDate } from "@/src/utils/dateUtils";
 import { useScanFlow } from "@/state/scanFlow";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
@@ -31,19 +31,35 @@ export default function AddPack() {
   const coloredDots = useColoredDots({includeInactive: true}).data;
   const [displayedDots, setDisplayedDots] = useState<string[] | null>(null);
 
+  // Key that changes only when the *enabled* set changes
+  const enabledDotIdsKey = useMemo(() => {
+    if (!coloredDots) return "";
+    return coloredDots
+      .filter((d) => !!(d as any).active) // supports 0/1 or boolean
+      .map((d) => d.id)
+      .sort()
+      .join(",");
+  }, [coloredDots]);
+
   // Generate dots once when component mounts or when dependencies change
   const generateAndDisplayDots = useCallback(async () => {
     if (!coloredDotsEnabled || !product?.useColoredDots || !db) {
       setDisplayedDots(null);
       return;
     }
-    const combo = await coloredDotsRepo(db).generateUniqueCombinationForProduct(params.productId as string);
-    setDisplayedDots(combo);
+
+    const combo = await coloredDotsRepo(db).generateUniqueCombinationForProduct(
+      params.productId as string,
+      { includeInactive: false } // only enabled dots
+    );
+
+    setDisplayedDots(combo ?? []);
   }, [coloredDotsEnabled, product?.useColoredDots, db, params.productId]);
 
+  // Regenerate when enabled/disabled colors change
   useEffect(() => {
     generateAndDisplayDots();
-  }, [generateAndDisplayDots]);
+  }, [generateAndDisplayDots, enabledDotIdsKey]);
 
   useEffect(() => {
     if (productQ.data) {

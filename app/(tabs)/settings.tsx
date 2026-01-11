@@ -67,9 +67,21 @@ export default function Settings() {
     try {
       const result = await importMutation.mutateAsync();
       setSnackbarError(false);
-      setSnackbarMessage(
-        `Import successful! Restored ${result.stats.products} products, ${result.stats.packs} packs, ${result.stats.imagesRestored} images.`
-      );
+      const stats = result.stats;
+      const parts = [
+        `${stats.products} products`,
+        `${stats.packs} packs`,
+      ];
+      if (stats.coloredDots > 0) {
+        parts.push(`${stats.coloredDots} colored dots`);
+      }
+      if (stats.appSettings > 0) {
+        parts.push(`${stats.appSettings} settings`);
+      }
+      if (stats.imagesRestored > 0) {
+        parts.push(`${stats.imagesRestored} images`);
+      }
+      setSnackbarMessage(`Import successful! Restored ${parts.join(', ')}.`);
     } catch (err) {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : 'Import failed');

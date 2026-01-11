@@ -6,7 +6,7 @@ import { useUpdateProduct } from "@/src/data/hooks/useUpdateProduct";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, View } from "react-native";
-import { Button, Card, Icon, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, Icon, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
 
 export default function ProductSettingsPage() {
   const { id, photoUri } = useLocalSearchParams<{ id: string; photoUri?: string }>();
@@ -46,7 +46,9 @@ export default function ProductSettingsPage() {
   };
 
   const handleTakePhoto = () => {
-    router.push({
+    // Use replace instead of push to prevent navigation stack buildup
+    // when changing photos repeatedly
+    router.replace({
       pathname: '/new/take_product_photo',
       params: {
         returnTo: '/product/settings/[id]',
@@ -58,7 +60,20 @@ export default function ProductSettingsPage() {
   if (productQ.isPending) {
     return (
       <AppWrapper>
-        <Text>Loading...</Text>
+        <View style={{ marginBottom: 16 }}>
+          <Button 
+            mode="text" 
+            onPress={() => router.back()} 
+            icon="arrow-left"
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Back
+          </Button>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>Loading product settings...</Text>
+        </View>
       </AppWrapper>
     );
   }

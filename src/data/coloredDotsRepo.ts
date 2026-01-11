@@ -16,18 +16,18 @@ export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
     },
 
     async getActive(): Promise<ColoredDot[]> {
-      return await db.select().from(coloredDots).where(eq(coloredDots.active, 1));
+      return await db.select().from(coloredDots).where(eq(coloredDots.active, true));
     },
 
     async createDot(params: { color: string; active?: boolean }): Promise<{ id: string }[]> {
       return await db
         .insert(coloredDots)
-        .values({ color: params.color, active: params.active === false ? 0 : 1 })
+        .values({ color: params.color, active: params.active === false ? false : true })
         .returning({ id: coloredDots.id });
     },
 
     async setActive(id: string, active: boolean): Promise<void> {
-      await db.update(coloredDots).set({ active: active ? 1 : 0 }).where(eq(coloredDots.id, id));
+      await db.update(coloredDots).set({ active: active ? true : false }).where(eq(coloredDots.id, id));
     },
 //
     //async updateColor(id: string, color: string): Promise<void> {

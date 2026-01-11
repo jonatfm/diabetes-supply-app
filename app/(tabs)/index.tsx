@@ -5,7 +5,7 @@ import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,19 +30,16 @@ export default function Index() {
     }
   }, [searchQuery, productsQ.data]);
 
-  if (!productsQ.data) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading products...</Text>
-      </View>
-    )
-  }
-  
   return (
     <AppWrapper>
         <Text variant="headlineLarge">Inventory</Text>
 
-        {productsQ.data.length !== 0 ? (
+        {productsQ.isPending ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>Loading products...</Text>
+          </View>
+        ) : productsQ.data && productsQ.data.length !== 0 ? (
           <View style={{ flex: 1 }}>
             <Searchbar 
               value={searchQuery} 

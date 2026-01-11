@@ -1,11 +1,11 @@
 import { useDatabase } from "@/db";
-import { packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
+import { appSettings, coloredDotAssignments, coloredDots, packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sql } from "drizzle-orm";
 import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 
-interface ExportData {
+interface ExportDataBase {
   version: number;
   exportedAt: string;
   products: any[];
@@ -13,7 +13,11 @@ interface ExportData {
   packs: any[];
   stockEvents: any[];
   sessions: any[];
-  images: Record<string, string>; // imageUri -> base64 data
+  images: Record<string, string>;
+  // V2 additions (optional for backwards compatibility)
+  coloredDots?: any[];
+  coloredDotAssignments?: any[];
+  appSettings?: any[];
 }
 
 export function useImportDatabase() {
@@ -42,7 +46,7 @@ export function useImportDatabase() {
       const pickedFile = new File(fileUri);
       const fileContent = await pickedFile.text();
 
-      let importData: ExportData;
+      let importData: ExportDataBase;
       try {
         importData = JSON.parse(fileContent);
       } catch {
@@ -54,9 +58,12 @@ export function useImportDatabase() {
         throw new Error("Invalid backup file structure");
       }
 
-      if (importData.version !== 1) {
+      // Support both version 1 and version 2
+      if (importData.version !== 1 && importData.version !== 2) {
         throw new Error(`Unsupported backup version: ${importData.version}`);
       }
+
+      const isV2 = importData.version === 2;
 
       // Restore images first and create a mapping from old URIs to new URIs
       const imageUriMapping: Record<string, string> = {};
@@ -82,11 +89,14 @@ export function useImportDatabase() {
 
       // Clear existing data (in reverse order of dependencies)
       // Using raw SQL to avoid FK constraint issues
+      await db.run(sql`DELETE FROM ${coloredDotAssignments}`);
+      await db.run(sql`DELETE FROM ${coloredDots}`);
       await db.run(sql`DELETE FROM ${sessions}`);
       await db.run(sql`DELETE FROM ${stock_events}`);
       await db.run(sql`DELETE FROM ${packs}`);
       await db.run(sql`DELETE FROM ${product_identifiers}`);
       await db.run(sql`DELETE FROM ${products}`);
+      await db.run(sql`DELETE FROM ${appSettings}`);
 
       // Insert products with updated image URIs
       for (const product of importData.products) {
@@ -117,6 +127,37 @@ export function useImportDatabase() {
         await db.insert(sessions).values(session);
       }
 
+      // Version 2 specific data
+      let coloredDotsRestored = 0;
+      let coloredDotAssignmentsRestored = 0;
+      let appSettingsRestored = 0;
+
+      if (isV2) {
+        // Insert colored dots
+        if (importData.coloredDots) {
+          for (const dot of importData.coloredDots) {
+            await db.insert(coloredDots).values(dot);
+            coloredDotsRestored++;
+          }
+        }
+
+        // Insert colored dot assignments
+        if (importData.coloredDotAssignments) {
+          for (const assignment of importData.coloredDotAssignments) {
+            await db.insert(coloredDotAssignments).values(assignment);
+            coloredDotAssignmentsRestored++;
+          }
+        }
+
+        // Insert app settings
+        if (importData.appSettings) {
+          for (const setting of importData.appSettings) {
+            await db.insert(appSettings).values(setting);
+            appSettingsRestored++;
+          }
+        }
+      }
+
       // Invalidate all queries to refresh the UI
       await queryClient.invalidateQueries();
 
@@ -135,6 +176,9 @@ export function useImportDatabase() {
           packs: importData.packs.length,
           stockEvents: importData.stockEvents.length,
           sessions: importData.sessions.length,
+          coloredDots: coloredDotsRestored,
+          coloredDotAssignments: coloredDotAssignmentsRestored,
+          appSettings: appSettingsRestored,
           imagesRestored: Object.keys(imageUriMapping).length,
         },
       };

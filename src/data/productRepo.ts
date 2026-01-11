@@ -26,18 +26,18 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         name: params.name,
         unitsPerPackDefault: params.unitsPerPackDefault,
         imageUri: params.imageUri,
-        canHaveExpiry: params.canHaveExpiry ? 1 : 0,
-        isSessionBased: params.isSessionBased ? 1 : 0,
+        canHaveExpiry: params.canHaveExpiry,
+        isSessionBased: params.isSessionBased,
         nominalSessionTimeDays: params.nominalSessionTimeDays ?? null,
-        useColoredDots: params.useColoredDots ? 1 : 0,
+        useColoredDots: params.useColoredDots,
       }).returning({id: products.id});
     },
 
     async updateProduct(productId: string, params: { name?: string; imageUri?: string | null; useColoredDots?: boolean }) {
-      const updateValues: Partial<Product> & { useColoredDots?: number } = {};
+      const updateValues: Partial<Product> & { useColoredDots?: boolean } = {};
       if (typeof params.name === 'string') updateValues.name = params.name;
       if (params.imageUri !== undefined) updateValues.imageUri = params.imageUri ?? null;
-      if (typeof params.useColoredDots === 'boolean') updateValues.useColoredDots = params.useColoredDots ? 1 : 0;
+      if (typeof params.useColoredDots === 'boolean') updateValues.useColoredDots = params.useColoredDots;
 
       if (Object.keys(updateValues).length === 0) return;
 

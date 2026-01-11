@@ -1,5 +1,5 @@
 import { useDatabase } from "@/db";
-import { packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
+import { appSettings, coloredDotAssignments, coloredDots, packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
 import { useMutation } from "@tanstack/react-query";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -12,6 +12,9 @@ interface ExportData {
   packs: any[];
   stockEvents: any[];
   sessions: any[];
+  coloredDots: any[];
+  coloredDotAssignments: any[];
+  appSettings: any[];
   images: Record<string, string>; // imageUri -> base64 data
 }
 
@@ -30,6 +33,9 @@ export function useExportDatabase() {
       const allPacks = await db.select().from(packs);
       const allStockEvents = await db.select().from(stock_events);
       const allSessions = await db.select().from(sessions);
+      const allColoredDots = await db.select().from(coloredDots);
+      const allColoredDotAssignments = await db.select().from(coloredDotAssignments);
+      const allAppSettings = await db.select().from(appSettings);
 
       // Collect all unique image URIs and convert to base64
       const images: Record<string, string> = {};
@@ -50,13 +56,16 @@ export function useExportDatabase() {
       }
 
       const exportData: ExportData = {
-        version: 1,
+        version: 2, // Bumped version to indicate new schema
         exportedAt: new Date().toISOString(),
         products: allProducts,
         productIdentifiers: allProductIdentifiers,
         packs: allPacks,
         stockEvents: allStockEvents,
         sessions: allSessions,
+        coloredDots: allColoredDots,
+        coloredDotAssignments: allColoredDotAssignments,
+        appSettings: allAppSettings,
         images,
       };
 

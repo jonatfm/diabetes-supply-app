@@ -11,7 +11,7 @@ export function sessionsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & 
       if (product.length === 0) {
         throw new Error("Product not found");
       }
-      if (product[0].isSessionBased !== 1) {
+      if (product[0].isSessionBased !== true) {
         throw new Error("Product is not session based");
       }
 
