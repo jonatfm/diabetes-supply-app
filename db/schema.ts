@@ -16,11 +16,11 @@ export const products = sqliteTable("products", {
   name: text("name").notNull(),
   imageUri: text("imageUri"),
   unitsPerPackDefault: integer("unitsPerPackDefault").notNull(),
-  active: integer("active").default(1).notNull(),
-  canHaveExpiry: integer("canHaveExpiry").default(1).notNull(),
-  isSessionBased: integer("isSessionBased").default(0).notNull(),
+  active: integer("active", {mode: "boolean"}).default(true).notNull(),
+  canHaveExpiry: integer("canHaveExpiry", {mode: "boolean"}).default(true).notNull(),
+  isSessionBased: integer("isSessionBased", {mode: "boolean"}).default(false).notNull(),
   nominalSessionTimeDays: integer("nominalSessionTimeDays"),
-  useColoredDots: integer("useColoredDots").default(0).notNull(),
+  useColoredDots: integer("useColoredDots", {mode: "boolean"}).default(false).notNull(),
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {
@@ -44,8 +44,8 @@ export const packs = sqliteTable("packs", {
   createdAt: integer("createdAt").notNull(),
   unitsRemaining: integer("unitsRemaining").notNull(),
   ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
-  active: integer("active").default(1),
-  dateSetManually: integer("dateSetManually").default(0).notNull(),
+  active: integer("active", {mode: "boolean"}).default(true),
+  dateSetManually: integer("dateSetManually", {mode: "boolean"}).default(false).notNull(),
 }, (table) => [
   foreignKey({
     columns: [table.productId],
@@ -98,7 +98,7 @@ export const sessions = sqliteTable("sessions", {
 export const coloredDots = sqliteTable("colored_dots", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   color: text("color").notNull(),
-  active: integer("active").default(1).notNull(),
+  active: integer("active", {mode: "boolean"}).default(true).notNull(),
 });
 
 export const coloredDotAssignments = sqliteTable("colored_dot_assignments", {

@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TakeProductPhoto() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string; useColoredDotsForProduct?: string }>();
+  const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string; useColoredDotsForProduct?: string; returnTo?: string; id?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -39,17 +39,32 @@ export default function TakeProductPhoto() {
         const file = new File(Paths.document, fileName);
         const sourceFile = new File(photo.uri);
         sourceFile.copy(file);
-        router.replace({
-          pathname: '/new/new_product',
-          params: {
-            photoUri: file.uri,
-            name: params.name ?? '',
-            unitsPerPack: params.unitsPerPack ?? '',
-            isSessionBased: params.isSessionBased ?? '',
-            nominalSessionTimeDays: params.nominalSessionTimeDays ?? '',
-            useColoredDotsForProduct: params.useColoredDotsForProduct ?? '',
-          }
-        });
+        if (params.returnTo) {
+          router.replace({
+            pathname: '/product/settings/[id]',
+            params: {
+              photoUri: file.uri,
+              id: params.id ?? '',
+              name: params.name ?? '',
+              unitsPerPack: params.unitsPerPack ?? '',
+              isSessionBased: params.isSessionBased ?? '',
+              nominalSessionTimeDays: params.nominalSessionTimeDays ?? '',
+              useColoredDotsForProduct: params.useColoredDotsForProduct ?? '',
+            }
+          });
+        } else {
+          router.replace({
+            pathname: '/new/new_product',
+            params: {
+              photoUri: file.uri,
+              name: params.name ?? '',
+              unitsPerPack: params.unitsPerPack ?? '',
+              isSessionBased: params.isSessionBased ?? '',
+              nominalSessionTimeDays: params.nominalSessionTimeDays ?? '',
+              useColoredDotsForProduct: params.useColoredDotsForProduct ?? '',
+            }
+          });
+        }
       }
     } catch (e) {
       console.warn('Failed to capture photo', e);

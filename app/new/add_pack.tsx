@@ -23,7 +23,7 @@ export default function AddPack() {
   const productQ = useProduct(params.productId as string);
   const [product, setProduct] = useState<Product | null>(null);
   const [unitsInPack, setUnitsInPack] = useState<string | undefined>(undefined);
-  const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
+  const canHaveExpiry = product ? product.canHaveExpiry : false;
   const [manualExpiryDate, setManualExpiryDate] = useState<Date | undefined>(undefined);
   const addPack = useAddPack(params.productId as string);
 

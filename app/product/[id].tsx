@@ -23,6 +23,10 @@ import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
 import { Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
 
+type PackColoredDots = {
+  [packId: string]: string[];
+};
+
 function formatRelativeTime(date: Date | number, nowMs: number): string {
   const timestamp = typeof date === 'number' ? date : date.getTime();
   const diffMs = nowMs - timestamp;
@@ -91,6 +95,8 @@ export default function ProductPage() {
   const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
   const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
   const [consumeSortPreference, setConsumeSortPreference] = useState<'expiry' | 'fewest_units'>('expiry');
+  const [anyPackHasColoredDots, setAnyPackHasColoredDots] = useState<boolean>(false);
+  const [packColoredDots, setPackColoredDots] = useState<PackColoredDots>({});
 
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const theme = useTheme();
@@ -128,6 +134,34 @@ export default function ProductPage() {
       setLastConsumedPackId(null);
     }
   }, [productHistoryQ.data]);
+
+  useEffect(() => {
+    const checkColoredDots = async () => {
+      if (!packsQ.data || !db || !coloredDotsEnabled) {
+        setAnyPackHasColoredDots(false);
+        setPackColoredDots({});
+        return;
+      }
+      
+      const dotsMap: PackColoredDots = {};
+      let hasAny = false;
+      
+      for (const pack of packsQ.data) {
+        if (pack.id) {
+          const assignment = await coloredDotsRepo(db).getAssignmentByPackId(pack.id);
+          if (assignment && assignment.dotIds) {
+            dotsMap[pack.id] = assignment.dotIds;
+            hasAny = true;
+          }
+        }
+      }
+      
+      setPackColoredDots(dotsMap);
+      setAnyPackHasColoredDots(hasAny);
+    };
+
+    checkColoredDots();
+  }, [packsQ.data, db, coloredDotsEnabled]);
 
   useEffect(() => {
     if (!getSessionOutcomeStatsByProductQ.data) return;
@@ -345,40 +379,45 @@ export default function ProductPage() {
           </Card.Content>
         </Card>
         
-        {((packsQ.data && packsQ.data.length > 0) || (!!productQ.data.isSessionBased && getActiveSessionQ.data)) && (
-          <View style={{marginBottom: 24, gap: 8}}>
-            {(!productQ.data.isSessionBased || (!!productQ.data.isSessionBased && !getActiveSessionQ.data)) && (
-              <Button 
-                mode="contained"
-                icon="needle"
-                onPress={handlePressConsume}
-              >
-                Consume item
-              </Button>
-            )}
-            {!!productQ.data.isSessionBased && getActiveSessionQ.data && (
-              <Button
-                mode="contained"
-                icon="stop"
-                onPress={() => setIsEndSessionDialogVisible(true)}
-                buttonColor={theme.colors.error}
-                textColor={theme.colors.onError}
-              >
-                Stop active session
-              </Button>
-            )}
+        <View style={{marginBottom: 24, gap: 8}}>
+          {((packsQ.data && packsQ.data.length > 0) || (!!productQ.data.isSessionBased && getActiveSessionQ.data)) && (
+            <>
+              {(!productQ.data.isSessionBased || (!!productQ.data.isSessionBased && !getActiveSessionQ.data)) && (
+                <Button 
+                  mode="contained"
+                  icon="needle"
+                  onPress={handlePressConsume}
+                >
+                  Consume item
+                </Button>
+              )}
+              {!!productQ.data.isSessionBased && getActiveSessionQ.data && (
+                <Button
+                  mode="contained"
+                  icon="stop"
+                  onPress={() => setIsEndSessionDialogVisible(true)}
+                  buttonColor={theme.colors.error}
+                  textColor={theme.colors.onError}
+                >
+                  Stop active session
+                </Button>
+              )}
 
-            {productQ.data.canHaveExpiry && packsQ.data?.some(pack => pack.expiry && new Date(pack.expiry) < new Date()) && (
-              <Button
-                mode="outlined"
-                icon="delete"
-                onPress={() => setIsDiscardDialogVisible(true)}
-              >
-                Discard expired packs
-              </Button>
-            )}
-          </View>
-        )}
+              {productQ.data.canHaveExpiry && packsQ.data?.some(pack => pack.expiry && new Date(pack.expiry) < new Date()) && (
+                <Button
+                  mode="outlined"
+                  icon="delete"
+                  onPress={() => setIsDiscardDialogVisible(true)}
+                >
+                  Discard expired packs
+                </Button>
+              )}
+            </>
+          )}
+          {productQ.data && (
+            <Button mode="outlined" icon="cog" onPress={() => router.push(`/product/settings/${productQ.data!.id}`)}>Settings</Button>
+          )}
+        </View>
 
 
         {/* Show a card with the current item active. It should only show when the products code is of gs1 type. The item shown here should be the one of the last TAKE event */}
@@ -396,9 +435,11 @@ export default function ProductPage() {
 
         <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
           <Text variant="titleLarge">Packs</Text>
-          {productQ.data && productQ.data.id && packsQ.data && packsQ.data.length > 0 && (
-            <Button icon="pencil" onPress={() => router.push(`/product/edit/${productQ.data!.id}`)}>Edit</Button>
-          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {productQ.data && productQ.data.id && packsQ.data && packsQ.data.length > 0 && (
+              <Button icon="pencil" onPress={() => router.push(`/product/edit/${productQ.data!.id}`)}>Edit</Button>
+            )}
+          </View>
         </View>
         {packsQ.data && productIdentifiersQ.data && (
           packsQ.data.length > 0 ? (() => {
@@ -416,6 +457,9 @@ export default function ProductPage() {
                   )}
                   <DataTable.Title>Units left</DataTable.Title>
                   <DataTable.Title>Expiry</DataTable.Title>
+                  {(anyPackHasColoredDots || !!productQ.data?.useColoredDots) && (
+                    <DataTable.Title>Colored Dots</DataTable.Title>
+                  )}
                 </DataTable.Header>
                 {packsQ.data.slice(from, to).map((pack) => (
                   <DataTable.Row key={pack.id} style={{ backgroundColor: pack.expiry && new Date(pack.expiry) < new Date() ? theme.colors.errorContainer : 'transparent' }}>
@@ -428,6 +472,20 @@ export default function ProductPage() {
                     <DataTable.Cell>
                       {pack.expiry ? new Date(pack.expiry).toLocaleDateString() : '-'}
                     </DataTable.Cell>
+                    {(anyPackHasColoredDots || !!productQ.data?.useColoredDots) && (
+                      <DataTable.Cell>
+                        {packColoredDots[pack.id] && packColoredDots[pack.id].length > 0 ? (
+                          <View style={{ flexDirection: 'row', gap: 4 }}>
+                            {packColoredDots[pack.id].map((dotId, index) => (
+                              <ColoredDot key={index} dotId={dotId} size={16} />
+                            ))}
+                          </View>
+                        ) : (
+                          <Text>-</Text>
+                        )}
+                      </DataTable.Cell>
+                    )}
+                      
                   </DataTable.Row>
                 ))}
 

@@ -78,7 +78,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
                 Consumed {lastConsumedAt.toLocaleString()}
               </Text>
             )}
-            {productQ.data && productQ.data.nominalSessionTimeDays && productQ.data.isSessionBased && (
+            {productQ.data && productQ.data.nominalSessionTimeDays && !!productQ.data.isSessionBased && (
               <>
                 <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
                   Session started {sessionForPackQ.data?.startedAt ? new Date(sessionForPackQ.data.startedAt).toLocaleString() : "N/A"}
@@ -94,7 +94,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
                 />
               </>
             )}
-            {productQ.data && productQ.data.useColoredDots && coloredDotAssignments && coloredDotAssignments.dotIds && coloredDotAssignments.dotIds.length > 0 && (
+            {productQ.data && !!productQ.data.useColoredDots && coloredDotAssignments && coloredDotAssignments.dotIds && coloredDotAssignments.dotIds.length > 0 && (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>Assigned Dots:</Text>
                 <View style={{ flexDirection: "row", gap: 4 }}>
