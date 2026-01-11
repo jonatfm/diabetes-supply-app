@@ -2,6 +2,8 @@ import { Pack, packs, products, stock_events } from "@/db/schema";
 import { and, eq, lt, ne, sql } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
+import { appSettingsRepo } from "./appSettingsRepo";
+import { coloredDotsRepo } from "./coloredDotsRepo";
 import { sessionsRepo } from "./sessionsRepo";
 
 export type ChangesFormat = {
@@ -73,6 +75,18 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         createdAt: now,
         note: params.note ?? "Via app",
       });
+
+      // Check if colored dots are enabled for this product and assign if so
+      const dotsEnabled = await appSettingsRepo(db).getByKey<boolean>("coloredDotsEnabled");
+      const product = await db.select().from(products).where(eq(products.id, params.productId)).limit(1);
+      if (dotsEnabled && product.length > 0 && product[0].useColoredDots) {
+        const dotsRepo = coloredDotsRepo(db);
+        const combo = await dotsRepo.generateUniqueCombinationForProduct(params.productId);
+        if (combo && combo.length > 0) {
+          await dotsRepo.setAssignmentForPack(pack.id, combo);
+        }
+      }
+
 
       return pack.id;
     },

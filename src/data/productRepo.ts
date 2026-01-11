@@ -21,7 +21,7 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       return await db.select().from(products).where(eq(products.name, name));
     },
 
-    async createProduct(params: {name: string; unitsPerPackDefault: number; imageUri?: string; canHaveExpiry: boolean; isSessionBased: boolean; nominalSessionTimeDays?: number}) {
+    async createProduct(params: {name: string; unitsPerPackDefault: number; imageUri?: string; canHaveExpiry: boolean; isSessionBased: boolean; nominalSessionTimeDays?: number; useColoredDots: boolean;}) {
       return await db.insert(products).values({
         name: params.name,
         unitsPerPackDefault: params.unitsPerPackDefault,
@@ -29,6 +29,7 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         canHaveExpiry: params.canHaveExpiry ? 1 : 0,
         isSessionBased: params.isSessionBased ? 1 : 0,
         nominalSessionTimeDays: params.nominalSessionTimeDays ?? null,
+        useColoredDots: params.useColoredDots ? 1 : 0,
       }).returning({id: products.id});
     }
   }

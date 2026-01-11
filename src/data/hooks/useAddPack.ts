@@ -19,11 +19,13 @@ export function useAddPack(productId: string) {
       timestamp?: number;
       dateSetManually?: boolean;
     }) => repo!.addPackWithStockEvent({ ...params, productId }),
-    onSuccess: async () => {
+    onSuccess: async (newPackId: string) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.packs(productId) }),
         qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
         qc.invalidateQueries({ queryKey: qk.history(productId) }),
+        qc.invalidateQueries({ queryKey: qk.coloredDotAssignments(newPackId) }),
+        qc.invalidateQueries({ queryKey: qk.dotCombination(productId) }),
       ]);
     },
   });

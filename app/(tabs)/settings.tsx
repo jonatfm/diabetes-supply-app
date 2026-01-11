@@ -1,9 +1,14 @@
 import AppWrapper from '@/components/AppWrapper';
+import { useAppSetting } from '@/src/data/hooks/useAppSetting';
+import { useColoredDots } from '@/src/data/hooks/useColoredDots';
+import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
+import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Button, Card, Dialog, Divider, Icon, Portal, Snackbar, Text, useTheme } from 'react-native-paper';
+import { Pressable, ScrollView, View } from 'react-native';
+import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
+import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
   const theme = useTheme();
@@ -14,6 +19,28 @@ export default function Settings() {
   const [isImportConfirmDialogVisible, setIsImportConfirmDialogVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
+
+  // App settings
+  const upsertAppSetting = useUpsertAppSetting();
+  // Colored dots
+  const coloredDotsEnabledSetting = useAppSetting<boolean>('coloredDotsEnabled').data;
+  const coloredDots = useColoredDots({includeInactive: true}).data;
+  const createColoredDotM = useCreateColoredDot();
+  const [isCreateNewColorDialogVisible, setIsCreateNewColorDialogVisible] = useState(false);
+  const [newDotColor, setNewDotColor] = useState('');
+
+  const saveNewColoredDot = () => {
+    if (!newDotColor) return;
+    createColoredDotM.mutate(
+      { color: newDotColor.toLowerCase() },
+      {
+        onSuccess: () => {
+          setNewDotColor('');
+          setIsCreateNewColorDialogVisible(false);
+        }
+      }
+    );
+  };
 
   const handleExport = async () => {
     try {
@@ -54,9 +81,67 @@ export default function Settings() {
       <ScrollView>
         <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Settings</Text>
 
+        {/* Color dots management section */}
+        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Colored Dots</Text>
+        <Card style={{ marginBottom: 24 }}>
+          <Card.Content style={{ gap: 12 }}>
+            <Text variant="titleMedium">Use colored dots</Text>
+            <Text>You can use colored dot stickers to physically mark your items and easily identify them at a glance.</Text>
+            <SegmentedButtons
+              value={coloredDotsEnabledSetting ? 'enabled' : 'disabled'}
+              onValueChange={(value) => {
+                upsertAppSetting.mutate({key: "coloredDotsEnabled", value: value === 'enabled'})
+              }}
+              buttons={[
+                {
+                  value: 'enabled',
+                  label: 'Yes',
+                  icon: 'check',
+                },
+                {
+                  value: 'disabled',
+                  label: 'No',
+                  icon: 'close',
+                }
+              ]}
+            />
+            {coloredDotsEnabledSetting && coloredDots && (
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap'}}>
+                {coloredDots.map((dot) => (
+                  <ColoredDot 
+                    key={dot.id}
+                    dotId={dot.id}
+                    pressToToggle
+                  />
+                ))}
+                <Pressable onPress={() => setIsCreateNewColorDialogVisible(true)} style={{width: 38, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 1000}}>
+                  <Icon source="plus-circle-outline" size={32} color={"white"} />
+                </Pressable>
+                <Portal>
+                  <Dialog visible={isCreateNewColorDialogVisible} onDismiss={() => setIsCreateNewColorDialogVisible(false)}>
+                    <Dialog.Title>Add new color</Dialog.Title>
+                    <Dialog.Content>
+                      <Text>Add a new colored dot you have present physically to mark your items.</Text>
+                      <TextInput
+                        label="Color (name or hex code)"
+                        value={newDotColor}
+                        onChangeText={text => setNewDotColor(text)}
+                      />
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                      <Button onPress={() => setIsCreateNewColorDialogVisible(false)}>Cancel</Button>
+                      <Button disabled={!newDotColor} onPress={saveNewColoredDot}>Save</Button>
+                    </Dialog.Actions>
+                  </Dialog>
+                </Portal>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+
+
         {/* Data Management Section */}
-        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Data Management</Text>
-        
+        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Data Management</Text>        
         <Card style={{ marginBottom: 24 }}>
           <Card.Content>
             {/* Export Section */}

@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `useColoredDots` integer DEFAULT 0 NOT NULL;

@@ -2,8 +2,9 @@ import { Product } from "@/db/schema";
 import { useAverageTimeBetweenTakes } from "@/src/data/hooks/useAverageTimeBetweenTakes";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
+import { formatDateForDisplay } from "@/src/utils/dateUtils";
 import { useMemo } from "react";
-import { Image, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { Card, Icon, Text, useTheme } from "react-native-paper";
 
 type ProductNotice = {
@@ -16,19 +17,6 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
   expiringSoon: false,
   lowStock: false,
 };
-
-const formatDateString = (dateStr: string | undefined): string | undefined => {
-  if (!dateStr) return undefined;
-
-  // Format YYYY-MM-DD to DD.MM.YYYY
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    const [, year, month, day] = match;
-    return `${day}.${month}.${year}`;
-  }
-
-  return dateStr;
-}
 
 export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
@@ -75,7 +63,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
   }, [totalUnitsQ.data, earliestExpiry]);
   
   return (
-    <View onTouchEnd={onPress}>
+    <Pressable onPress={onPress}>
       {productNotice && (
         <Card style={[productNoticeIsCritical[productNotice.type] ? {backgroundColor: theme.colors.errorContainer} : {backgroundColor: theme.colors.primaryContainer}, {padding: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0}]}>
           {productNotice?.type === 'lowStock' && (
@@ -121,7 +109,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
             {packsQ.data && packsQ.data.length > 0 ? (
               <>
                 {product.canHaveExpiry ? (
-                  <Text variant="bodyLarge">Earliest expiry: {earliestExpiry ? formatDateString(earliestExpiry) : 'Loading…'}</Text>
+                  <Text variant="bodyLarge">Earliest expiry: {earliestExpiry ? formatDateForDisplay(earliestExpiry) : 'Loading…'}</Text>
                 ) : (
                   <Text variant="bodyLarge">(No expiry)</Text>
                 )}
@@ -137,6 +125,6 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
           </View>
         </View>
       </Card>
-    </View>
+    </Pressable>
   )
 }

@@ -1,46 +1,49 @@
 import AppWrapper from "@/components/AppWrapper";
+import ColoredDot from "@/components/ColoredDot";
+import { useDatabase } from "@/db";
 import { Product } from "@/db/schema";
+import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
 import { useAddPack } from "@/src/data/hooks/useAddPack";
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
+import { useColoredDots } from "@/src/data/hooks/useColoredDots";
 import { useProduct } from "@/src/data/hooks/useProduct";
+import { normalizeExpiryDate } from "@/src/utils/dateUtils";
 import { useScanFlow } from "@/state/scanFlow";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
-import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
-
-// Convert YYMMDD format to YYYY-MM-DD, or return as-is if already formatted
-const formatDateString = (dateStr: string | undefined): string | undefined => {
-  if (!dateStr) return undefined;
-  
-  // If already in YYYY-MM-DD format, return as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return dateStr;
-  }
-  
-  // Convert from YYMMDD to YYYY-MM-DD
-  if (/^\d{6}$/.test(dateStr)) {
-    const yy = parseInt(dateStr.slice(0, 2), 10);
-    // Assume 20xx
-    const yyyy = `20${dateStr.slice(0, 2)}`;
-    return `${yyyy}-${dateStr.slice(2, 4)}-${dateStr.slice(4, 6)}`;
-  }
-  
-  // Return unchanged if format is unexpected
-  return dateStr;
-}
 
 export default function AddPack() {
   const router = useRouter();
   const params = useLocalSearchParams<{productId: string}>();
   const {convenience} = useScanFlow();
+  const { db } = useDatabase();
   const productQ = useProduct(params.productId as string);
   const [product, setProduct] = useState<Product | null>(null);
   const [unitsInPack, setUnitsInPack] = useState<string | undefined>(undefined);
   const canHaveExpiry = product ? product.canHaveExpiry === 1 : false;
   const [manualExpiryDate, setManualExpiryDate] = useState<Date | undefined>(undefined);
   const addPack = useAddPack(params.productId as string);
-  
+
+  const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
+  const coloredDots = useColoredDots({includeInactive: true}).data;
+  const [displayedDots, setDisplayedDots] = useState<string[] | null>(null);
+
+  // Generate dots once when component mounts or when dependencies change
+  const generateAndDisplayDots = useCallback(async () => {
+    if (!coloredDotsEnabled || !product?.useColoredDots || !db) {
+      setDisplayedDots(null);
+      return;
+    }
+    const combo = await coloredDotsRepo(db).generateUniqueCombinationForProduct(params.productId as string);
+    setDisplayedDots(combo);
+  }, [coloredDotsEnabled, product?.useColoredDots, db, params.productId]);
+
+  useEffect(() => {
+    generateAndDisplayDots();
+  }, [generateAndDisplayDots]);
 
   useEffect(() => {
     if (productQ.data) {
@@ -77,8 +80,8 @@ export default function AddPack() {
       : undefined;
     
     await addPack.mutateAsync({
-      expiry: formatDateString(convenience.expiry) || formattedExpiry,
-      productionDate: formatDateString(convenience.productionDate),
+      expiry: normalizeExpiryDate(convenience.expiry) || formattedExpiry,
+      productionDate: normalizeExpiryDate(convenience.productionDate),
       units: parseInt(unitsInPack || '1', 10),
       ais: convenience.ais || null,
       note: "Via app",
@@ -94,7 +97,7 @@ export default function AddPack() {
       <Text variant="headlineLarge">Add Pack to "{product ? product.name : 'Loading…'}"</Text>
       <View style={{gap: 24, marginTop: 16}}>
         {product && convenience && canHaveExpiry && convenience.expiry && (
-          <Text variant="labelLarge">Expiry: {formatDateString(convenience.expiry)}</Text>
+          <Text variant="labelLarge">Expiry: {normalizeExpiryDate(convenience.expiry)}</Text>
         )}
         {product && canHaveExpiry && !convenience?.expiry && (
           <>
@@ -124,6 +127,33 @@ export default function AddPack() {
               Please enter a number between 1 and {product.unitsPerPackDefault}
             </HelperText>
           </View>
+        )}
+
+        {product && product?.useColoredDots && coloredDotsEnabled && coloredDots && coloredDots.length > 0 && (
+          <Card>
+            <Card.Title title="Colored Dots" />
+            <Card.Content>
+              <Text variant="labelLarge">You have enabled the colored dot option.</Text>
+              <Text variant="bodySmall">Please check that you have these colors on your sticker sheets, you can toggle them by pressing a color.</Text>
+              <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8}}>
+                {coloredDots.map((dot) => (
+                  <ColoredDot key={dot.id} dotId={dot.id} pressToToggle />
+                ))}
+              </View>
+              <View>
+                <Text variant="labelLarge">Please label your product as such:</Text>
+                <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8}}>
+                  {displayedDots && displayedDots.length > 0 && (
+                    <>
+                      {displayedDots.map((dotId, index) => {
+                        return <ColoredDot key={index} dotId={dotId} size={32} />;
+                      })}
+                    </>
+                  )}
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
         )}
         
         <Button mode="contained" icon="plus" disabled={!product || (canHaveExpiry && !convenience?.expiry && !manualExpiryDate)} onPress={handleAddNewPack}>Add Pack</Button>

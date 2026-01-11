@@ -22,6 +22,7 @@ export function useCreateProductWithIdentifier() {
       identifierType: ProductIdentifier["type"];
       isSessionBased: boolean;
       nominalSessionTimeDays?: number;
+      useColoredDots?: boolean;
     }) => {
       if (!repo || !identifiers) throw new Error("Database not ready");
 
@@ -42,6 +43,7 @@ export function useCreateProductWithIdentifier() {
         canHaveExpiry: params.canHaveExpiry,
         isSessionBased: params.isSessionBased,
         nominalSessionTimeDays: params.nominalSessionTimeDays,
+        useColoredDots: params.useColoredDots ?? false,
       });
 
       await identifiers.createIdentifier({

@@ -1,5 +1,7 @@
 import AppWrapper from "@/components/AppWrapper";
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from "@/scripts/gs1";
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
+import { useColoredDots } from "@/src/data/hooks/useColoredDots";
 import { useCreateProductWithIdentifier } from "@/src/data/hooks/useCreateProductWithIdentifier";
 import { useScanFlow } from "@/state/scanFlow";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -9,13 +11,17 @@ import { Button, Icon, SegmentedButtons, Text, TextInput } from "react-native-pa
 
 export default function AddNewProduct() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ photoUri?: string; name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string }>();
+  const params = useLocalSearchParams<{ photoUri?: string; name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string; useColoredDotsForProduct?: string }>();
   const { convenience, lastBarcodeResult } = useScanFlow();
   const createProductWithIdentifier = useCreateProductWithIdentifier();
   const [name, setName] = useState('');
   const [unitsPerPack, setUnitsPerPack] = useState<number | undefined>(undefined);
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
   const [canHaveExpiry, setCanHaveExpiry] = useState(true);
+
+  const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
+  const coloredDots = useColoredDots({includeInactive: true}).data;
+  const [useColoredDotsForProduct, setUseColoredDotsForProduct] = useState<boolean>(true);
 
   const [isSessionBased, setIsSessionBased] = useState(false);
   const [nominalSessionTimeDays, setNominalSessionTimeDays] = useState<number | undefined>(undefined);
@@ -38,7 +44,10 @@ export default function AddNewProduct() {
       const parsedDays = parseInt(params.nominalSessionTimeDays, 10);
       setNominalSessionTimeDays(Number.isFinite(parsedDays) ? parsedDays : undefined);
     }
-  }, [params.photoUri, params.name, params.unitsPerPack, params.isSessionBased, params.nominalSessionTimeDays]);
+    if (params.useColoredDotsForProduct) {
+      setUseColoredDotsForProduct(params.useColoredDotsForProduct === 'true' || params.useColoredDotsForProduct === '1');
+    }
+  }, [params.photoUri, params.name, params.unitsPerPack, params.isSessionBased, params.nominalSessionTimeDays, params.useColoredDotsForProduct]);
 
   const handleTakeProductPhoto = () => {
     router.push({
@@ -48,6 +57,7 @@ export default function AddNewProduct() {
         unitsPerPack: unitsPerPack?.toString() ?? '',
         isSessionBased: isSessionBased ? 'true' : 'false',
         nominalSessionTimeDays: nominalSessionTimeDays?.toString() ?? '',
+        useColoredDotsForProduct: useColoredDotsForProduct ? 'true' : 'false',
       },
     });
   };
@@ -92,6 +102,7 @@ export default function AddNewProduct() {
         identifierType,
         isSessionBased,
         nominalSessionTimeDays,
+        useColoredDots: coloredDotsEnabled ? useColoredDotsForProduct : false,
       });
 
       if (productId) {
@@ -167,6 +178,18 @@ export default function AddNewProduct() {
                 keyboardType="number-pad"
               />
             </View>
+          </View>
+        )}
+
+        {coloredDotsEnabled && coloredDots && coloredDots.length > 0 && (
+          <View style={{gap: 8}}>
+            <View style={{flexDirection: "row", alignItems: "center", gap: 4}}>
+              <Text variant="labelLarge">Use colored dots for this product?</Text>
+              <Pressable onPress={() => alert("You can use physical colored dot stickers to help identify packs of this product. This setting enables tracking of colored dot assignments for packs of this product. You have enabled colored dots in settings to see this option.")}>
+                <Icon source="information" size={16} />
+              </Pressable>
+            </View>
+            <SegmentedButtons value={useColoredDotsForProduct ? "yes" : "no"} onValueChange={(value) => setUseColoredDotsForProduct(value === "yes")} buttons={[{value: "yes", label: "Yes", icon: "check"}, {value: "no", label: "No", icon: "close"}]} />
           </View>
         )}
         

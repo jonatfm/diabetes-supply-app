@@ -12,7 +12,10 @@ export const qk = {
   sessions: () => ["sessions"] as const,
   session: (id: string) => ["session", id] as const,
   sessionOutcomeStatsByProduct: (productId: string) => ["sessionOutcomeStatsByProduct", productId] as const,
+  dotCombination: (productId: string) => ["dotCombination", productId] as const,
+  dotCombinations: () => ["dotCombination"] as const,
   coloredDots: () => ["coloredDots"] as const,
+  coloredDot: (id: string) => ["coloredDot", id] as const,
   coloredDotAssignments: (packId: string) => ["coloredDotAssignments", packId] as const,
   appSetting: (key: string) => ["appSetting", key] as const,
 };

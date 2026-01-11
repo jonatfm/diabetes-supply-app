@@ -4,7 +4,7 @@ import { Product } from "@/db/schema";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
@@ -43,18 +43,21 @@ export default function Index() {
         <Text variant="headlineLarge">Inventory</Text>
 
         {productsQ.data.length !== 0 ? (
-          <View>
+          <View style={{ flex: 1 }}>
             <Searchbar 
               value={searchQuery} 
               onChangeText={setSearchQuery}
               placeholder="Search products" 
               style={{ marginBottom: 16, marginTop: 32 }} 
             />
-            <View>
+            <ScrollView 
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 80 }}
+            >
               {filteredProds.map((prod) => (
                 <ProductCard key={prod.id} product={prod} onPress={() => router.push(`/product/${prod.id}`)} />
               ))}
-            </View>
+            </ScrollView>
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>

@@ -1,7 +1,10 @@
 import AppWrapper from "@/components/AppWrapper";
+import ColoredDot from "@/components/ColoredDot";
 import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useDatabase } from "@/db";
 import { Pack, SESSION_OUTCOMES } from "@/db/schema";
+import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
 import { useEndSession } from "@/src/data/hooks/useEndSession";
 import { useFetchPack } from "@/src/data/hooks/useFetchPack";
@@ -46,6 +49,7 @@ type ConsumtionDialogInfo = {
   identifierType: "Serial" | "Code";
   unitsLeftInPack: number;
   packId: string;
+  coloredDotIds?: string[];
 }
 
 
@@ -79,6 +83,7 @@ export default function ProductPage() {
   const lastConsumedPackQ = useFetchPack(lastConsumedPackId ?? '');
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
+  const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
 
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
@@ -138,7 +143,7 @@ export default function ProductPage() {
     setSessionOutcomePieData(pieData);
   }, [getSessionOutcomeStatsByProductQ.data]);
 
-  const calculateChosenPack = (sortPreference: 'expiry' | 'fewest_units'): ConsumtionDialogInfo | null => {
+  const calculateChosenPack = async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
     if (!packsQ.data) return null;
     
     // Never choose a pack that is expired
@@ -170,19 +175,26 @@ export default function ProductPage() {
     // Get identifier / serial for the dialog
     const identifier = chosenPack.ais && chosenPack.ais["21"] ? chosenPack.ais["21"] : (productIdentifiersQ.data?.[0]?.value || 'N/A');
 
+    // Check colored dots
+    let coloredDotIds: string[] | undefined = undefined;
+    if (coloredDotsEnabled && productQ.data && productQ.data.useColoredDots && db) {
+      coloredDotIds = (await coloredDotsRepo(db).getAssignmentByPackId(chosenPack.id))?.dotIds || [];
+    }
+
     return {
       expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
       identifier,
       identifierType: chosenPack.ais && chosenPack.ais["21"] ? "Serial" : "Code",
       unitsLeftInPack: chosenPack.unitsRemaining,
       packId: chosenPack.id,
+      coloredDotIds,
     };
   };
 
-  const handlePressConsume = () => {
+  const handlePressConsume = async () => {
     if (!packsQ.data) return;
     
-    const chosenPackInfo = calculateChosenPack(consumeSortPreference);
+    const chosenPackInfo = await calculateChosenPack(consumeSortPreference);
     
     if (!chosenPackInfo) {
       alert("No valid packs available to consume from.");
@@ -487,10 +499,9 @@ export default function ProductPage() {
           </Card>
         </View>
 
+        <Text variant="titleLarge">Product History</Text>
         {productHistoryQ.data && productHistoryQ.data.length > 0 ? (
           <>
-            <Text variant="titleLarge">Product History</Text>
-
             <Card style={{ marginBottom: 12 }}>
               <DataTable>
                 <DataTable.Header>
@@ -536,10 +547,10 @@ export default function ProductPage() {
             <Text style={{ marginBottom: 12 }}>Sort packs by:</Text>
             <SegmentedButtons
               value={consumeSortPreference}
-              onValueChange={(value) => {
+              onValueChange={async (value) => {
                 const newPreference = value as 'expiry' | 'fewest_units';
                 setConsumeSortPreference(newPreference);
-                const newPackInfo = calculateChosenPack(newPreference);
+                const newPackInfo = await calculateChosenPack(newPreference);
                 if (newPackInfo) {
                   setConsumtionDialogInfo(newPackInfo);
                 }
@@ -565,6 +576,17 @@ export default function ProductPage() {
                   <Text>Expiry Date: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.expiryDate.toLocaleDateString()}</Text></Text>
                 )}
                 <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.unitsLeftInPack}</Text></Text>
+                
+                {consumtionDialogInfo.coloredDotIds && consumtionDialogInfo.coloredDotIds.length > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                    <Text>Colored Dots:</Text>
+                    <View style={{ flexDirection: 'row', marginLeft: 8, gap: 4 }}>
+                      {consumtionDialogInfo.coloredDotIds.map((dotId, index) => (
+                        <ColoredDot key={index} dotId={dotId} size={20} />
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
             ) : (
               <Text style={{ marginTop: 16 }}>Loading pack information...</Text>

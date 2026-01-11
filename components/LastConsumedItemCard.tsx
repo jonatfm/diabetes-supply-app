@@ -1,4 +1,5 @@
 import { GS1_AI_SPECS } from "@/scripts/gs1";
+import { useColoredDotAssignments } from "@/src/data/hooks/useColoredDotAssignments";
 import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetSessionForPack } from "@/src/data/hooks/useGetSessionForPack";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
@@ -7,6 +8,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Card, Icon, Text, useTheme } from "react-native-paper";
+import ColoredDot from "./ColoredDot";
 import DaysProgressBar from "./DaysProgressBar";
 
 
@@ -16,6 +18,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
   const productQ = useProduct(productId);
   const productHistoryQ = useGetStockHistoryByProduct(productId);
   const sessionForPackQ = useGetSessionForPack(packId);
+  const coloredDotAssignments = useColoredDotAssignments(packId).data;
   const [lastConsumedAt, setLastConsumedAt] = useState<Date | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
   const [daysCompleted, setDaysCompleted] = useState<number | null>(null);
@@ -90,6 +93,16 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
                   colorBackground={theme.colors.onPrimary}
                 />
               </>
+            )}
+            {productQ.data && productQ.data.useColoredDots && coloredDotAssignments && coloredDotAssignments.dotIds && coloredDotAssignments.dotIds.length > 0 && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>Assigned Dots:</Text>
+                <View style={{ flexDirection: "row", gap: 4 }}>
+                  {coloredDotAssignments.dotIds.map((dotId, index) => (
+                    <ColoredDot key={index} dotId={dotId} size={16} />
+                  ))}
+                </View>
+              </View>
             )}
             {Object.entries(packQ.data.ais!).map(([ai, value]) => {
               const spec = GS1_AI_SPECS[ai];

@@ -20,6 +20,7 @@ export const products = sqliteTable("products", {
   canHaveExpiry: integer("canHaveExpiry").default(1).notNull(),
   isSessionBased: integer("isSessionBased").default(0).notNull(),
   nominalSessionTimeDays: integer("nominalSessionTimeDays"),
+  useColoredDots: integer("useColoredDots").default(0).notNull(),
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {
