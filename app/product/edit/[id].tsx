@@ -260,10 +260,9 @@ export default function EditProductPage() {
                   <Card.Content>
                     <DataTable>
                       <DataTable.Header>
-                        {packsQ.data[0].ais && packsQ.data[0].ais["21"] && (
+                        {packsQ.data.some(pack => pack.ais && pack.ais["21"]) ? (
                           <DataTable.Title style={{ flex: columnFlex.code }}>Serial</DataTable.Title>
-                        )}
-                        {!isGS1 && productIdentifiersQ.data && productIdentifiersQ.data.length > 0 && (
+                        ) : (
                           <DataTable.Title style={{ flex: columnFlex.code }}>Code</DataTable.Title>
                         )}
                         <DataTable.Title style={{ flex: columnFlex.units }}>Units left</DataTable.Title>
@@ -271,12 +270,12 @@ export default function EditProductPage() {
                       </DataTable.Header>
                       {packsQ.data.map((pack) => (
                         <DataTable.Row key={pack.id}>
-                          {pack.ais && pack.ais["21"] ? (
-                            <DataTable.Cell style={{ flex: columnFlex.code }}>{pack.ais["21"]}</DataTable.Cell>
-                          ) : null}
-                          {!isGS1 && productIdentifiersQ.data && productIdentifiersQ.data.length > 0 && (
-                            <DataTable.Cell style={{ flex: columnFlex.code }}>{productIdentifiersQ.data[0]?.value.substring(0, 20) || '-'}</DataTable.Cell>
+                          {packsQ.data.some(pack => pack.ais && pack.ais["21"]) ? (
+                            <DataTable.Cell style={{ flex: columnFlex.code }}>{pack.ais ? pack.ais["21"] : "..."}</DataTable.Cell>
+                          ) : (
+                            <DataTable.Cell style={{ flex: columnFlex.code }}>{productIdentifiersQ.data ? productIdentifiersQ.data[0]?.value.substring(0, 20) || '-' : "..."}</DataTable.Cell>
                           )}
+
                           <EditableDataTableCell
                             value={packUnits[pack.id] ?? pack.unitsRemaining.toString()}
                           // or:
