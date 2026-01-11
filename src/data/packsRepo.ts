@@ -54,6 +54,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       note?: string;
       timestamp?: number;
       dateSetManually?: boolean;
+      coloredDotIds?: string[];
     }) {
       const now = params.timestamp ?? Date.now();
       const [pack] = await db.insert(packs).values({
@@ -76,14 +77,20 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         note: params.note ?? "Via app",
       });
 
-      // Check if colored dots are enabled for this product and assign if so
-      const dotsEnabled = await appSettingsRepo(db).getByKey<boolean>("coloredDotsEnabled");
-      const product = await db.select().from(products).where(eq(products.id, params.productId)).limit(1);
-      if (dotsEnabled && product.length > 0 && product[0].useColoredDots) {
+      // Use provided colored dot IDs if available, otherwise generate new ones
+      if (params.coloredDotIds && params.coloredDotIds.length > 0) {
         const dotsRepo = coloredDotsRepo(db);
-        const combo = await dotsRepo.generateUniqueCombinationForProduct(params.productId);
-        if (combo && combo.length > 0) {
-          await dotsRepo.setAssignmentForPack(pack.id, combo);
+        await dotsRepo.setAssignmentForPack(pack.id, params.coloredDotIds);
+      } else {
+        // Check if colored dots are enabled for this product and assign if so
+        const dotsEnabled = await appSettingsRepo(db).getByKey<boolean>("coloredDotsEnabled");
+        const product = await db.select().from(products).where(eq(products.id, params.productId)).limit(1);
+        if (dotsEnabled && product.length > 0 && product[0].useColoredDots) {
+          const dotsRepo = coloredDotsRepo(db);
+          const combo = await dotsRepo.generateUniqueCombinationForProduct(params.productId);
+          if (combo && combo.length > 0) {
+            await dotsRepo.setAssignmentForPack(pack.id, combo);
+          }
         }
       }
 

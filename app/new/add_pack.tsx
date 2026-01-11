@@ -102,6 +102,7 @@ export default function AddPack() {
       ais: convenience.ais || null,
       note: "Via app",
       dateSetManually: !!manualExpiryDate,
+      coloredDotIds: displayedDots || undefined,
     });
 
     alert('New pack added successfully');

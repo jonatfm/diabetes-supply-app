@@ -499,7 +499,7 @@ export default function ProductPage() {
                         {packColoredDots[pack.id] && packColoredDots[pack.id].length > 0 ? (
                           <View style={{ flexDirection: 'row', gap: 4 }}>
                             {packColoredDots[pack.id].map((dotId, index) => (
-                              <ColoredDot key={index} dotId={dotId} size={16} />
+                              <ColoredDot key={index} dotId={dotId} size={16} crossInactive={false} />
                             ))}
                           </View>
                         ) : (
@@ -671,7 +671,7 @@ export default function ProductPage() {
                     <Text>Colored Dots:</Text>
                     <View style={{ flexDirection: 'row', marginLeft: 8, gap: 4 }}>
                       {consumtionDialogInfo.coloredDotIds.map((dotId, index) => (
-                        <ColoredDot key={index} dotId={dotId} size={20} />
+                        <ColoredDot key={index} dotId={dotId} size={20} crossInactive={false} />
                       ))}
                     </View>
                   </View>

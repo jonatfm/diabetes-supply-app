@@ -26,7 +26,7 @@ export default function ColoredDot(
   const innerDiameter = Math.max(0, diameter - 2 * bw);
   const diagonal = Math.sqrt(2) * innerDiameter;
   const tooRed = isColorTooRed(coloredDotQ.data?.color);
-  const borderColor = !coloredDotQ.data?.active ? (tooRed ? "black" : "red") : "white";
+  const borderColor = (!coloredDotQ.data?.active && crossInactive) ? (tooRed ? "black" : "red") : "white";
 
   return (
     <Pressable disabled={!pressToToggle} onPress={() => {

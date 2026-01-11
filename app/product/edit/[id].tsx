@@ -439,7 +439,7 @@ export default function EditProductPage() {
                               packColoredDots[pack.id] && packColoredDots[pack.id].length > 0 ? (
                                 <View style={styles.colorDotsRow}>
                                   {packColoredDots[pack.id].map((dotId, dotIndex) => (
-                                    <ColoredDot key={dotIndex} dotId={dotId} size={20} />
+                                    <ColoredDot key={dotIndex} dotId={dotId} size={20} crossInactive={false} />
                                   ))}
                                 </View>
                               ) : (
