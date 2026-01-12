@@ -99,7 +99,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
                 <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>Assigned Dots:</Text>
                 <View style={{ flexDirection: "row", gap: 4 }}>
                   {coloredDotAssignments.dotIds.map((dotId, index) => (
-                    <ColoredDot key={index} dotId={dotId} size={16} />
+                    <ColoredDot key={index} dotId={dotId} size={16} crossInactive={false} />
                   ))}
                 </View>
               </View>

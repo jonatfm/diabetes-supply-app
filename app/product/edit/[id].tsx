@@ -1,6 +1,7 @@
 import AppWrapper from "@/components/AppWrapper";
 import ColoredDot from "@/components/ColoredDot";
 import { useDatabase } from "@/db";
+import { GS1_AI_SPECS } from "@/scripts/gs1";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useColoredDots } from "@/src/data/hooks/useColoredDots";
@@ -9,10 +10,11 @@ import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { useSaveManualPacksChanges } from "@/src/data/hooks/useSaveManualPacksChanges";
 import { ChangesFormat } from "@/src/data/packsRepo";
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Keyboard, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { ActivityIndicator, Button, Card, FAB, Icon, Modal, Portal, Text, useTheme } from "react-native-paper";
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Button, Card, Divider, FAB, Icon, Modal, Portal, Text, useTheme } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -159,6 +161,9 @@ export default function EditProductPage() {
   // State for colored dots modal
   const [editingColorPackId, setEditingColorPackId] = useState<string | null>(null);
   const [generatedDots, setGeneratedDots] = useState<string[] | null>(null);
+  // State for show more modal
+  const [showMorePackId, setShowMorePackId] = useState<string | null>(null);
+  const [showMoreModalVisible, setShowMoreModalVisible] = useState<boolean>(false);
   
   const insets = useSafeAreaInsets();
   const [fabBottom, setFabBottom] = useState(16 + insets.bottom);
@@ -336,6 +341,12 @@ export default function EditProductPage() {
     setGeneratedDots(null);
   };
 
+  const handleShowMore = (packId: string) => {
+    const pack = packsQ.data?.find(p => p.id === packId);
+    setShowMorePackId(packId);
+    setShowMoreModalVisible(true);
+  };
+
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const hasSerialNumbers = packsQ.data?.some(pack => pack.ais && pack.ais["21"]) ?? false;
 
@@ -399,7 +410,7 @@ export default function EditProductPage() {
                           </Text>
                         </View>
 
-                        <View style={styles.divider} />
+                        <Divider />
 
                         {/* Units field - always editable */}
                         <FieldRow label="Units left">
@@ -476,6 +487,13 @@ export default function EditProductPage() {
                               )
                             )}
                           </FieldRow>
+                        )}
+
+                        {/* Show AIs conditionally */}
+                        {isGS1 && pack.ais && Object.keys(pack.ais).length > 0 && (
+                          <View>
+                            <Button onPress={() => handleShowMore(pack.id)}>Show more</Button>
+                          </View>
                         )}
                       </Card.Content>
                     </Card>
@@ -612,6 +630,38 @@ export default function EditProductPage() {
               </Button>
             </>
           )}
+        </Modal>
+
+        <Modal
+          visible={showMoreModalVisible}
+          onDismiss={() => setShowMoreModalVisible(false)}
+          contentContainerStyle={[
+            styles.modalContainer,
+            { backgroundColor: theme.colors.background }
+          ]}
+        >
+          <Card>
+            <Card.Title title="Pack Identifiers" />
+            <Card.Content>
+              {Object.entries(packsQ.data?.find(p => p.id === showMorePackId)?.ais || {}).map(([ai, value]) => {
+                const spec = GS1_AI_SPECS[ai];
+                const name = spec?.name || `AI ${ai}`;
+                return (
+                  <View key={ai} style={{borderBottomWidth: 1, borderBottomColor: theme.colors.surfaceVariant, paddingBottom: 8, marginBottom: 8}}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.secondary, marginBottom: 4 }}>
+                      {name} ({ai})
+                    </Text>
+                    <Pressable onPress={() => {Clipboard.setString(value)}} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text variant="bodyMedium" style={{ fontWeight: '500' }}>
+                        {value}
+                      </Text>
+                      <Icon source="content-copy" size={12} color={theme.colors.primary} />
+                    </Pressable>
+                  </View>
+                ) 
+              })}
+            </Card.Content>
+          </Card>
         </Modal>
       </Portal>
 
