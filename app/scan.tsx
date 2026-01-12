@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Button, Card, Text } from 'react-native-paper';
+import { Button, Card, Text, useTheme } from 'react-native-paper';
 import { runOnJS } from 'react-native-reanimated';
 
 
@@ -17,6 +17,7 @@ export default function Scan() {
   const router = useRouter();
   const { setScanResult } = useScanFlow();
   const findIdentifier = useFindIdentifierByValue();
+  const theme = useTheme();
   
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -42,15 +43,20 @@ export default function Scan() {
             mode="text" 
             onPress={() => router.back()} 
             icon="arrow-left"
-            style={{ alignSelf: 'flex-start' }}
+            style={{ alignSelf: 'flex-start', marginLeft: -8 }}
           >
             Back
           </Button>
         </View>
-        <View>
-          <Card style={{ padding: 16 }}>
-            <Text variant="bodyMedium" style={{ marginBottom: 16 }}>Camera permission is required to scan barcodes.</Text>
-            <Button onPress={() => requestPermission()} mode="contained" icon="camera">Grant Permission</Button>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Card elevation={2} style={{ padding: 24, alignItems: 'center', maxWidth: 400, }}>
+            <Text variant="titleLarge" style={{ marginBottom: 8, textAlign: 'center' }}>Camera Access Required</Text>
+            <Text variant="bodyMedium" style={{ marginBottom: 24, textAlign: 'center', color: theme.colors.onSurfaceVariant }}>
+              Camera permission is required to scan barcodes.
+            </Text>
+            <Button onPress={() => requestPermission()} mode="contained" icon="camera">
+              Grant Permission
+            </Button>
           </Card>
         </View>
       </AppWrapper>
@@ -136,8 +142,8 @@ export default function Scan() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge">Scan Product</Text>
-      <Card style={{ flex: 1, marginVertical: 16, overflow: 'hidden', flexGrow: 1 }}>
+      <Text variant="headlineLarge" style={{ marginBottom: 16 }}>Scan Product</Text>
+      <Card elevation={2} style={{ flex: 1, marginBottom: 16, overflow: 'hidden', flexGrow: 1 }}>
         <View style={{flexGrow: 1, width: '100%', height: "100%"}}>
           <GestureDetector gesture={pinchGesture}>
             <CameraView
@@ -149,7 +155,7 @@ export default function Scan() {
           </GestureDetector>
         </View>
       </Card>
-      <View style={{ gap: 16 }}>
+      <View style={{ gap: 12 }}>
         <Button icon={flashEnabled ? "flashlight" : "flashlight-off"} mode={flashEnabled ? "contained" : "contained-tonal"} onPress={() => setFlashEnabled(!flashEnabled)}>
           {flashEnabled ? 'Flash On' : 'Flash Off'}
         </Button>

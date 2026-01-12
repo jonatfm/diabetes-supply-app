@@ -71,7 +71,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
   return (
     <>
       {packQ.data && (
-        <Card>
+        <Card elevation={2}>
           <Card.Content style={{ gap: 12 }}>
             {lastConsumedAt && !productQ.data?.isSessionBased && (
               <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>

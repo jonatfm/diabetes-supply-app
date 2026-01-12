@@ -309,14 +309,17 @@ export default function ProductPage() {
           mode="text" 
           onPress={() => router.back()} 
           icon="arrow-left"
-          style={{ alignSelf: 'flex-start' }}
+          style={{ alignSelf: 'flex-start', marginLeft: -8 }}
         >
           Back
         </Button>
       </View>
 
-      <ScrollView>
-        <Card style={{ marginBottom: 24 }}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        <Card elevation={2} style={{ marginBottom: 24 }}>
           <Card.Content>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               {productQ.data.imageUri ? (

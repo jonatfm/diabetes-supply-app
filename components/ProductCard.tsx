@@ -92,7 +92,7 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
           )}
         </Card>
       )}
-      <Card mode="elevated" style={[productNotice ? {borderTopLeftRadius: 0, borderTopRightRadius: 0} : {}, {marginBottom: 12, overflow: 'hidden'}]}>
+      <Card mode="elevated" elevation={2} style={[productNotice ? {borderTopLeftRadius: 0, borderTopRightRadius: 0} : {}, {marginBottom: 16, overflow: 'hidden'}]}>
         <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
           <View style={{flexShrink: 0}}>
             {product.imageUri && (

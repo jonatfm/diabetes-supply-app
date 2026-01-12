@@ -111,8 +111,8 @@ export default function AddPack() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge">Add Pack to "{product ? product.name : 'Loading…'}"</Text>
-      <View style={{gap: 24, marginTop: 16}}>
+      <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Add Pack to "{product ? product.name : 'Loading…'}"</Text>
+      <View style={{gap: 20, marginTop: 8}}>
         {product && convenience && canHaveExpiry && convenience.expiry && (
           <Text variant="labelLarge">Expiry: {normalizeExpiryDate(convenience.expiry)}</Text>
         )}
@@ -147,7 +147,7 @@ export default function AddPack() {
         )}
 
         {product && product?.useColoredDots && coloredDotsEnabled && coloredDots && coloredDots.length > 0 && (
-          <Card>
+          <Card elevation={1}>
             <Card.Title title="Colored Dots" />
             <Card.Content>
               <Text variant="labelLarge">You have enabled the colored dot option.</Text>

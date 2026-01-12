@@ -134,8 +134,8 @@ export default function AddNewProduct() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge">Create Product</Text>
-      <View style={{gap: 24, marginTop: 16}}>
+      <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Create Product</Text>
+      <View style={{gap: 20, marginTop: 8}}>
         <View style={{gap: 8}}>
           <Text variant="labelLarge">Enter a product name:</Text>
           <TextInput

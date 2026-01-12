@@ -31,8 +31,8 @@ export default function Index() {
   }, [searchQuery, productsQ.data]);
 
   return (
-    <AppWrapper>
-        <Text variant="headlineLarge">Inventory</Text>
+    <AppWrapper bottomEdge={false}>
+        <Text variant="headlineLarge" style={{ marginBottom: 8 }}>Inventory</Text>
 
         {productsQ.isPending ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -45,11 +45,13 @@ export default function Index() {
               value={searchQuery} 
               onChangeText={setSearchQuery}
               placeholder="Search products" 
-              style={{ marginBottom: 16, marginTop: 32 }} 
+              style={{ marginBottom: 16, marginTop: 24 }} 
+              elevation={1}
             />
             <ScrollView 
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 80 }}
+              contentContainerStyle={{ paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
             >
               {filteredProds.map((prod) => (
                 <ProductCard key={prod.id} product={prod} onPress={() => router.push(`/product/${prod.id}`)} />
@@ -57,13 +59,23 @@ export default function Index() {
             </ScrollView>
           </View>
         ) : (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
             <Icon source="ghost" size={64} color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No products here yet</Text>
+            <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No products here yet</Text>
+            <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Scan a product to get started</Text>
           </View>
         )}
 
-        <FAB icon="data-matrix-scan" size="large" onPress={() => {router.push('/scan')}} style={{position: "absolute", bottom: 16, right: 16}} />
+        <FAB 
+          icon="data-matrix-scan" 
+          label="Scan Product"
+          onPress={() => {router.push('/scan')}} 
+          style={{
+            position: "absolute", 
+            bottom: 32, 
+            right: 16
+          }} 
+        />
     </AppWrapper>
   )
 }

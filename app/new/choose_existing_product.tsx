@@ -63,13 +63,17 @@ export default function ChooseExistingProduct() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge">Couldn't match this product</Text>
-      <Text style={{marginVertical: 16}} variant="bodyMedium">Please select the product from the list below or create a new one.</Text>
+      <Text variant="headlineLarge" style={{ marginBottom: 16 }}>Couldn't match this product</Text>
+      <Text variant="bodyMedium" style={{ marginBottom: 16 }}>Please select the product from the list below or create a new one.</Text>
 
       {prods.length !== 0 ? (
-        <ScrollView style={{ flex: 1, marginVertical: 16 }}>
+        <ScrollView 
+          style={{ flex: 1, marginBottom: 16 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 8 }}
+        >
           {prods.map((prod) => (
-            <Card key={prod.id} mode="elevated" style={{marginBottom: 12, overflow: 'hidden'}} onPress={() => handleProductPress(prod.name)}>
+            <Card key={prod.id} mode="elevated" elevation={2} style={{marginBottom: 12, overflow: 'hidden'}} onPress={() => handleProductPress(prod.name)}>
               <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
                 <View style={{flexShrink: 0}}>
                   {prod.imageUri && (

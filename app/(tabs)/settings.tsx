@@ -89,13 +89,16 @@ export default function Settings() {
   };
 
   return (
-    <AppWrapper>
-      <ScrollView>
+    <AppWrapper bottomEdge={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
         <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Settings</Text>
 
         {/* Color dots management section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>Colored Dots</Text>
-        <Card style={{ marginBottom: 24 }}>
+        <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content style={{ gap: 12 }}>
             <Text variant="titleMedium">Use colored dots</Text>
             <Text>You can use colored dot stickers to physically mark your items and easily identify them at a glance.</Text>
@@ -154,7 +157,7 @@ export default function Settings() {
 
         {/* Data Management Section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>Data Management</Text>        
-        <Card style={{ marginBottom: 24 }}>
+        <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content>
             {/* Export Section */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
@@ -252,7 +255,7 @@ export default function Settings() {
         {/* About Section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>About</Text>
         
-        <Card style={{ marginBottom: 24 }}>
+        <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View 
