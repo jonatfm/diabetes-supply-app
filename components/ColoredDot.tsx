@@ -1,5 +1,6 @@
 import { useGetColoredDot } from "@/src/data/hooks/useGetColoredDot";
 import { useSetColoredDotActive } from "@/src/data/hooks/useSetColoredDotActive";
+import React, { useCallback, useMemo } from "react";
 import { Pressable, View } from "react-native";
 
 const isColorTooRed = (color?: string): boolean => {
@@ -15,7 +16,7 @@ const isColorTooRed = (color?: string): boolean => {
   return false;
 };
 
-export default function ColoredDot(
+function ColoredDot(
   { dotId, size = 36, borderWidth = 2, pressToToggle = false, crossInactive = true }: { dotId: string; size?: number; borderWidth?: number; pressToToggle?: boolean; crossInactive?: boolean }
 ) {
   const coloredDotQ = useGetColoredDot(dotId);
@@ -25,15 +26,17 @@ export default function ColoredDot(
   const bw = borderWidth;
   const innerDiameter = Math.max(0, diameter - 2 * bw);
   const diagonal = Math.sqrt(2) * innerDiameter;
-  const tooRed = isColorTooRed(coloredDotQ.data?.color);
+  const tooRed = useMemo(() => isColorTooRed(coloredDotQ.data?.color), [coloredDotQ.data?.color]);
   const borderColor = (!coloredDotQ.data?.active && crossInactive) ? (tooRed ? "black" : "red") : "white";
 
+  const handlePress = useCallback(() => {
+    if (coloredDotQ.data) {
+      setColoredDotActiveM.mutate({ id: dotId, active: !coloredDotQ.data.active });
+    }
+  }, [coloredDotQ.data, setColoredDotActiveM, dotId]);
+
   return (
-    <Pressable disabled={!pressToToggle} onPress={() => {
-      if (coloredDotQ.data) {
-        setColoredDotActiveM.mutate({ id: dotId, active: !coloredDotQ.data.active });
-      }
-    }}>
+    <Pressable disabled={!pressToToggle} onPress={handlePress}>
       <View
         style={{
           width: diameter,
@@ -63,3 +66,5 @@ export default function ColoredDot(
     </Pressable>
   );
 }
+
+export default React.memo(ColoredDot);

@@ -5,7 +5,7 @@ import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
 import ColoredDot from '../../components/ColoredDot';
@@ -29,7 +29,7 @@ export default function Settings() {
   const [isCreateNewColorDialogVisible, setIsCreateNewColorDialogVisible] = useState(false);
   const [newDotColor, setNewDotColor] = useState('');
 
-  const saveNewColoredDot = () => {
+  const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
     createColoredDotM.mutate(
       { color: newDotColor.toLowerCase() },
@@ -40,9 +40,9 @@ export default function Settings() {
         }
       }
     );
-  };
+  }, [newDotColor, createColoredDotM]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       await exportMutation.mutateAsync();
       setSnackbarError(false);
@@ -51,18 +51,18 @@ export default function Settings() {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : 'Export failed');
     }
-  };
+  }, [exportMutation]);
 
-  const handleImportPress = () => {
+  const handleImportPress = useCallback(() => {
     setIsImportDialogVisible(true);
-  };
+  }, []);
 
-  const handleImportConfirm = () => {
+  const handleImportConfirm = useCallback(() => {
     setIsImportDialogVisible(false);
     setIsImportConfirmDialogVisible(true);
-  };
+  }, []);
 
-  const handleImportFinal = async () => {
+  const handleImportFinal = useCallback(async () => {
     setIsImportConfirmDialogVisible(false);
     try {
       const result = await importMutation.mutateAsync();
@@ -86,7 +86,7 @@ export default function Settings() {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : 'Import failed');
     }
-  };
+  }, [importMutation]);
 
   return (
     <AppWrapper bottomEdge={false}>

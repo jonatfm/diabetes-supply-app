@@ -12,6 +12,6 @@ export function useProducts() {
     queryKey: qk.products(),
     enabled: ready && !!db,
     queryFn: () => repo!.getAllProducts(),
-    staleTime: 0,
+    staleTime: 30000, // 30 seconds - products don't change that often
   })
 }

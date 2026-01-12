@@ -12,6 +12,6 @@ export function usePacks(productId: string) {
     queryKey: qk.packs(productId),
     enabled: ready && !!db && !!productId,
     queryFn: () => repo!.listActiveNonEmptyByProduct(productId),
-    staleTime: 0,
+    staleTime: 10000, // 10 seconds
   });
 }

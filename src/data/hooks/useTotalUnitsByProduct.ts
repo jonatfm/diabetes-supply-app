@@ -12,6 +12,6 @@ export function useTotalUnitsByProduct(productId: string) {
     queryKey: qk.totalUnits(productId),
     enabled: ready && !!db && !!productId,
     queryFn: () => repo!.totalUnitsByProduct(productId),
-    staleTime: 0,
+    staleTime: 5000, // 5 seconds
   });
 }

@@ -14,7 +14,16 @@ if (Platform.OS !== 'web') {
   ensureDbReady();
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5000, // Default 5 seconds
+      gcTime: 1000 * 60 * 5, // 5 minutes (formerly cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false, // Don't refetch on window focus for mobile
+    },
+  },
+});
 
 export default function RootLayout() {
   const { db, ready: dbReady, rawDb, error } = useDatabase();

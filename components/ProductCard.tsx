@@ -3,7 +3,7 @@ import { useAverageTimeBetweenTakes } from "@/src/data/hooks/useAverageTimeBetwe
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { formatDateForDisplay } from "@/src/utils/dateUtils";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, View } from "react-native";
 import { Card, Icon, Text, useTheme } from "react-native-paper";
 
@@ -18,7 +18,7 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
   lowStock: false,
 };
 
-export default function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
+function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
   const packsQ = usePacks(product.id);
   const averageTimeBetweenTakesQ = useAverageTimeBetweenTakes(product.id);
@@ -128,3 +128,5 @@ export default function ProductCard({product, onPress}: {product: Product, onPre
     </Pressable>
   )
 }
+
+export default React.memo(ProductCard);

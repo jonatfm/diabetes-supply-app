@@ -3,32 +3,46 @@ import ProductCard from "@/components/ProductCard";
 import { Product } from "@/db/schema";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, View } from 'react-native';
 import { ActivityIndicator, FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const productsQ = useProducts();
-  const [filteredProds, setFilteredProds] = useState<Product[]>([]);
   const theme = useTheme();
   const router = useRouter();
 
-
-  useEffect(() => {
-    if (!productsQ.data) return;
-
+  const filteredProds = useMemo(() => {
+    if (!productsQ.data) return [];
+    
     if (searchQuery.trim() === '') {
-      setFilteredProds(productsQ.data);
-    } else {
-      const query = searchQuery.toLowerCase();
-      setFilteredProds(
-        productsQ.data.filter((prod: Product) =>
-          prod.name.toLowerCase().includes(query)
-        )
-      );
+      return productsQ.data;
     }
+    
+    const query = searchQuery.toLowerCase();
+    return productsQ.data.filter((prod: Product) =>
+      prod.name.toLowerCase().includes(query)
+    );
   }, [searchQuery, productsQ.data]);
+
+  const handleProductPress = useCallback((productId: string) => {
+    router.push(`/product/${productId}`);
+  }, [router]);
+
+  const handleScanPress = useCallback(() => {
+    router.push('/scan');
+  }, [router]);
+
+  const renderProduct = useCallback(({ item }: { item: Product }) => (
+    <ProductCard 
+      key={item.id} 
+      product={item} 
+      onPress={() => handleProductPress(item.id)} 
+    />
+  ), [handleProductPress]);
+
+  const keyExtractor = useCallback((item: Product) => item.id, []);
 
   return (
     <AppWrapper bottomEdge={false}>
@@ -48,15 +62,18 @@ export default function Index() {
               style={{ marginBottom: 16, marginTop: 24 }} 
               elevation={1}
             />
-            <ScrollView 
-              style={{ flex: 1 }}
+            <FlatList
+              data={filteredProds}
+              renderItem={renderProduct}
+              keyExtractor={keyExtractor}
               contentContainerStyle={{ paddingBottom: 100 }}
               showsVerticalScrollIndicator={false}
-            >
-              {filteredProds.map((prod) => (
-                <ProductCard key={prod.id} product={prod} onPress={() => router.push(`/product/${prod.id}`)} />
-              ))}
-            </ScrollView>
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={10}
+              windowSize={10}
+            />
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
@@ -69,7 +86,7 @@ export default function Index() {
         <FAB 
           icon="data-matrix-scan" 
           label="Scan Product"
-          onPress={() => {router.push('/scan')}} 
+          onPress={handleScanPress} 
           style={{
             position: "absolute", 
             bottom: 32, 

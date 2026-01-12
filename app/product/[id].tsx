@@ -18,7 +18,7 @@ import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
 import { ActivityIndicator, Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
@@ -177,7 +177,7 @@ export default function ProductPage() {
     setSessionOutcomePieData(pieData);
   }, [getSessionOutcomeStatsByProductQ.data]);
 
-  const calculateChosenPack = async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
+  const calculateChosenPack = useCallback(async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
     if (!packsQ.data) return null;
     
     // Never choose a pack that is expired
@@ -223,9 +223,9 @@ export default function ProductPage() {
       packId: chosenPack.id,
       coloredDotIds,
     };
-  };
+  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db]);
 
-  const handlePressConsume = async () => {
+  const handlePressConsume = useCallback(async () => {
     if (!packsQ.data) return;
     
     const chosenPackInfo = await calculateChosenPack(consumeSortPreference);
@@ -237,15 +237,15 @@ export default function ProductPage() {
 
     setConsumtionDialogInfo(chosenPackInfo);
     setIsConsumeDialogVisible(true);
-  }
+  }, [packsQ.data, calculateChosenPack, consumeSortPreference]);
 
-  const handleDiscardExpired = async () => {
+  const handleDiscardExpired = useCallback(async () => {
     await discardExpiredM.mutateAsync({productId: id});
 
     setIsDiscardDialogVisible(false);
-  }
+  }, [discardExpiredM, id]);
 
-  const handleConsumeItem = async () => {
+  const handleConsumeItem = useCallback(async () => {
     if (!consumtionDialogInfo) return;
     
     await consumeMut.mutateAsync({packId: consumtionDialogInfo.packId});
@@ -254,14 +254,14 @@ export default function ProductPage() {
 
     // Show snackbar with undo option
     setIsSnackbarVisible(true);
-  }
+  }, [consumtionDialogInfo, consumeMut]);
 
-  const handleUndoLastAction = async () => {
+  const handleUndoLastAction = useCallback(async () => {
     if (!db || !id || !consumtionDialogInfo) return;
     await undoLastTakeActionM.mutateAsync({productId: id});
-  }
+  }, [db, id, consumtionDialogInfo, undoLastTakeActionM]);
 
-  const handleStopSession = async () => {
+  const handleStopSession = useCallback(async () => {
     if (!getActiveSessionQ.data) return;
 
     await endSessionM.mutateAsync({
@@ -271,7 +271,7 @@ export default function ProductPage() {
     });
 
     setIsEndSessionDialogVisible(false);
-  }
+  }, [getActiveSessionQ.data, endSessionM, selectedSessionOutcome]);
 
   if (!dbReady || productQ.isPending) {
     return (
