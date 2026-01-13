@@ -18,7 +18,7 @@ import { DatePickerInput } from 'react-native-paper-dates';
 export default function AddPack() {
   const router = useRouter();
   const params = useLocalSearchParams<{productId: string}>();
-  const {convenience} = useScanFlow();
+  const {convenience, lastBarcodeResult} = useScanFlow();
   const { db } = useDatabase();
   const productQ = useProduct(params.productId as string);
   const [product, setProduct] = useState<Product | null>(null);
@@ -73,6 +73,7 @@ export default function AddPack() {
   const handleAddNewPack = async() => {
     if (!product) return;
     if (!convenience) return;
+    if (!lastBarcodeResult) return;
 
     // Check unitsInPack validity
     if (unitsInPack && !/^\d+$/.test(unitsInPack)) {
@@ -103,6 +104,7 @@ export default function AddPack() {
       note: "Via app",
       dateSetManually: !!manualExpiryDate,
       coloredDotIds: displayedDots || undefined,
+      rawCode: lastBarcodeResult.text,
     });
 
     alert('New pack added successfully');

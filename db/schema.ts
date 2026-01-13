@@ -46,6 +46,7 @@ export const packs = sqliteTable("packs", {
   ais: text("ais", { mode: "json" }).$type<Record<string, string> | null>(),
   active: integer("active", {mode: "boolean"}).default(true),
   dateSetManually: integer("dateSetManually", {mode: "boolean"}).default(false).notNull(),
+  rawCode: text("rawCode"),
 }, (table) => [
   foreignKey({
     columns: [table.productId],

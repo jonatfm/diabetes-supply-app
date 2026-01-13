@@ -1,5 +1,5 @@
 import AppWrapper from '@/components/AppWrapper';
-import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
+import { processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
 import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
 import { useScanFlow } from '@/state/scanFlow';
@@ -67,7 +67,7 @@ export default function Scan() {
     if (cameraRef.current) {
       setIsScanning(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 1,
+        quality: 0.9,
         skipProcessing: true,
       });
 
@@ -120,25 +120,6 @@ export default function Scan() {
     }
   }
 
-  const takeImageDebug = async () => {
-    const debugBarcodeResult: BarcodeResult = {
-      boundingBox: { x: 100, y: 100, width: 200, height: 200 }, 
-      confidence: 1, 
-      format: "DataMatrix", 
-      gs1Data: {
-        expiry: "270131",
-        lot: "1825226005",
-        productionDate: "250801",
-        serial: "893107877699",
-        gtin: "00386270004901",
-      },
-      orientation: -89,
-      position: [],
-      text: "(01)00386270004901(11)250801(17)270131(10)1825226005(21)893107877699(241)STP-GT-002(30)1"}
-
-    setScanResult(debugBarcodeResult);
-    router.push("/new/choose_existing_product");
-  }
 
   return (
     <AppWrapper>
@@ -155,15 +136,12 @@ export default function Scan() {
           </GestureDetector>
         </View>
       </Card>
-      <View style={{ gap: 12 }}>
+      <View style={{ gap: 12, marginBottom: 32 }}>
         <Button icon={flashEnabled ? "flashlight" : "flashlight-off"} mode={flashEnabled ? "contained" : "contained-tonal"} onPress={() => setFlashEnabled(!flashEnabled)}>
           {flashEnabled ? 'Flash On' : 'Flash Off'}
         </Button>
         <Button icon="camera" loading={isScanning} mode="contained" onPress={takePicture} disabled={isScanning}>
           {isScanning ? 'Scanning...' : 'Take Picture'}
-        </Button>
-        <Button icon="bug" mode="outlined" onPress={takeImageDebug}>
-          Debug: Use Sample Barcode
         </Button>
       </View>
     </AppWrapper>

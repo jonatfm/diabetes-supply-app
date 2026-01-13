@@ -45,6 +45,5 @@ export function useAverageTimeBetweenTakes(productId: string, periodInDays?: num
         estimatedDaysUntilOOS,
       };
     },
-    staleTime: 0,
   });
 }

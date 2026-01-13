@@ -8,8 +8,16 @@ import { useEffect, useState } from "react";
 import { Image, View } from "react-native";
 import { ActivityIndicator, Button, Card, Icon, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
 
+type SettingsParams = {
+  id: string;
+  photoUri?: string;
+  name?: string;
+  useColoredDotsForProduct?: string;
+};
+
 export default function ProductSettingsPage() {
-  const { id, photoUri } = useLocalSearchParams<{ id: string; photoUri?: string }>();
+  const params = useLocalSearchParams<SettingsParams>();
+  const { id, photoUri, name: restoredName, useColoredDotsForProduct: restoredUseColoredDots } = params;
   const router = useRouter();
   const theme = useTheme();
   const productQ = useProduct(id);
@@ -18,23 +26,23 @@ export default function ProductSettingsPage() {
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
   const coloredDots = useColoredDots({ includeInactive: true }).data;
 
-  const [name, setName] = useState<string>("");
-  const [imageUri, setImageUri] = useState<string | undefined>(undefined);
-  const [useColoredDotsForProduct, setUseColoredDotsForProduct] = useState<boolean>(false);
+  // Initialize from restored params if available, otherwise wait for productQ data
+  const [name, setName] = useState<string>(restoredName ?? "");
+  const [imageUri, setImageUri] = useState<string | undefined>(photoUri ?? undefined);
+  const [useColoredDotsForProduct, setUseColoredDotsForProduct] = useState<boolean>(
+    restoredUseColoredDots ? restoredUseColoredDots === 'true' : false
+  );
+  const [initializedFromDb, setInitializedFromDb] = useState(false);
 
   useEffect(() => {
-    if (productQ.data) {
-      setName(productQ.data.name);
-      setImageUri(productQ.data.imageUri ?? undefined);
-      setUseColoredDotsForProduct(!!productQ.data.useColoredDots);
+    // Only initialize from DB if we don't have restored params and haven't initialized yet
+    if (productQ.data && !initializedFromDb) {
+      if (!restoredName) setName(productQ.data.name);
+      if (!photoUri) setImageUri(productQ.data.imageUri ?? undefined);
+      if (!restoredUseColoredDots) setUseColoredDotsForProduct(!!productQ.data.useColoredDots);
+      setInitializedFromDb(true);
     }
-  }, [productQ.data]);
-
-  useEffect(() => {
-    if (photoUri && typeof photoUri === 'string') {
-      setImageUri(photoUri);
-    }
-  }, [photoUri]);
+  }, [productQ.data, initializedFromDb, restoredName, photoUri, restoredUseColoredDots]);
 
   const handleSave = async () => {
     await updateM.mutateAsync({
@@ -148,8 +156,28 @@ export default function ProductSettingsPage() {
                   onValueChange={(value) => setUseColoredDotsForProduct(value === 'yes')} 
                   buttons={[{value: 'yes', label: 'Yes', icon: 'check'}, {value: 'no', label: 'No', icon: 'close'}]} 
                 />
+                {coloredDotsEnabled && useColoredDotsForProduct && (
+                  <View>
+                    <Button 
+                      mode="outlined" 
+                      icon="data-matrix-scan" 
+                      onPress={() => router.replace({
+                        pathname: `/product/settings/add_colored_dots_scan/[id]`,
+                        params: {
+                          id,
+                          returnName: name,
+                          returnImageUri: imageUri ?? '',
+                          returnUseColoredDots: useColoredDotsForProduct ? 'true' : 'false',
+                        }
+                      })}
+                    >
+                      Add colored codes by scanning
+                    </Button>
+                  </View>
+                )}
               </View>
             )}
+           
 
             <View style={{ gap: 8, marginTop: 24 }}>
               <Button 

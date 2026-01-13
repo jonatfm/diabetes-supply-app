@@ -55,6 +55,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       timestamp?: number;
       dateSetManually?: boolean;
       coloredDotIds?: string[];
+      rawCode: string;
     }) {
       const now = params.timestamp ?? Date.now();
       const [pack] = await db.insert(packs).values({
@@ -65,6 +66,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         unitsRemaining: params.units,
         ais: params.ais ?? null,
         dateSetManually: params.dateSetManually,
+        rawCode: params.rawCode,
       }).returning({ id: packs.id });
 
       await db.insert(stock_events).values({
@@ -194,6 +196,52 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
     async fetchPackById(packId: string): Promise<Pack | null> {
       const packsFound = await db.select().from(packs).where(eq(packs.id, packId));
       return packsFound.length > 0 ? packsFound[0] : null;
+    },
+
+    async findMatchingPacks(productId: string, rawCode?: string, ais?: Record<string, string>): Promise<Pack[] | null> {
+      // First, check if the "rawCode" field exists and rawCode parameter is provided
+      if (rawCode) {
+        const packsByRawCode = await db.select().from(packs).where(and(eq(packs.productId, productId), eq(packs.rawCode, rawCode)));
+        if (packsByRawCode.length > 0) {
+          console.log("found by raw code")
+          return packsByRawCode;
+        }
+      }
+
+      if (ais) {
+        // Next, if ais are provided, try to match by AIs fields (legacy method)
+        const existingPacks = await db.select().from(packs).where(eq(packs.productId, productId));
+        // Sort keys to ensure consistent comparison regardless of order
+        const normalize = (obj: Record<string, string>) =>
+        JSON.stringify(
+          Object.keys(obj)
+          .sort()
+          .reduce((acc, key) => {
+            acc[key] = obj[key];
+            return acc;
+          }, {} as Record<string, string>)
+        );
+
+        const normalizedAis = normalize(ais);
+        let matches: Pack[] = [];
+
+        for (const pack of existingPacks) {
+          if (!pack.ais) continue;
+          try {
+            if (normalize(pack.ais as Record<string, string>) === normalizedAis) {
+              matches.push(pack);
+            }
+          } catch {
+            // skip malformed ais
+          }
+        }
+
+        if (matches.length > 0) {
+          return matches;
+        }
+      }
+
+      return null;
     }
   };
 }

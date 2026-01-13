@@ -19,6 +19,7 @@ export function useAddPack(productId: string) {
       timestamp?: number;
       dateSetManually?: boolean;
       coloredDotIds?: string[];
+      rawCode: string;
     }) => repo!.addPackWithStockEvent({ ...params, productId }),
     onSuccess: async (newPackId: string) => {
       await Promise.all([
