@@ -3,5 +3,43 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
+  },
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.useEditorConfig": false,
+  "files.trimTrailingWhitespace": false,
+  "files.insertFinalNewline": false,
+  "eslint.format.enable": false,
+  "eslint.codeActionsOnSave.rules": [],
+  "prettier.enable": false,
+  "prettier.requireConfig": true,
+  "[javascript]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {},
+    "javascript.format.enable": false
+  },
+  "[javascriptreact]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {},
+    "javascript.format.enable": false
+  },
+  "[json]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {}
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {}
+  },
+  "[typescript]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {},
+    "typescript.format.enable": false
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {},
+    "typescript.format.enable": false
   }
 }
