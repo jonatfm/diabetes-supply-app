@@ -1,3 +1,4 @@
+import type { TextInputProps } from "react-native-paper";
 import { TextInput, useTheme } from "react-native-paper";
 
 // Custom NumberInput function based on the TextInput
@@ -7,12 +8,14 @@ export default function NumberInput({
     maxValue,
     minValue,
     label,
+    style,
 }: {
-    value: number|null;
-    onChangeText: (number: number|null) => void;
+    value: number | null;
+    onChangeText: (number: number | null) => void;
     maxValue?: number;
     minValue?: number;
-    label?: string
+    label?: string;
+    style?: TextInputProps["style"];
 }) {
     const theme = useTheme();
 
@@ -48,27 +51,14 @@ export default function NumberInput({
 
         // If everything is fine, return the cleaned text
         onChangeText(numValue);
-    }
+    };
 
     return (
         <TextInput
             value={value !== null ? value.toString() : ""}
             onChangeText={handleTextChange}
             keyboardType="numeric"
-            style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 8,
-                fontSize: 14,
-                minHeight: 30,
-                minWidth: 70,
-                textAlign: "center",
-                borderWidth: 2,
-                color: theme.colors.onSurface,
-                backgroundColor: theme.colors.surfaceVariant,
-                borderColor: theme.colors.primary,
-            }}
-
+            style={style}
             label={label}
         />
     );
