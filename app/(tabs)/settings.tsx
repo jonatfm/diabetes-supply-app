@@ -1,13 +1,17 @@
 import AppWrapper from '@/components/AppWrapper';
+import { useAddUsualProductForHoliday } from '@/src/data/hooks/useAddUsualProductForHoliday';
 import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
+import { useProducts } from '@/src/data/hooks/useGetProducts';
+import { useGetUsualProductsForHoliday } from '@/src/data/hooks/useGetUsualProductsForHoliday';
 import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
+import { useRemoveUsualProductForHoliday } from '@/src/data/hooks/useRemoveUsualProductForHoliday';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Chip, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
 import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
@@ -28,6 +32,12 @@ export default function Settings() {
   const createColoredDotM = useCreateColoredDot();
   const [isCreateNewColorDialogVisible, setIsCreateNewColorDialogVisible] = useState(false);
   const [newDotColor, setNewDotColor] = useState('');
+  // Holiday function
+  const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
+  const allProductsQ = useProducts();
+  const allUsualHolidayProductsQ = useGetUsualProductsForHoliday();
+  const addUsualHolidayProductM = useAddUsualProductForHoliday();
+  const removeUsualHolidayProductM = useRemoveUsualProductForHoliday();
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
@@ -154,6 +164,57 @@ export default function Settings() {
           </Card.Content>
         </Card>
 
+        {/* Toggle holiday mode, manage holiday items */}
+        <Text variant="titleLarge" style={{marginBottom: 12}}>Holiday Function</Text>
+        <Card elevation={1} style={{marginBottom: 24}}>
+          <Card.Content style={{gap: 12}}>
+            <Text variant="titleMedium">Use holiday function</Text>
+            <Text>Set up the holiday mode to get a list of items you need to take with you on your trip.</Text>
+            <SegmentedButtons
+              value={holidayFunctionEnabledSetting ? "enabled": "disabled"}
+              onValueChange={(value) => {
+                upsertAppSetting.mutate({key: "holidayFunctionEnabled", value: value === "enabled"})
+              }}
+              buttons={[
+                {
+                  value: "enabled",
+                  label: "Yes",
+                  icon: "beach"
+                },
+                {
+                  value: "disabled",
+                  label: "No",
+                  icon: "close"
+                }
+              ]}
+            />
+            {holidayFunctionEnabledSetting && (
+              <>
+                <Text variant="titleMedium">Select products to include in the packing list</Text>
+                {allProductsQ.data && allUsualHolidayProductsQ.data && (
+                  <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
+                    {allProductsQ.data.map((product) => {
+                      const isSelected = allUsualHolidayProductsQ.data!.some(uphp => uphp.productId === product.id);
+                      return (
+                        <Chip
+                          selected={isSelected}
+                          mode={isSelected ? "flat" : "outlined"}
+                          icon={isSelected ? "check" : "plus"}
+                          onPress={() => {
+                            isSelected ?
+                              removeUsualHolidayProductM.mutate({productId: product.id}) :
+                              addUsualHolidayProductM.mutate({productId: product.id})
+                          }}
+                        >{product.name}</Chip>
+                      )
+                    })}
+                  </View>
+                )}
+              </>
+            )}
+          </Card.Content>
+        </Card>
+        
 
         {/* Data Management Section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>Data Management</Text>        

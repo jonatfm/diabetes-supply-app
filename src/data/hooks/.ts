@@ -1,17 +1,17 @@
 import { useDatabase } from "@/db";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { productRepo } from "../productRepo";
+import { holidayRepo } from "../holidayRepo";
 import { qk } from "../queryKeys";
 
-export function useProducts() {
+export function useGetUsualProductsForHoliday() {
   const {db, ready} = useDatabase();
-  const repo = useMemo(() => (db ? productRepo(db) : null), [db]);
+  const repo = useMemo(() => (db ? holidayRepo(db) : null), [db]);
 
   return useQuery({
-    queryKey: qk.products(),
+    queryKey: qk.usualProductsForHoliday(),
     enabled: ready && !!db,
-    queryFn: () => repo!.getAllProducts(),
+    queryFn: () => repo!.getUsualProductsForHoliday(),
     staleTime: 0,
   })
 }

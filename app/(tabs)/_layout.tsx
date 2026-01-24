@@ -1,11 +1,13 @@
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { withLayoutContext } from "expo-router";
 import { createMaterialBottomTabNavigator } from "react-native-paper/react-navigation";
 
 const { Navigator } = createMaterialBottomTabNavigator();
-
 export const MaterialBottomTabs = withLayoutContext(Navigator);
 
 export default function TabLayout() {
+    const holidayFunctionEnabled = useAppSetting<boolean>('holidayFunctionEnabled').data;
+
     return (
         <MaterialBottomTabs>
             <MaterialBottomTabs.Screen
@@ -15,13 +17,12 @@ export default function TabLayout() {
                     tabBarIcon: "home",
                 }}
             />
-            <MaterialBottomTabs.Screen
+            <MaterialBottomTabs.Protected guard={holidayFunctionEnabled === true}>
+                <MaterialBottomTabs.Screen
                 name="holidayScreen"
-                options={{
-                    title: "Plan Holiday",
-                    tabBarIcon: "beach",
-                }}
-            />
+                options={{ title: "Plan Holiday", tabBarIcon: "beach" }}
+                />
+            </MaterialBottomTabs.Protected>
             <MaterialBottomTabs.Screen
                 name="settings"
                 options={{

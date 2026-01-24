@@ -1,5 +1,5 @@
 import AppWrapper from '@/components/AppWrapper';
-import { processImage } from '@/modules/frame-processor-v2/src';
+import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
 import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
 import { useScanFlow } from '@/state/scanFlow';
@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Button, Card, Text, useTheme } from 'react-native-paper';
+import { Button, Card, Modal, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { runOnJS } from 'react-native-reanimated';
 
 
@@ -24,6 +24,8 @@ export default function Scan() {
   const [isScanning, setIsScanning] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [zoom, setZoom] = useState(0);
+  const [showManualCodeInputModal, setShowManualCodeInputModal] = useState(false);
+  const [manualCode, setManualCode] = useState('');
 
   const updateZoom = (newZoom: number) => {
     setZoom(newZoom);
@@ -120,6 +122,52 @@ export default function Scan() {
     }
   }
 
+  const handleManualCodeSubmit = async() => {
+    if (!manualCode) return;
+    const detected = detectBarcodeFormat(manualCode);
+    
+    let identifier = "";
+    let fakedGs1Data: any | undefined = undefined;
+    if (detected.format === "GS1") {
+      const parsed = parseGS1Unified(manualCode);
+      const conv = getConvenienceFields(parsed);
+      fakedGs1Data = parsed;
+      identifier = conv.identifier;
+    } else if (detected.format === "EAN13") {
+      const conv = getConvenienceFields(manualCode);
+      identifier = conv.identifier;
+    }
+
+    if (identifier) {
+      setFlashEnabled(false);
+
+      const fakedBarcode: BarcodeResult = {
+        format: detected.format,
+        text: manualCode,
+        confidence: 1,
+        orientation: 0,
+        boundingBox: { x: 0, y: 0, width: 0, height: 0 },
+        position: [],
+        gs1Data: fakedGs1Data,
+      }
+
+      setScanResult(fakedBarcode);
+      const existing = await findIdentifier.mutateAsync({value: identifier});
+      if (existing.length === 0) {
+        router.push("/new/choose_existing_product");
+      } else {
+        const productId = existing[0].productId;
+
+        router.push({
+          pathname: "/new/add_pack",
+          params: {productId: String(productId)}
+        })
+      }
+    } else {
+      alert("No valid product identifier found in code");
+    }
+  }
+
 
   return (
     <AppWrapper>
@@ -143,7 +191,20 @@ export default function Scan() {
         <Button icon="camera" loading={isScanning} mode="contained" onPress={takePicture} disabled={isScanning}>
           {isScanning ? 'Scanning...' : 'Take Picture'}
         </Button>
+        <Button icon="barcode-off" mode="outlined" onPress={() => setShowManualCodeInputModal(true)}>
+          Can't Scan?
+        </Button>
       </View>
+
+      <Portal>
+        <Modal visible={showManualCodeInputModal} onDismiss={() => setShowManualCodeInputModal(false)} contentContainerStyle={{ margin: 20, padding: 20, backgroundColor: theme.colors.surface, borderRadius: 8 }}>
+          <Text variant="titleLarge" style={{ marginBottom: 16 }}>Manual Code Input</Text>
+          <TextInput label="Enter Product Code" value={manualCode} onChangeText={text => setManualCode(text)} />
+          <Button mode="contained" disabled={!manualCode} onPress={handleManualCodeSubmit}>
+            Submit
+          </Button>
+        </Modal>
+      </Portal>
     </AppWrapper>
   );
 }

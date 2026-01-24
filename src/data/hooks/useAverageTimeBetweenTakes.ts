@@ -13,7 +13,7 @@ export function useAverageTimeBetweenTakes(productId: string, periodInDays?: num
   return useQuery({
     queryKey: qk.averageTimeBetweenTakes(productId, periodInDays),
     enabled: ready && !!db && !!productId,
-    staleTime: 60000, // 60 seconds - this calculation is expensive
+    staleTime: 0,
     queryFn: async () => {
       const takeEvents = await histRepo!.getTakeEventsByProduct(productId, periodInDays);
       

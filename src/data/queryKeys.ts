@@ -18,4 +18,5 @@ export const qk = {
   coloredDot: (id: string) => ["coloredDot", id] as const,
   coloredDotAssignments: (packId: string) => ["coloredDotAssignments", packId] as const,
   appSetting: (key: string) => ["appSetting", key] as const,
+  usualProductsForHoliday: () => ["usualProductsForHoliday"] as const,
 };

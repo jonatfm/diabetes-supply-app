@@ -11,6 +11,7 @@ import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
 import { useGetSessionOutcomeStatsByProduct } from "@/src/data/hooks/useGetSessionOutcomeStatsByProduct";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
+import { useGetUsualProductsForHoliday } from "@/src/data/hooks/useGetUsualProductsForHoliday";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useProduct } from "@/src/data/hooks/useProduct";
@@ -18,7 +19,7 @@ import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
 import { ActivityIndicator, Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
@@ -88,6 +89,8 @@ export default function ProductPage() {
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
+  const isHolidayFunctionEnabled = useAppSetting("holidayFunctionEnabled").data ?? false;
+  const usualHolidayProducts = useGetUsualProductsForHoliday().data ?? [];
 
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
@@ -379,6 +382,11 @@ export default function ProductPage() {
                   <Text variant="labelLarge">Expires</Text>
                 </Chip>
               ) : null}
+              {isHolidayFunctionEnabled && usualHolidayProducts.some(p => p.productId === productQ.data!.id) && (
+                <Chip icon="beach" mode="flat">
+                  <Text variant="labelLarge">Holiday Product</Text>
+                </Chip>
+              )}
             </View>
 
             <View style={{ marginTop: 16 }}>
