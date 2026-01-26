@@ -4,17 +4,25 @@ import { useMemo } from "react";
 import { productRepo } from "../productRepo";
 import { qk } from "../queryKeys";
 
-export function useUpdateProduct(productId: string) {
+export function useUpdateAnyProduct() {
   const { db } = useDatabase();
   const repo = useMemo(() => (db ? productRepo(db) : null), [db]);
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { name?: string; imageUri?: string | null; useColoredDots?: boolean; requiredForHoliday?: boolean }) => {
+    mutationFn: async (params: { 
+      productId: string;
+      name?: string; 
+      imageUri?: string | null; 
+      useColoredDots?: boolean; 
+      requiredForHoliday?: boolean 
+    }) => {
       if (!repo) throw new Error("Database not ready");
-      await repo.updateProduct(productId, params);
+      const { productId, ...updateParams } = params;
+      await repo.updateProduct(productId, updateParams);
+      return productId;
     },
-    onSuccess: async () => {
+    onSuccess: async (productId) => {
       await qc.invalidateQueries({ queryKey: qk.product(productId) });
       await qc.invalidateQueries({ queryKey: qk.products() });
     },

@@ -1,13 +1,12 @@
 import AppWrapper from '@/components/AppWrapper';
-import { useAddUsualProductForHoliday } from '@/src/data/hooks/useAddUsualProductForHoliday';
+import { useDatabase } from '@/db';
 import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { useProducts } from '@/src/data/hooks/useGetProducts';
-import { useGetUsualProductsForHoliday } from '@/src/data/hooks/useGetUsualProductsForHoliday';
 import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
-import { useRemoveUsualProductForHoliday } from '@/src/data/hooks/useRemoveUsualProductForHoliday';
+import { useUpdateAnyProduct } from '@/src/data/hooks/useUpdateAnyProduct';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -16,6 +15,7 @@ import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
   const theme = useTheme();
+  const {db} = useDatabase();
   const exportMutation = useExportDatabase();
   const importMutation = useImportDatabase();
   
@@ -35,9 +35,7 @@ export default function Settings() {
   // Holiday function
   const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
   const allProductsQ = useProducts();
-  const allUsualHolidayProductsQ = useGetUsualProductsForHoliday();
-  const addUsualHolidayProductM = useAddUsualProductForHoliday();
-  const removeUsualHolidayProductM = useRemoveUsualProductForHoliday();
+  const updateProductM = useUpdateAnyProduct();
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
@@ -188,22 +186,24 @@ export default function Settings() {
                 }
               ]}
             />
-            {holidayFunctionEnabledSetting && (
+            {db && holidayFunctionEnabledSetting && (
               <>
                 <Text variant="titleMedium">Select products to include in the packing list</Text>
-                {allProductsQ.data && allUsualHolidayProductsQ.data && (
+                {allProductsQ.data && (
                   <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
                     {allProductsQ.data.map((product) => {
-                      const isSelected = allUsualHolidayProductsQ.data!.some(uphp => uphp.productId === product.id);
+                      const selected = product.requiredForHoliday;
                       return (
                         <Chip
-                          selected={isSelected}
-                          mode={isSelected ? "flat" : "outlined"}
-                          icon={isSelected ? "check" : "plus"}
+                          key={product.id}
+                          selected={selected}
+                          mode={selected ? "flat" : "outlined"}
+                          icon={selected ? "check" : "plus"}
                           onPress={() => {
-                            isSelected ?
-                              removeUsualHolidayProductM.mutate({productId: product.id}) :
-                              addUsualHolidayProductM.mutate({productId: product.id})
+                            updateProductM.mutate({
+                              productId: product.id,
+                              requiredForHoliday: !selected
+                            });
                           }}
                         >{product.name}</Chip>
                       )

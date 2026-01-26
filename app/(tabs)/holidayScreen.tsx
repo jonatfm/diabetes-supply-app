@@ -7,7 +7,7 @@ import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calend
 
 export default function HolidayScreen() {
     const [location, setLocation] = useState<string>("");
-    const [numberOfDays, setNumberOfDays] = useState<number | null>(null);
+    // const [numberOfDays, setNumberOfDays] = useState<number | null>(null);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);

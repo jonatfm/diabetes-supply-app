@@ -11,7 +11,6 @@ import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
 import { useGetSessionOutcomeStatsByProduct } from "@/src/data/hooks/useGetSessionOutcomeStatsByProduct";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
-import { useGetUsualProductsForHoliday } from "@/src/data/hooks/useGetUsualProductsForHoliday";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useProduct } from "@/src/data/hooks/useProduct";
@@ -90,7 +89,6 @@ export default function ProductPage() {
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
   const isHolidayFunctionEnabled = useAppSetting("holidayFunctionEnabled").data ?? false;
-  const usualHolidayProducts = useGetUsualProductsForHoliday().data ?? [];
 
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
@@ -382,7 +380,7 @@ export default function ProductPage() {
                   <Text variant="labelLarge">Expires</Text>
                 </Chip>
               ) : null}
-              {isHolidayFunctionEnabled && usualHolidayProducts.some(p => p.productId === productQ.data!.id) && (
+              {isHolidayFunctionEnabled && productQ.data.requiredForHoliday && (
                 <Chip icon="beach" mode="flat">
                   <Text variant="labelLarge">Holiday Product</Text>
                 </Chip>
