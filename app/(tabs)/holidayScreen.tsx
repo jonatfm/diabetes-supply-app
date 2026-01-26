@@ -1,4 +1,5 @@
 import AppWrapper from "@/components/AppWrapper";
+import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Button, Card, Portal, Text, TextInput } from "react-native-paper";
@@ -11,6 +12,7 @@ export default function HolidayScreen() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+    const productsQ = useProducts();
     
 
     const onConfirm = useCallback<RangeChange>(({startDate, endDate}) => {
@@ -60,6 +62,16 @@ export default function HolidayScreen() {
                                     From {startDate.toDateString()} to {endDate.toDateString()}
                                 </Text>
                             )}
+                        </View>
+                        <View>
+                            <Text variant="titleMedium">
+                                Products to take with you
+                            </Text>
+                            {productsQ.data && productsQ.data.map((product) => {
+                                if (product.requiredForHoliday) {
+                                    return <Text key={product.id}>{product.name}</Text>;
+                                }
+                            })}
                         </View>
                     </Card.Content>
                 </Card>
