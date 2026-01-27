@@ -71,8 +71,30 @@ export function useImportDatabase() {
       if (importData.images) {
         for (const [originalUri, base64Data] of Object.entries(importData.images)) {
           try {
-            // Generate a new filename based on the original
-            const originalFileName = originalUri.split("/").pop() || `imported_${Date.now()}.jpg`;
+            // Skip if base64 data is empty or invalid
+            if (!base64Data || typeof base64Data !== 'string' || base64Data.length === 0) {
+              console.warn(`Skipping image ${originalUri}: empty or invalid base64 data`);
+              continue;
+            }
+
+            // Generate a new filename, stripping any existing imported_ prefixes to prevent
+            // filename growth on repeated import/export cycles
+            let originalFileName = originalUri.split("/").pop() || `product_${Date.now()}.jpg`;
+            
+            // Remove all imported_TIMESTAMP_ prefixes (pattern: imported_<13-digit-timestamp>_)
+            // This prevents filenames from growing unboundedly with each import
+            while (originalFileName.match(/^imported_\d+_/)) {
+              originalFileName = originalFileName.replace(/^imported_\d+_/, '');
+            }
+            
+            // Safety check: if filename is still too long (>100 chars), generate a simple one
+            // This handles edge cases with corrupted or unusual filenames
+            if (originalFileName.length > 100) {
+              const extension = originalFileName.split('.').pop() || 'jpg';
+              originalFileName = `product_${Date.now()}.${extension}`;
+            }
+            
+            // Create a clean new filename with a single import prefix
             const newFileName = `imported_${Date.now()}_${originalFileName}`;
             const newFile = new File(Paths.document, newFileName);
 
