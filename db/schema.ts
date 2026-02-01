@@ -122,22 +122,25 @@ export const appSettings = sqliteTable("app_settings", {
   updatedAt: integer("updatedAt").notNull(),
 });
 
-//export const UsualProductsForHoliday = sqliteTable("usual_products_for_holiday", {
-//  id: text("id").primaryKey().$default(() => uuid.v4() as string),
-//  productId: text("productId").notNull(),
-//}, (table) => [
-//  foreignKey({
-//    columns: [table.productId],
-//    foreignColumns: [products.id],
-//  }),
-//]);
-
 export const holidays = sqliteTable("holidays", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   destination: text("destination").notNull(),
   startDate: text("startDate").notNull(),
   endDate: text("endDate").notNull(),
 })
+
+export const appWarningsForProducts = sqliteTable("app_warnings_for_products", {
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  productId: text("productId").notNull(),
+  type: text("type").$type<"EXPIRY_APPROACHING" | "RUN_OUT_SOON">().notNull(),
+  timeInAdvance: integer("timeInAdvance").notNull(),
+  createdAt: integer("createdAt").notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.productId],
+    foreignColumns: [products.id],
+  }),
+]);
 
 export type Product = typeof products.$inferSelect;
 export type ProductIdentifier = typeof product_identifiers.$inferSelect;
@@ -147,5 +150,5 @@ export type Session = typeof sessions.$inferSelect;
 export type ColoredDot = typeof coloredDots.$inferSelect;
 export type ColoredDotAssignment = typeof coloredDotAssignments.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
-//export type UsualItemForHoliday = typeof UsualProductsForHoliday.$inferSelect;
 export type Holiday = typeof holidays.$inferSelect;
+export type AppWarningForProduct = typeof appWarningsForProducts.$inferSelect;

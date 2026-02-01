@@ -232,6 +232,34 @@
       "when": 1769412259252,
       "tag": "0032_mushy_human_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1769957382748,
+      "tag": "0033_curly_vengeance",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1769957724145,
+      "tag": "0034_zippy_lila_cheney",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1769957939970,
+      "tag": "0035_sweet_grandmaster",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1769958357684,
+      "tag": "0036_simple_champions",
+      "breakpoints": true
     }
   ]
 }

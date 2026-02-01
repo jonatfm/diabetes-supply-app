@@ -34,6 +34,10 @@ import m0029 from './0029_youthful_morgan_stark.sql';
 import m0030 from './0030_empty_living_lightning.sql';
 import m0031 from './0031_next_the_twelve.sql';
 import m0032 from './0032_mushy_human_cannonball.sql';
+import m0033 from './0033_curly_vengeance.sql';
+import m0034 from './0034_zippy_lila_cheney.sql';
+import m0035 from './0035_sweet_grandmaster.sql';
+import m0036 from './0036_simple_champions.sql';
 
   export default {
     journal,
@@ -70,7 +74,11 @@ m0028,
 m0029,
 m0030,
 m0031,
-m0032
+m0032,
+m0033,
+m0034,
+m0035,
+m0036
     }
   }
   

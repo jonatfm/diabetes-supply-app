@@ -1,4 +1,5 @@
 import AppWrapper from '@/components/AppWrapper';
+import NumberInput from '@/components/NumberInput';
 import { useDatabase } from '@/db';
 import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
@@ -10,7 +11,7 @@ import { useUpdateAnyProduct } from '@/src/data/hooks/useUpdateAnyProduct';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Button, Card, Chip, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Chip, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
@@ -26,6 +27,12 @@ export default function Settings() {
 
   // App settings
   const upsertAppSetting = useUpsertAppSetting();
+  // Notifications / "App Warnings"
+  const appWarningsEnabledSetting = useAppSetting<boolean>("appWarningsEnabled").data;
+  const expiryApproachingWarningEnabledSetting = useAppSetting<boolean>("expiryApproachingWarningEnabled").data;
+  const expiryApproachingDaysSetting = useAppSetting<number|null>("expiryApproachingDays").data;
+  const runningOutWarningEnabledSetting = useAppSetting<boolean>("runningOutWarningEnabled").data;
+  const runningOutDaysSetting = useAppSetting<number|null>("runningOutDays").data;
   // Colored dots
   const coloredDotsEnabledSetting = useAppSetting<boolean>('coloredDotsEnabled').data;
   const coloredDots = useColoredDots({includeInactive: true}).data;
@@ -103,6 +110,97 @@ export default function Settings() {
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Settings</Text>
+
+        {/* App warnings / Notifications section */}
+        <Text variant="titleLarge" style={{ marginBottom: 12 }}>Notifications</Text>
+        <Card elevation={1} style={{marginBottom: 24}}>
+          <Card.Content style={{gap: 12}}>
+            <Text variant="titleMedium">Use notifications</Text>
+            <Text>Toggle and manage notifications that notify you about important stock changes, such as when you are running low or when items are about to expire.</Text>
+            <SegmentedButtons
+              value={appWarningsEnabledSetting ? 'enabled' : 'disabled'}
+              onValueChange={(value) => {
+                upsertAppSetting.mutate({key: "appWarningsEnabled", value: value === 'enabled'})
+              }}
+              buttons={[
+                {
+                  value: 'enabled',
+                  label: 'Yes',
+                  icon: 'check',
+                },
+                {
+                  value: 'disabled',
+                  label: 'No',
+                  icon: 'close',
+                }
+              ]}
+            />
+            {appWarningsEnabledSetting && (
+              <>
+                <View>
+                  <Text variant="titleMedium">Expiry approaching warning</Text>
+                  <Text variant="bodySmall">Get notified when items are about to expire.</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ marginRight: 8 }} variant="labelLarge">
+                      {expiryApproachingWarningEnabledSetting ? "Enabled" : "Disabled"}
+                    </Text>
+                    <Switch
+                      value={expiryApproachingWarningEnabledSetting ?? false}
+                      onValueChange={(value) => {
+                        if (!expiryApproachingDaysSetting) {
+                          upsertAppSetting.mutate({ key: "expiryApproachingDays", value: 7 });
+                        }
+                        upsertAppSetting.mutate({ key: "expiryApproachingWarningEnabled", value })
+                      }}
+                    />
+                  </View>
+                  {expiryApproachingWarningEnabledSetting && (
+                    <NumberInput
+                      value={expiryApproachingDaysSetting ?? null}
+                      onChangeText={(value) => {
+                        upsertAppSetting.mutate({key: "expiryApproachingDays", value})
+                      }}
+                      label="Days before expiry to notify"
+                      style={{ width: 200, marginTop: 8 }}
+                      minValue={0}
+                    />
+                  )}
+                </View>
+
+                <View>
+                  <Text variant="titleMedium">Running out warning</Text>
+                  <Text>Get notified when items are running out of stock.</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ marginRight: 8 }} variant="labelLarge">
+                      {runningOutWarningEnabledSetting ? "Enabled" : "Disabled"}
+                    </Text>
+                    <Switch
+                      value={runningOutWarningEnabledSetting ?? false}
+                      onValueChange={(value) => {
+                        if (!runningOutDaysSetting) {
+                          upsertAppSetting.mutate({ key: "runningOutDays", value: 3 });
+                        }
+                        upsertAppSetting.mutate({ key: "runningOutWarningEnabled", value })
+                      }}
+                    />
+                  </View>
+                  {runningOutWarningEnabledSetting && (
+                    <NumberInput
+                      value={runningOutDaysSetting ?? null}
+                      onChangeText={(value) => {
+                        upsertAppSetting.mutate({key: "runningOutDays", value})
+                      }}
+                      label="Days before running out to notify"
+                      style={{ width: 200, marginTop: 8 }}
+                      minValue={0}
+                    />
+                  )}
+                </View>
+              </>
+            )}
+          </Card.Content>
+        </Card>
+
 
         {/* Color dots management section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>Colored Dots</Text>
