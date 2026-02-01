@@ -20,6 +20,9 @@ export function useEndSession() {
       await qc.invalidateQueries({queryKey: qk.sessions()});
       // Invalidate all session queries to ensure child queries stay in sync
       await qc.invalidateQueries({queryKey: ["session"]});
+      // Invalidate statistics queries
+      await qc.invalidateQueries({queryKey: ["sessionStatistics"]});
+      await qc.invalidateQueries({queryKey: ["daysUntilOutOfStock"]});
     }
   })
 }

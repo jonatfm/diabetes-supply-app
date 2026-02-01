@@ -19,6 +19,10 @@ export function useConsumeOneUnit(productId: string) {
         qc.invalidateQueries({ queryKey: qk.pack(packId) }),
         qc.invalidateQueries({ queryKey: qk.session(productId) }),
         qc.invalidateQueries({ queryKey: qk.sessionOutcomeStatsByProduct(productId) }),
+        qc.invalidateQueries({ queryKey: qk.averageTimeBetweenTakes(productId) }),
+        qc.invalidateQueries({ queryKey: qk.takeEventStatistics(productId) }),
+        qc.invalidateQueries({ queryKey: qk.sessionStatistics(productId) }),
+        qc.invalidateQueries({ queryKey: qk.daysUntilOutOfStock(productId) }),
       ]);
     },
   });

@@ -97,6 +97,26 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         .from(stock_events)
         .where(and(...conditions))
         .orderBy(desc(stock_events.occurredAt));
+    },
+
+    async getSessionsByProduct(productId: string, periodInDays?: number) {
+      let conditions = [eq(sessions.productId, productId)];
+
+      if (periodInDays) {
+        const cutoffTime = Date.now() - (periodInDays * 24 * 60 * 60 * 1000);
+        conditions.push(gte(sessions.startedAt, cutoffTime));
+      }
+
+      return await db
+        .select({
+          id: sessions.id,
+          startedAt: sessions.startedAt,
+          endedAt: sessions.endedAt,
+          outcome: sessions.outcome,
+        })
+        .from(sessions)
+        .where(and(...conditions))
+        .orderBy(desc(sessions.startedAt));
     }
   }
 }

@@ -1,5 +1,5 @@
 import { Product } from "@/db/schema";
-import { useAverageTimeBetweenTakes } from "@/src/data/hooks/useAverageTimeBetweenTakes";
+import { useDaysUntilOutOfStock } from "@/src/data/hooks/useDaysUntilOutOfStock";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { formatDateForDisplay } from "@/src/utils/dateUtils";
@@ -21,7 +21,7 @@ const productNoticeIsCritical: Record<ProductNotice['type'], boolean> = {
 function ProductCard({product, onPress}: {product: Product, onPress?: () => void}) {
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
   const packsQ = usePacks(product.id);
-  const averageTimeBetweenTakesQ = useAverageTimeBetweenTakes(product.id);
+  const daysUntilOOSQ = useDaysUntilOutOfStock(product.id);
   const theme = useTheme();
 
   // Get earliest expiry from packs (already sorted by expiry)
@@ -95,9 +95,9 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
       <Card mode="elevated" elevation={2} style={[productNotice ? {borderTopLeftRadius: 0, borderTopRightRadius: 0} : {}, {marginBottom: 16, overflow: 'hidden'}]}>
         <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
           <View style={{flexShrink: 0}}>
-            {product.imageUri && (
-              <Image source={{ uri: product.imageUri || undefined }} style={{ width: 100, height: 100, backgroundColor: '#eee' }} />
-            ) || (
+            {product.imageUri ? (
+              <Image source={{ uri: product.imageUri }} style={{ width: 100, height: 100, backgroundColor: '#eee' }} />
+            ) : (
               <View style={{ width: 100, height: 100, backgroundColor: theme.colors.surfaceVariant, justifyContent: 'center', alignItems: 'center' }}>
                 <Icon source="image-off" size={36} color={theme.colors.onSurfaceVariant} />
               </View>
@@ -114,14 +114,14 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
                   <Text variant="bodyLarge">(No expiry)</Text>
                 )}
               </>
-            ) : (
+            ) : packsQ.data ? (
               <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>No packs available!</Text>
-            )}
-            {averageTimeBetweenTakesQ.data && (totalUnitsQ.data ?? 0) > 0 && (
+            ) : null}
+            {daysUntilOOSQ.data?.estimatedDaysUntilOOS && (totalUnitsQ.data ?? 0) > 0 ? (
               <Text variant="bodyLarge">
-                {averageTimeBetweenTakesQ.data.estimatedDaysUntilOOS?.toFixed(2)} days until out of stock.
+                {daysUntilOOSQ.data.estimatedDaysUntilOOS.toFixed(1)} days until out of stock
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
       </Card>

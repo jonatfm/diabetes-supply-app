@@ -5,6 +5,12 @@ import { historyRepo } from "../historyRepo";
 import { packsRepo } from "../packsRepo";
 import { qk } from "../queryKeys";
 
+/**
+ * @deprecated Use useDaysUntilOutOfStock instead for proper handling of both session-based and non-session-based products
+ * 
+ * Hook to get average time between TAKE events for a product
+ * This hook is kept for backward compatibility but should be replaced with useDaysUntilOutOfStock
+ */
 export function useAverageTimeBetweenTakes(productId: string, periodInDays?: number) {
   const { db, ready } = useDatabase();
   const histRepo = useMemo(() => (db ? historyRepo(db) : null), [db]);
