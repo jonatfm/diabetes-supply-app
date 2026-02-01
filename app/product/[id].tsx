@@ -12,12 +12,12 @@ import { useFetchPack } from "@/src/data/hooks/useFetchPack";
 import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
 import { useGetSessionOutcomeStatsByProduct } from "@/src/data/hooks/useGetSessionOutcomeStatsByProduct";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
-import { useSessionStatistics } from "@/src/data/hooks/useSessionStatistics";
-import { useTakeEventStatistics } from "@/src/data/hooks/useTakeEventStatistics";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
+import { useSessionStatistics } from "@/src/data/hooks/useSessionStatistics";
+import { useTakeEventStatistics } from "@/src/data/hooks/useTakeEventStatistics";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -71,8 +71,6 @@ const sessionStatusColors: Record<string, string> = {
 export default function ProductPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { db, ready: dbReady } = useDatabase();
-  const [currentPacksPage, setCurrentPacksPage] = useState<number>(0);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isConsumeDialogVisible, setIsConsumeDialogVisible] = useState<boolean>(false);
   const [consumtionDialogInfo, setConsumtionDialogInfo] = useState<ConsumtionDialogInfo | null>(null);
   const [now, setNow] = useState<number>(Date.now());
@@ -92,13 +90,13 @@ export default function ProductPage() {
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
   const isHolidayFunctionEnabled = useAppSetting("holidayFunctionEnabled").data ?? false;
-
+  
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
   const daysUntilOOSQ = useDaysUntilOutOfStock(id);
   const sessionStatsQ = useSessionStatistics(id);
   const takeEventStatsQ = useTakeEventStatistics(id);
-
+  
   const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
   const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
   const [consumeSortPreference, setConsumeSortPreference] = useState<'expiry' | 'fewest_units'>('expiry');
@@ -108,17 +106,24 @@ export default function ProductPage() {
   const isGS1 = productIdentifiersQ.data?.some(pi => pi.type === "GTIN") ?? false;
   const theme = useTheme();
   const router = useRouter();
-
+  
   const historyEventColors: Record<string, string> = {
     "ADD": "green",
     "ADJUST": theme.colors.primary,
     "TAKE": "red",
     "UNDO": "orange"
   };
-
+  
   // Calculate pagination values dynamically
-  const from = currentPacksPage * itemsPerPage;
-  const to = Math.min((currentPacksPage + 1) * itemsPerPage, packsQ.data?.length || 0);
+  const [currentPacksPage, setCurrentPacksPage] = useState<number>(0);
+  const packsPerPageDataTable = 5;
+  const packsTableFrom = currentPacksPage * packsPerPageDataTable;
+  const packsTableTo = Math.min((currentPacksPage + 1) * packsPerPageDataTable, packsQ.data?.length || 0);
+
+  const [eventsCurrentPacksPage, setEventsCurrentPacksPage] = useState<number>(0);
+  const eventsPerPageDataTable = 10;
+  const eventsTableFrom = eventsCurrentPacksPage * eventsPerPageDataTable;
+  const eventsTableTo = Math.min((eventsCurrentPacksPage + 1) * eventsPerPageDataTable, productHistoryQ.data?.length || 0);
 
   useEffect(() => {
     const intervalId = setInterval(() => setNow(Date.now()), 30000);
@@ -127,7 +132,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     setCurrentPacksPage(0);
-  }, [itemsPerPage]);
+  }, [packsPerPageDataTable]);
 
   useEffect(() => {
     if (productHistoryQ.data && productHistoryQ.data.length > 0) {
@@ -218,7 +223,8 @@ export default function ProductPage() {
 
     // Check colored dots
     let coloredDotIds: string[] | undefined = undefined;
-    if (coloredDotsEnabled && product && product.useColoredDots && db) {
+    // use productQ.data here (hook value available earlier) instead of the later-declared `product` variable
+    if (coloredDotsEnabled && productQ.data && productQ.data.useColoredDots && db) {
       coloredDotIds = (await coloredDotsRepo(db).getAssignmentByPackId(chosenPack.id))?.dotIds || [];
     }
 
@@ -230,7 +236,7 @@ export default function ProductPage() {
       packId: chosenPack.id,
       coloredDotIds,
     };
-  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, product, db]);
+  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db]);
 
   const handlePressConsume = useCallback(async () => {
     if (!packsQ.data) return;
@@ -553,7 +559,7 @@ export default function ProductPage() {
                     <DataTable.Title>Colored Dots</DataTable.Title>
                   ) : null}
                 </DataTable.Header>
-                {packsQ.data.slice(from, to).map((pack) => (
+                {packsQ.data.slice(packsTableFrom, packsTableTo).map((pack) => (
                   <DataTable.Row key={pack.id} style={{ backgroundColor: pack.expiry && new Date(pack.expiry) < new Date() ? theme.colors.errorContainer : 'transparent' }}>
                     {hasAnySerial ? (
                       <DataTable.Cell>{pack.ais?.["21"] || '-'}</DataTable.Cell>
@@ -583,11 +589,10 @@ export default function ProductPage() {
 
                 <DataTable.Pagination
                   page={currentPacksPage}
-                  numberOfPages={Math.ceil(packsQ.data.length / itemsPerPage)}
+                  numberOfPages={Math.ceil(packsQ.data.length / packsPerPageDataTable)}
                   onPageChange={(page) => setCurrentPacksPage(page)}
-                  label={`${from + 1}-${to} of ${packsQ.data.length}`}
-                  numberOfItemsPerPage={itemsPerPage}
-                  onItemsPerPageChange={setItemsPerPage}
+                  label={`${packsTableFrom + 1}-${packsTableTo} of ${packsQ.data.length}`}
+                  numberOfItemsPerPage={packsPerPageDataTable}
                   showFastPaginationControls
                   selectPageDropdownLabel={'Packs per page'}
                 />
@@ -765,7 +770,7 @@ export default function ProductPage() {
                   <DataTable.Title>Time</DataTable.Title>
                   <DataTable.Title>Note</DataTable.Title>
                 </DataTable.Header>
-                {productHistoryQ.data.map((event) => (
+                {productHistoryQ.data.slice(eventsTableFrom, eventsTableTo).map((event) => (
                   <DataTable.Row key={event.id}>
                     <DataTable.Cell>
                       <Text variant="labelLarge" style={{ color: historyEventColors[event.type] || theme.colors.onSurface }}>{event.type}</Text>
@@ -779,6 +784,16 @@ export default function ProductPage() {
                     <DataTable.Cell>{event.note || '-'}</DataTable.Cell>
                   </DataTable.Row>
                 ))}
+
+                <DataTable.Pagination
+                  page={eventsCurrentPacksPage}
+                  numberOfPages={Math.ceil(productHistoryQ.data.length / eventsPerPageDataTable)}
+                  onPageChange={(page) => setEventsCurrentPacksPage(page)}
+                  label={`${eventsTableFrom + 1}-${eventsTableTo} of ${productHistoryQ.data.length}`}
+                  numberOfItemsPerPage={eventsPerPageDataTable}
+                  showFastPaginationControls
+                  selectPageDropdownLabel={'Packs per page'}
+                />
               </DataTable>
             </Card>
           </>
