@@ -127,7 +127,8 @@ export const holidays = sqliteTable("holidays", {
   destination: text("destination").notNull(),
   startDate: text("startDate").notNull(),
   endDate: text("endDate").notNull(),
-})
+});
+
 
 export const appWarningsForProducts = sqliteTable("app_warnings_for_products", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),

@@ -286,7 +286,7 @@ export default function Settings() {
             />
             {db && holidayFunctionEnabledSetting && (
               <>
-                <Text variant="titleMedium">Select products to include in the packing list</Text>
+                <Text variant="titleMedium">Select products to include in the holiday mode</Text>
                 {allProductsQ.data && (
                   <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
                     {allProductsQ.data.map((product) => {

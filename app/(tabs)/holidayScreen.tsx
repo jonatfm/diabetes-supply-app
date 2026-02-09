@@ -1,12 +1,13 @@
 import AppWrapper from "@/components/AppWrapper";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
+import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
-import { Button, Card, Portal, Text, TextInput } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
+import { ScrollView } from "react-native";
+import { FAB, Text } from "react-native-paper";
 import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calendar";
 
 export default function HolidayScreen() {
+    const router = useRouter();
     const [location, setLocation] = useState<string>("");
     // const [numberOfDays, setNumberOfDays] = useState<number | null>(null);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
@@ -29,65 +30,20 @@ export default function HolidayScreen() {
                 contentContainerStyle={{ paddingBottom: 24 }}
             >
                 <Text variant="headlineLarge" style={{ marginBottom: 24 }}>
-                    Plan a Holiday
+                    Your Holidays
                 </Text>
-
-                <Text variant="titleLarge" style={{ marginBottom: 12 }}>
-                    Plan new holiday
-                </Text>
-                <Card elevation={1} style={{ marginBottom: 24 }}>
-                    <Card.Content style={{ gap: 12 }}>
-                        <View>
-                            <Text variant="titleMedium">
-                                Where are you going?
-                            </Text>
-                            <TextInput
-                                label="Location"
-                                value={location}
-                                onChangeText={(text) => setLocation(text)}
-                            />
-                        </View>
-                        <View>
-                            <Text variant="titleMedium">
-                                When will you be away?
-                            </Text>
-                            <Button
-                                mode={(startDate && endDate) ? "outlined" : "contained"}
-                                onPress={() => setIsDatePickerOpen(true)}
-                            >
-                                Select Dates
-                            </Button>
-                            {(startDate && endDate) && (
-                                <Text>
-                                    From {startDate.toDateString()} to {endDate.toDateString()}
-                                </Text>
-                            )}
-                        </View>
-                        <View>
-                            <Text variant="titleMedium">
-                                Products to take with you
-                            </Text>
-                            {productsQ.data && productsQ.data.map((product) => {
-                                if (product.requiredForHoliday) {
-                                    return <Text key={product.id}>{product.name}</Text>;
-                                }
-                            })}
-                        </View>
-                    </Card.Content>
-                </Card>
             </ScrollView>
 
-            <Portal>
-                <DatePickerModal
-                    locale="en"
-                    mode="range"
-                    visible={isDatePickerOpen}
-                    onDismiss={() => setIsDatePickerOpen(false)}
-                    startDate={startDate}
-                    endDate={endDate}
-                    onConfirm={onConfirm}
-                />
-            </Portal>
+            <FAB
+                icon="plus"
+                label="Add Holiday"
+                onPress={() => router.push("/holiday_mode/plan_holiday")}
+                style={{
+                    position: "absolute",
+                    bottom: 32,
+                    right: 16,
+                }}
+            />
         </AppWrapper>
     );
 }
