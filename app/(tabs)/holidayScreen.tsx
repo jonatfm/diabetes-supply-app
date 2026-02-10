@@ -122,18 +122,26 @@ export default function HolidayScreen() {
 
                 {holidaysQ.data && holidaysQ.data.length > 0 ? (
                     <View style={{ flex: 1 }}>
-                        <FlatList
-                            data={holidaysQ.data.sort((a, b) => b.updatedAt - a.updatedAt)}
-                            renderItem={({ item }) => <HolidayCard key={item.id} {...item} />}
-                            keyExtractor={(item) => item.id}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                            showsVerticalScrollIndicator={false}
-                            removeClippedSubviews={true}
-                            maxToRenderPerBatch={10}
-                            updateCellsBatchingPeriod={50}
-                            initialNumToRender={10}
-                            windowSize={10}
-                        />
+                            <FlatList
+                                data={holidaysQ.data
+                                    .slice()
+                                    .sort((a, b) => {
+                                        // Active holidays first
+                                        if (a.state === "ACTIVE" && b.state !== "ACTIVE") return -1;
+                                        if (a.state !== "ACTIVE" && b.state === "ACTIVE") return 1;
+                                        // Then by updatedAt descending
+                                        return b.updatedAt - a.updatedAt;
+                                    })}
+                                renderItem={({ item }) => <HolidayCard key={item.id} {...item} />}
+                                keyExtractor={(item) => item.id}
+                                contentContainerStyle={{ paddingBottom: 100 }}
+                                showsVerticalScrollIndicator={false}
+                                removeClippedSubviews={true}
+                                maxToRenderPerBatch={10}
+                                updateCellsBatchingPeriod={50}
+                                initialNumToRender={10}
+                                windowSize={10}
+                            />
                     </View>
                 ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
