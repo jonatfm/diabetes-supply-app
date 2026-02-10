@@ -7,7 +7,7 @@ import { packsRepo } from "@/src/data/packsRepo";
 import { calculateHolidayNeedsSimple, HolidayNeedsResult } from "@/src/utils/calculateHolidayNeeds";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { Button, Card, FAB, Icon, Text, useTheme } from "react-native-paper";
 import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calendar";
 
@@ -114,24 +114,35 @@ export default function HolidayScreen() {
     }, []);
 
     return (
-        <AppWrapper>
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 24 }}
-            >
+        <AppWrapper bottomEdge={false}>
+            <View style={{flex: 1}}>
                 <Text variant="headlineLarge" style={{ marginBottom: 24 }}>
                     Your Holidays
                 </Text>
-                {holidaysQ.data && holidaysQ.data.length > 0 ? (holidaysQ.data.sort((a, b) => b.updatedAt - a.updatedAt).map((holiday) => (
-                    <HolidayCard key={holiday.id} {...holiday} />
-                ))) : (
+
+                {holidaysQ.data && holidaysQ.data.length > 0 ? (
+                    <View style={{ flex: 1 }}>
+                        <FlatList
+                            data={holidaysQ.data.sort((a, b) => b.updatedAt - a.updatedAt)}
+                            renderItem={({ item }) => <HolidayCard key={item.id} {...item} />}
+                            keyExtractor={(item) => item.id}
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                            showsVerticalScrollIndicator={false}
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={10}
+                            updateCellsBatchingPeriod={50}
+                            initialNumToRender={10}
+                            windowSize={10}
+                        />
+                    </View>
+                ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
                         <Icon source="ghost" size={64} color={theme.colors.primary} />
                         <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No holidays here yet</Text>
                         <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Add a holiday to get started</Text>
                     </View>
                 )}
-            </ScrollView>
+            </View>
 
             <FAB
                 icon="plus"
