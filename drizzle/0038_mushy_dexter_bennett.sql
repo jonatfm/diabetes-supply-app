@@ -1,0 +1,1 @@
+ALTER TABLE `holidays` ADD `updatedAt` integer NOT NULL;

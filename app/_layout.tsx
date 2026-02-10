@@ -4,7 +4,7 @@ import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, Text } from 'react-native-paper';
@@ -54,7 +54,20 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <PaperProvider theme={paperTheme}>
           <ScanFlowProvider>
-            <Slot />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="holiday_mode/plan_holiday" />
+              <Stack.Screen name="scan" />
+              <Stack.Screen name="product/[id]" />
+              <Stack.Screen name="product/edit/[id]" />
+              <Stack.Screen name="product/settings/[id]" />
+              <Stack.Screen name="product/lastConsumedItem/[id]" />
+              <Stack.Screen name="product/settings/add_colored_dots_scan/[id]" />
+              <Stack.Screen name="new/add_pack" />
+              <Stack.Screen name="new/choose_existing_product" />
+              <Stack.Screen name="new/new_product" />
+              <Stack.Screen name="new/take_product_photo" />
+            </Stack>
           </ScanFlowProvider>
         </PaperProvider>
       </QueryClientProvider>

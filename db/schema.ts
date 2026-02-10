@@ -8,8 +8,30 @@ export const SESSION_OUTCOMES = [
   "lost",
   "unknown",
 ] as const;
-
 export type SessionOutcome = typeof SESSION_OUTCOMES[number];
+
+export const HOLIDAY_ITEM_METHODS = [
+  "AVERAGE_PLUS_PERCENTAGE_BUFFER",
+  "AVERAGE_PLUS_FIXED_BUFFER",
+  "FIXED_AMOUNT",
+  "PER_DAY",
+  "PER_DAY_PLUS_BUFFER_DAYS"
+] as const;
+export const HOLIDAY_ITEM_METHODS_LABELS: Record<HolidayItemMethod, string> = {
+  AVERAGE_PLUS_PERCENTAGE_BUFFER: "Avg daily usage + buffer %",
+  AVERAGE_PLUS_FIXED_BUFFER: "Avg daily usage + fixed buffer",
+  FIXED_AMOUNT: "Fixed amount",
+  PER_DAY: "Per day",
+  PER_DAY_PLUS_BUFFER_DAYS: "Per day + buffer days",
+};
+export const HOLIDAY_ITEM_METHODS_ATTRIBUTES: Record<HolidayItemMethod, {attributeName: string, attributeLabel: string, default?: number}[]> = {
+  AVERAGE_PLUS_PERCENTAGE_BUFFER: [{attributeName: "percentageBuffer", attributeLabel: "Percentage Buffer", default: 20}],
+  AVERAGE_PLUS_FIXED_BUFFER: [{attributeName: "fixedBuffer", attributeLabel: "Fixed Buffer", default: 2}],
+  FIXED_AMOUNT: [{attributeName: "fixedAmount", attributeLabel: "Fixed Amount"}],
+  PER_DAY: [{attributeName: "perDayAmount", attributeLabel: "Per Day Amount"}],
+  PER_DAY_PLUS_BUFFER_DAYS: [{attributeName: "perDayAmount", attributeLabel: "Per Day Amount"}, {attributeName: "bufferDays", attributeLabel: "Buffer Days", default: 5}],
+};
+export type HolidayItemMethod = typeof HOLIDAY_ITEM_METHODS[number];
 
 export const products = sqliteTable("products", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
@@ -125,10 +147,27 @@ export const appSettings = sqliteTable("app_settings", {
 export const holidays = sqliteTable("holidays", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   destination: text("destination").notNull(),
-  startDate: text("startDate").notNull(),
-  endDate: text("endDate").notNull(),
+  durationDays: integer("durationDays").$default(() => 0).notNull(),
+  state: text("state").$type<"PLANNED" | "PACKED" | "ACTIVE">().notNull(),
+  updatedAt: integer("updatedAt").$default(() => Date.now()).notNull(),
 });
 
+export const packListForHoliday = sqliteTable("pack_list_for_holiday", {
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  holidayId: text("holidayId").notNull(),
+  productId: text("productId").notNull(),
+  amountCalculationType: text("amountCalculationType").$type<(typeof HOLIDAY_ITEM_METHODS)[number]>().notNull(),
+  amountCalculationAttributes: text("amountCalculationAttributes", {mode: "json"}).$type<Record<(typeof HOLIDAY_ITEM_METHODS)[number], any>>().notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.holidayId],
+    foreignColumns: [holidays.id],
+  }),
+  foreignKey({
+    columns: [table.productId],
+    foreignColumns: [products.id],
+  }),
+])
 
 export const appWarningsForProducts = sqliteTable("app_warnings_for_products", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
@@ -152,4 +191,5 @@ export type ColoredDot = typeof coloredDots.$inferSelect;
 export type ColoredDotAssignment = typeof coloredDotAssignments.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type Holiday = typeof holidays.$inferSelect;
+export type PackListForHoliday = typeof packListForHoliday.$inferSelect;
 export type AppWarningForProduct = typeof appWarningsForProducts.$inferSelect;

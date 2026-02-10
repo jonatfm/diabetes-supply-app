@@ -12,6 +12,5 @@ export function useProduct(productId: string) {
     queryKey: qk.product(productId),
     enabled: ready && !!db && !!productId,
     queryFn: () => repo!.getProductById(productId),
-    staleTime: 10000, // 10 seconds
   })
 }

@@ -260,6 +260,20 @@
       "when": 1769958357684,
       "tag": "0036_simple_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1770742978952,
+      "tag": "0037_odd_madelyne_pryor",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1770744165376,
+      "tag": "0038_mushy_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

@@ -60,6 +60,7 @@ export default function NumberInput({
             keyboardType="numeric"
             style={style}
             label={label}
+            error={value === null}
         />
     );
 }
