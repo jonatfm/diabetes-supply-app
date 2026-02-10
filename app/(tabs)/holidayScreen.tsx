@@ -1,11 +1,86 @@
 import AppWrapper from "@/components/AppWrapper";
+import { db } from "@/db";
+import { Holiday } from "@/db/schema";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
+import { packsRepo } from "@/src/data/packsRepo";
+import { calculateHolidayNeedsSimple, HolidayNeedsResult } from "@/src/utils/calculateHolidayNeeds";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { FAB, Icon, Text, useTheme } from "react-native-paper";
+import { Button, Card, FAB, Icon, Text, useTheme } from "react-native-paper";
 import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calendar";
+
+function HolidayCard(holiday: Holiday) {
+    const theme = useTheme();
+    const active = holiday.state === "ACTIVE";
+    const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsResult[]>([]);
+    const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
+
+    useEffect(() => {
+        calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
+    }, []);
+
+    useEffect(() => {
+        async function fetchTotalUnits() {
+            const results: Record<string, number | undefined> = {};
+            for (const need of holidayNeeds) {
+                results[need.product.id] = await packsRepo(db).totalUnitsByProduct(need.product.id);
+            }
+            setTotalUnitsByProduct(results);
+        }
+        if (holidayNeeds.length > 0) {
+            fetchTotalUnits();
+        }
+    }, [holidayNeeds]);
+
+    return (
+        <Card elevation={1} style={{marginBottom: 16, backgroundColor: active ? theme.colors.primaryContainer : theme.colors.elevation.level1}}>
+            <Card.Content>
+                <View style={{flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4}}>
+                    <Icon source="map-marker" size={24} color={active ? theme.colors.onPrimaryContainer : theme.colors.primary} />
+                    <Text variant="titleLarge">{holiday.destination}</Text>
+                </View>
+                <Text variant="bodyMedium">{holiday.durationDays} days</Text>
+                {holidayNeeds.map((need) => {
+                    const totalUnits = totalUnitsByProduct[need.product.id];
+                    return (
+                        <View key={need.product.id} style={{marginTop: 12}}>
+                            <Text variant="labelMedium" style={{color: active ? theme.colors.onPrimaryContainer : theme.colors.primary}}>{need.product.name}</Text>
+                            <Text variant="bodyLarge"
+                                style={{color: totalUnits !== undefined && totalUnits < need.calculatedAmount ? theme.colors.error : theme.colors.onSurface}}
+                            >{need.calculatedAmount} units needed ({totalUnits ?? "..."} units left)</Text>
+                        </View>
+                    );
+                })}
+
+                <View>
+                    {holiday.state === "PLANNED" && (
+                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}}>
+                            Start packing
+                        </Button>
+                    )}
+                    {holiday.state === "PACKED" && (
+                        <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                            <Button icon="refresh" mode="outlined">
+                                Repack
+                            </Button>
+                            <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}}>
+                                Go!
+                            </Button>
+                        </View>
+                    )}
+                    {holiday.state === "ACTIVE" && (
+                        <Button icon="airplane-landing" mode="contained" buttonColor={theme.colors.error} style={{marginTop: 16}}>
+                            End Holiday
+                        </Button>
+                    )}
+                </View>
+            </Card.Content>
+        </Card>
+    )
+}
+
 
 export default function HolidayScreen() {
     const router = useRouter();
@@ -35,10 +110,8 @@ export default function HolidayScreen() {
                 <Text variant="headlineLarge" style={{ marginBottom: 24 }}>
                     Your Holidays
                 </Text>
-                {holidaysQ.data && holidaysQ.data.length > 0 ? (holidaysQ.data.map((holiday) => (
-                    <Text key={holiday.id} variant="bodyMedium">
-                        {holiday.destination} - {holiday.durationDays} days
-                    </Text>
+                {holidaysQ.data && holidaysQ.data.length > 0 ? (holidaysQ.data.sort((a, b) => b.updatedAt - a.updatedAt).map((holiday) => (
+                    <HolidayCard key={holiday.id} {...holiday} />
                 ))) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
                         <Icon source="ghost" size={64} color={theme.colors.primary} />

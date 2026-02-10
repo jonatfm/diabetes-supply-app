@@ -1,4 +1,4 @@
-import { sessions, stock_events } from "@/db/schema";
+import { products, sessions, stock_events } from "@/db/schema";
 import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
@@ -184,6 +184,41 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
         eventCount: takeEvents.length,
         periodInDays,
       };
+    },
+
+    /**
+     * Get average duration per item for any product type
+     * - For non-session-based products: uses average time between TAKE events
+     * - For session-based products: uses average session duration + average time between sessions
+     */
+    async getAverageDurationPerItem(productId: string, periodInDays?: number) {
+      // Get product to determine if it's session-based
+      const product = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+      
+      if (product.length === 0) {
+        return null;
+      }
+
+      const isSessionBased = product[0].isSessionBased;
+
+      if (isSessionBased) {
+        const sessionStats = await this.getSessionStatistics(productId, periodInDays);
+        
+        if (!sessionStats) {
+          return null;
+        }
+
+        // Average duration per item = average session duration + average time between sessions
+        return sessionStats.averageSessionDurationDays + sessionStats.averageTimeBetweenSessionsDays;
+      } else {
+        const takeStats = await this.getTakeEventStatistics(productId, periodInDays);
+        
+        if (!takeStats) {
+          return null;
+        }
+
+        return takeStats.averageDays;
+      }
     }
   }
 }

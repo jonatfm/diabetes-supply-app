@@ -1,4 +1,5 @@
 import { HOLIDAY_ITEM_METHODS, holidays, packListForHoliday } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 
@@ -6,6 +7,10 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
   return {
     async getHolidays() {
       return await db.select().from(holidays);
+    },
+
+    async getHolidayPackList(holidayId: string) {
+      return await db.select().from(packListForHoliday).where(eq(packListForHoliday.holidayId, holidayId));
     },
 
     async createHoliday (
