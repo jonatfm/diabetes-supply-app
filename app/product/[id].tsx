@@ -438,35 +438,6 @@ export default function ProductPage() {
             </View>
           </Card.Content>
         </Card>
-
-        {/* Low Stock Alert */}
-        {daysUntilOOSQ.data?.estimatedDaysUntilOOS && daysUntilOOSQ.data.estimatedDaysUntilOOS < 14 && totalUnitsQ.data && totalUnitsQ.data > 0 ? (
-          <Card style={{ 
-            marginTop: 12,
-            backgroundColor: daysUntilOOSQ.data.estimatedDaysUntilOOS < 7 ? theme.colors.errorContainer : '#fff8e1'
-          }}>
-            <Card.Content>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon 
-                  source={daysUntilOOSQ.data.estimatedDaysUntilOOS < 7 ? "alert-circle" : "information"} 
-                  size={24} 
-                  color={daysUntilOOSQ.data.estimatedDaysUntilOOS < 7 ? theme.colors.error : '#f57f17'} 
-                />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text variant="titleSmall" style={{ 
-                    color: daysUntilOOSQ.data.estimatedDaysUntilOOS < 7 ? theme.colors.error : '#f57f17',
-                    fontWeight: 'bold' 
-                  }}>
-                    {daysUntilOOSQ.data.estimatedDaysUntilOOS < 7 ? '⚠️ Critical: Running Low' : '⚠️ Stock Warning'}
-                  </Text>
-                  <Text variant="bodyMedium" style={{ marginTop: 4 }}>
-                    Only ~{daysUntilOOSQ.data.estimatedDaysUntilOOS.toFixed(0)} days of supply remaining. Consider ordering more soon.
-                  </Text>
-                </View>
-              </View>
-            </Card.Content>
-          </Card>
-        ) : null}
         
         <View style={{marginBottom: 24, gap: 8}}>
           {((packsQ.data && packsQ.data.length > 0) || (!!product.isSessionBased && getActiveSessionQ.data)) ? (
