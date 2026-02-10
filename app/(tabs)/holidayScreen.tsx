@@ -34,22 +34,34 @@ function HolidayCard(holiday: Holiday) {
         }
     }, [holidayNeeds]);
 
+    const borderColor = active ? theme.colors.primary : theme.colors.surfaceVariant;
+    const borderWidth = active ? 3 : 0;
+    const accentColor = active ? theme.colors.onPrimaryContainer : theme.colors.primary;
+
     return (
-        <Card elevation={1} style={{marginBottom: 16, backgroundColor: active ? theme.colors.primaryContainer : theme.colors.elevation.level1}}>
+        <Card elevation={3} style={{marginBottom: 16, borderColor: borderColor, borderWidth: borderWidth}}>
             <Card.Content>
-                <View style={{flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4}}>
-                    <Icon source="map-marker" size={24} color={active ? theme.colors.onPrimaryContainer : theme.colors.primary} />
-                    <Text variant="titleLarge">{holiday.destination}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                    <Icon source="map-marker" size={28} color={accentColor} />
+                    <Text variant="headlineMedium" style={{ color: accentColor, fontWeight: "bold" }}>{holiday.destination}</Text>
+                    {active && (
+                        <View style={{ marginLeft: "auto", backgroundColor: theme.colors.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                            <Text variant="labelLarge" style={{ color: theme.colors.onPrimary, fontWeight: "bold" }}>Active</Text>
+                        </View>
+                    )}
                 </View>
-                <Text variant="bodyMedium">{holiday.durationDays} days</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Icon source="calendar" size={22} color={accentColor} />
+                    <Text variant="titleMedium" style={{ color: accentColor }}>{holiday.durationDays} days</Text>
+                </View>
                 {holidayNeeds.map((need) => {
                     const totalUnits = totalUnitsByProduct[need.product.id];
                     return (
-                        <View key={need.product.id} style={{marginTop: 12}}>
-                            <Text variant="labelMedium" style={{color: active ? theme.colors.onPrimaryContainer : theme.colors.primary}}>{need.product.name}</Text>
+                        <View key={need.product.id} style={{marginTop: 6}}>
+                            <Text variant="labelMedium" style={{color: accentColor}}>{need.product.name}</Text>
                             <Text variant="bodyLarge"
                                 style={{color: totalUnits !== undefined && totalUnits < need.calculatedAmount ? theme.colors.error : theme.colors.onSurface}}
-                            >{need.calculatedAmount} units needed ({totalUnits ?? "..."} units left)</Text>
+                            >{need.calculatedAmount} units required {totalUnits !== undefined && totalUnits < need.calculatedAmount ? `(${need.calculatedAmount - totalUnits} units missing)` : ""}</Text>
                         </View>
                     );
                 })}
