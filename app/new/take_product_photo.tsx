@@ -5,8 +5,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, Card, Text, useTheme } from 'react-native-paper';
 
 /**
  * Normalizes an image to portrait orientation by reading EXIF data and rotating if needed.
@@ -54,6 +53,7 @@ async function normalizeImageOrientation(uri: string): Promise<string> {
 
 export default function TakeProductPhoto() {
   const router = useRouter();
+  const theme = useTheme();
   const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string; useColoredDotsForProduct?: string; returnTo?: string; id?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -62,12 +62,29 @@ export default function TakeProductPhoto() {
 
   if (!permission?.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>Camera permission is required to take a product photo.</Text>
-        <Button mode="contained" onPress={() => requestPermission()} >
-          Grant Permission
-        </Button>
-      </SafeAreaView>
+      <AppWrapper>
+        <View style={{ marginBottom: 16 }}>
+          <Button 
+            mode="text" 
+            onPress={() => router.back()} 
+            icon="arrow-left"
+            style={{ alignSelf: 'flex-start', marginLeft: -8 }}
+          >
+            Back
+          </Button>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Card elevation={2} style={{ padding: 24, alignItems: 'center', maxWidth: 400, }}>
+            <Text variant="titleLarge" style={{ marginBottom: 8, textAlign: 'center' }}>Camera Access Required</Text>
+            <Text variant="bodyMedium" style={{ marginBottom: 24, textAlign: 'center', color: theme.colors.onSurfaceVariant }}>
+              Camera permission is required to take pictures.
+            </Text>
+            <Button onPress={() => requestPermission()} mode="contained" icon="camera">
+              Grant Permission
+            </Button>
+          </Card>
+        </View>
+      </AppWrapper>
     );
   }
 
@@ -135,6 +152,16 @@ export default function TakeProductPhoto() {
 
   return (
     <AppWrapper>
+      <View style={{ marginBottom: 16 }}>
+        <Button 
+          mode="text" 
+          onPress={() => router.back()} 
+          icon="arrow-left"
+          style={{ alignSelf: 'flex-start', marginLeft: -8 }}
+        >
+          Back
+        </Button>
+      </View>
       <Text variant="headlineLarge">Take Product Photo</Text>
       <Card style={{ flex: 1, marginVertical: 16, overflow: 'hidden', flexGrow: 1 }}>
         <View style={{flexGrow: 1, width: '100%', height: "100%"}}>
