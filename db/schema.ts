@@ -43,7 +43,7 @@ export const products = sqliteTable("products", {
   isSessionBased: integer("isSessionBased", {mode: "boolean"}).default(false).notNull(),
   nominalSessionTimeDays: integer("nominalSessionTimeDays"),
   useColoredDots: integer("useColoredDots", {mode: "boolean"}).default(false).notNull(),
-  requiredForHoliday: integer("requiredForHoliday", {mode: "boolean"}).default(false).notNull(),
+  // requiredForHoliday: integer("requiredForHoliday", {mode: "boolean"}).default(false).notNull(),
 });
 
 export const product_identifiers = sqliteTable("product_identifiers", {

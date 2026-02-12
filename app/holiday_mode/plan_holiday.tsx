@@ -1,12 +1,13 @@
 import AppWrapper from "@/components/AppWrapper";
 import NumberInput from "@/components/NumberInput";
+import { useDatabase } from "@/db";
 import { HOLIDAY_ITEM_METHODS, HOLIDAY_ITEM_METHODS_ATTRIBUTES, HOLIDAY_ITEM_METHODS_LABELS, Product } from "@/db/schema";
 import { useCreateHoliday } from "@/src/data/hooks/useCreateHoliday";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { Button, Card, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, Card, Chip, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
 
 type ItemState = {
     selectedMethod: typeof HOLIDAY_ITEM_METHODS[number];
@@ -95,23 +96,24 @@ const filterAllowedAttributes = (attributes: Record<string, number|null>, method
 
 export default function PlanHoliday() {
     const theme = useTheme();
+    const db = useDatabase();
     const router = useRouter();
     const [location, setLocation] = useState<string>("");
     const [daysAway, setDaysAway] = useState<number|null>(null);
     const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
+    const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const productsQ = useProducts();
     const createHolidayQ = useCreateHoliday();
 
     // Check if all fields are filled
     const isFormValid = () => {
         // Check basic fields
-        if (!location || location.trim() === "" || daysAway === null || daysAway <= 0) {
+        if (!location || location.trim() === "" || daysAway === null || daysAway <= 0 || selectedProducts.length === 0) {
             return false;
         }
 
         // Check all required products have complete item states
-        const requiredProducts = productsQ.data?.filter(p => p.requiredForHoliday) || [];
-        for (const product of requiredProducts) {
+        for (const product of selectedProducts) {
             const itemState = itemStates[product.id];
             if (!itemState) return false;
 
@@ -135,12 +137,24 @@ export default function PlanHoliday() {
             destination: location.trim(),
             durationDays: daysAway!,
             products: Object.fromEntries(
-                Object.entries(itemStates).map(([productId, state]) => [
-                    productId,
-                    {
-                        amountCalculationType: state.selectedMethod,
-                        amountCalculationAttributes: filterAllowedAttributes(state.selectedAttributeValues, state.selectedMethod),
-                    }
+            Object.entries(itemStates)
+                .filter(([productId, state]) => {
+                // Only include if product is still selected
+                if (!selectedProducts.some(p => p.id === productId)) return false;
+                
+                // Check if any attribute value is greater than 0
+                const attributes = HOLIDAY_ITEM_METHODS_ATTRIBUTES[state.selectedMethod] || [];
+                return attributes.some(attr => {
+                    const value = state.selectedAttributeValues[attr.attributeName];
+                    return value !== null && value !== undefined && value > 0;
+                });
+                })
+                .map(([productId, state]) => [
+                productId,
+                {
+                    amountCalculationType: state.selectedMethod,
+                    amountCalculationAttributes: filterAllowedAttributes(state.selectedAttributeValues, state.selectedMethod),
+                }
                 ])
             )
         });
@@ -197,6 +211,34 @@ export default function PlanHoliday() {
                     </Card.Content>
                 </Card>
 
+                {db && (
+                <>
+                    <Text variant="titleMedium">Select products to take with you</Text>
+                    {productsQ.data && (
+                    <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
+                        {productsQ.data.map((product) => {
+                        const selected = selectedProducts.some((p) => p.id === product.id)
+                        return (
+                            <Chip
+                            key={product.id}
+                            selected={selected}
+                            mode={selected ? "flat" : "outlined"}
+                            icon={selected ? "check" : "plus"}
+                            onPress={() => {
+                                if (selected) {
+                                    setSelectedProducts((prev) => prev.filter((p) => p.id !== product.id));
+                                } else {
+                                    setSelectedProducts((prev) => [...prev, product]);
+                                }
+                            }}
+                            >{product.name}</Chip>
+                        )
+                        })}
+                    </View>
+                    )}
+                </>
+                )}
+
                 <Card elevation={1} style={{marginBottom: 12}}>
                     <Card.Content style={{gap: 12}}>
                         <View>
@@ -205,7 +247,7 @@ export default function PlanHoliday() {
                             </Text>
                         </View>
                         {productsQ.data && productsQ.data.map((product) => {
-                            if (product.requiredForHoliday) {
+                            if (selectedProducts.some((p) => p.id === product.id)) {
                                 return (
                                     <ItemCard 
                                         key={product.id} 

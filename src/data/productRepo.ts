@@ -39,24 +39,24 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         isSessionBased: params.isSessionBased,
         nominalSessionTimeDays: params.nominalSessionTimeDays ?? null,
         useColoredDots: params.useColoredDots,
-        requiredForHoliday: params.requiredForHoliday ?? false,
+        // requiredForHoliday: params.requiredForHoliday ?? false,
       }).returning({id: products.id});
     },
 
-    async updateProduct(productId: string, params: { name?: string; imageUri?: string | null; useColoredDots?: boolean; requiredForHoliday?: boolean; }) {
+    async updateProduct(productId: string, params: { name?: string; imageUri?: string | null; useColoredDots?: boolean; }) {
       const updateValues: Partial<Product> & { useColoredDots?: boolean } = {};
       if (typeof params.name === 'string') updateValues.name = params.name;
       if (params.imageUri !== undefined) updateValues.imageUri = params.imageUri ?? null;
       if (typeof params.useColoredDots === 'boolean') updateValues.useColoredDots = params.useColoredDots;
-      if (typeof params.requiredForHoliday === 'boolean') updateValues.requiredForHoliday = params.requiredForHoliday;
+      //if (typeof params.requiredForHoliday === 'boolean') updateValues.requiredForHoliday = params.requiredForHoliday;
 
       if (Object.keys(updateValues).length === 0) return;
 
       await db.update(products).set(updateValues).where(eq(products.id, productId));
     },
 
-    async getProductsRequiredForHoliday() {
-      return db.select().from(products).where(eq(products.requiredForHoliday, true));
-    }
+    // async getProductsRequiredForHoliday() {
+    //   return db.select().from(products).where(eq(products.requiredForHoliday, true));
+    // }
   }
 }

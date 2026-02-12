@@ -1,22 +1,18 @@
 import AppWrapper from '@/components/AppWrapper';
 import NumberInput from '@/components/NumberInput';
-import { useDatabase } from '@/db';
 import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
-import { useProducts } from '@/src/data/hooks/useGetProducts';
 import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
-import { useUpdateAnyProduct } from '@/src/data/hooks/useUpdateAnyProduct';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Button, Card, Chip, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
   const theme = useTheme();
-  const {db} = useDatabase();
   const exportMutation = useExportDatabase();
   const importMutation = useImportDatabase();
   
@@ -41,8 +37,8 @@ export default function Settings() {
   const [newDotColor, setNewDotColor] = useState('');
   // Holiday function
   const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
-  const allProductsQ = useProducts();
-  const updateProductM = useUpdateAnyProduct();
+  // const allProductsQ = useProducts();
+  // const updateProductM = useUpdateAnyProduct();
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
@@ -284,6 +280,7 @@ export default function Settings() {
                 }
               ]}
             />
+            {/*
             {db && holidayFunctionEnabledSetting && (
               <>
                 <Text variant="titleMedium">Select products to include in the holiday mode</Text>
@@ -310,6 +307,7 @@ export default function Settings() {
                 )}
               </>
             )}
+            */}
           </Card.Content>
         </Card>
         

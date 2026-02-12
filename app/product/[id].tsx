@@ -418,11 +418,13 @@ export default function ProductPage() {
                   <Text variant="labelLarge">Expires</Text>
                 </Chip>
               ) : null}
+              {/*
               {isHolidayFunctionEnabled && product.requiredForHoliday ? (
                 <Chip icon="beach" mode="flat">
                   <Text variant="labelLarge">Holiday Product</Text>
                 </Chip>
               ) : null}
+               */}
             </View>
 
             <View style={{ marginTop: 16 }}>
