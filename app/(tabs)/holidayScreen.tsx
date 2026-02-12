@@ -13,6 +13,7 @@ import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calend
 
 function HolidayCard(holiday: Holiday) {
     const theme = useTheme();
+    const router = useRouter();
     const active = holiday.state === "ACTIVE";
     const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsResult[]>([]);
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
@@ -68,7 +69,7 @@ function HolidayCard(holiday: Holiday) {
 
                 <View>
                     {holiday.state === "PLANNED" && (
-                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}}>
+                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}} onPress={() => router.push("/holiday_mode/pack_for_holiday")}>
                             Start packing
                         </Button>
                     )}
