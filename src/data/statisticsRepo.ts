@@ -219,6 +219,10 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
 
         return takeStats.averageDays;
       }
+    },
+
+    async getSpecificPacksForHoliday(): Promise<{packId: string, units: number}[]> {
+      
     }
   }
 }

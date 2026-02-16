@@ -23,4 +23,6 @@ export const qk = {
   appSetting: (key: string) => ["appSetting", key] as const,
   usualProductsForHoliday: () => ["usualProductsForHoliday"] as const,
   holidays: () => ["holidays"] as const,
+  holiday: (id: string) => ["holiday", id] as const,
+  packsForHoliday: (holidayId: string) => ["packsForHoliday", holidayId] as const,
 };

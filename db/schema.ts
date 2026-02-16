@@ -167,7 +167,22 @@ export const packListForHoliday = sqliteTable("pack_list_for_holiday", {
     columns: [table.productId],
     foreignColumns: [products.id],
   }),
-])
+]);
+
+export const packsForHoliday = sqliteTable("packs_for_holiday", {
+  id: text("id").primaryKey().$default(() => uuid.v4() as string),
+  holidayId: text("holidayId").notNull(),
+  packId: text("packId").notNull(),
+}, (table) => [
+  foreignKey({
+    columns: [table.holidayId],
+    foreignColumns: [holidays.id],
+  }),
+  foreignKey({
+    columns: [table.packId],
+    foreignColumns: [packs.id],
+  }),
+]);
 
 export const appWarningsForProducts = sqliteTable("app_warnings_for_products", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
@@ -192,4 +207,5 @@ export type ColoredDotAssignment = typeof coloredDotAssignments.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type Holiday = typeof holidays.$inferSelect;
 export type PackListForHoliday = typeof packListForHoliday.$inferSelect;
+export type PacksForHoliday = typeof packsForHoliday.$inferSelect;
 export type AppWarningForProduct = typeof appWarningsForProducts.$inferSelect;

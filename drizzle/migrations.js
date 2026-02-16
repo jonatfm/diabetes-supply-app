@@ -41,6 +41,7 @@ import m0036 from './0036_simple_champions.sql';
 import m0037 from './0037_odd_madelyne_pryor.sql';
 import m0038 from './0038_mushy_dexter_bennett.sql';
 import m0039 from './0039_tearful_charles_xavier.sql';
+import m0040 from './0040_heavy_patriot.sql';
 
   export default {
     journal,
@@ -84,7 +85,8 @@ m0035,
 m0036,
 m0037,
 m0038,
-m0039
+m0039,
+m0040
     }
   }
   

@@ -281,6 +281,13 @@
       "when": 1770881187548,
       "tag": "0039_tearful_charles_xavier",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1771258649537,
+      "tag": "0040_heavy_patriot",
+      "breakpoints": true
     }
   ]
 }

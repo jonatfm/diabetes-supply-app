@@ -4,7 +4,7 @@ import { Holiday } from "@/db/schema";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { packsRepo } from "@/src/data/packsRepo";
-import { calculateHolidayNeedsSimple, HolidayNeedsResult } from "@/src/utils/calculateHolidayNeeds";
+import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
@@ -15,7 +15,7 @@ function HolidayCard(holiday: Holiday) {
     const theme = useTheme();
     const router = useRouter();
     const active = holiday.state === "ACTIVE";
-    const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsResult[]>([]);
+    const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsSimpleResult[]>([]);
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
 
     useEffect(() => {
@@ -69,7 +69,7 @@ function HolidayCard(holiday: Holiday) {
 
                 <View>
                     {holiday.state === "PLANNED" && (
-                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}} onPress={() => router.push("/holiday_mode/pack_for_holiday")}>
+                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}} onPress={() => router.push(`/holiday_mode/pack/${holiday.id}`)}>
                             Start packing
                         </Button>
                     )}
