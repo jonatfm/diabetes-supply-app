@@ -1,11 +1,12 @@
 import AppWrapper from "@/components/AppWrapper";
 import { useGetPacksForHoliday } from "@/src/data/hooks/useGetPacksForHoliday";
 import { useHoliday } from "@/src/data/hooks/useHoliday";
+import { useProduct } from "@/src/data/hooks/useProduct";
 import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ImageBackground, useWindowDimensions, View } from "react-native";
-import { Button, Card, Text, useTheme } from "react-native-paper";
+import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
+import { Button, Card, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
 export default function PackForHoliday() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +16,8 @@ export default function PackForHoliday() {
     const holiday = useHoliday(id);
     const packsForHoliday = useGetPacksForHoliday(id);
     const [holidayNeedsSimple, setHolidayNeedsSimple] = useState<HolidayNeedsSimpleResult[]>([]);
+    const [isPackItemDialogVisible, setIsPackItemDialogVisible] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
     // Calculate responsive grid layout
     // Account for AppWrapper padding (typically 16px on each side) and Card.Content padding (16px on each side)
@@ -38,6 +41,11 @@ export default function PackForHoliday() {
         }
         return acc;
     }, {} as Record<string, number>) || {};
+
+    const handleItemPress = (item: HolidayNeedsSimpleResult) => {
+        setSelectedProduct(item.product.id);
+        setIsPackItemDialogVisible(true);
+    }
 
     const accentColor = holiday.data?.state === "ACTIVE" ? theme.colors.onPrimaryContainer : theme.colors.primary;
 
@@ -64,7 +72,7 @@ export default function PackForHoliday() {
                         <Text variant="bodyMedium" style={{marginBottom: 16}}>Press an item to see what exactly is needed</Text>
                         <View style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: "flex-start", gap: gap}}>
                             {holidayNeedsSimple.map((item, index) => (
-                                <View 
+                                <Pressable onPress={() => handleItemPress(item)} 
                                     key={item.product.id} 
                                     style={[{
                                         width: itemWidth, 
@@ -123,12 +131,25 @@ export default function PackForHoliday() {
                                             </Text>
                                         </View>
                                     </ImageBackground>
-                                </View>
+                                </Pressable>
                             ))}
                         </View>
                     </Card.Content>
                 </Card>
             </View>
+
+            <Portal>
+                <PackItemsDialog visible={isPackItemDialogVisible && selectedProduct !== null} onDismiss={() => setIsPackItemDialogVisible(false)} productId={selectedProduct!} />
+            </Portal>
         </AppWrapper>
+    )
+}
+
+function PackItemsDialog({ visible, onDismiss, productId }: { visible: boolean; onDismiss: () => void; productId: string }) {
+    const product = useProduct(productId); 
+    return (
+        <Dialog visible={visible} onDismiss={onDismiss}>
+            <Dialog.Title>{product.data?.name}</Dialog.Title>
+        </Dialog>
     )
 }
