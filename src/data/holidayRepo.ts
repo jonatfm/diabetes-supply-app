@@ -59,6 +59,13 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       );
 
       return newHoliday;
+    },
+
+    async addPackToHoliday(holidayId: string, packId: string) {
+      await db.insert(packsForHoliday).values({
+        holidayId,
+        packId,
+      });
     }
   }
 }
