@@ -1,8 +1,15 @@
 import AppWrapper from "@/components/AppWrapper";
+import ColoredDot from "@/components/ColoredDot";
+import { db, useDatabase } from "@/db";
+import { Holiday, Pack } from "@/db/schema";
+import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useGetPacksForHoliday } from "@/src/data/hooks/useGetPacksForHoliday";
 import { useHoliday } from "@/src/data/hooks/useHoliday";
 import { useProduct } from "@/src/data/hooks/useProduct";
-import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
+import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
+import { packsRepo } from "@/src/data/packsRepo";
+import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsResult, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
@@ -139,17 +146,98 @@ export default function PackForHoliday() {
             </View>
 
             <Portal>
-                <PackItemsDialog visible={isPackItemDialogVisible && selectedProduct !== null} onDismiss={() => setIsPackItemDialogVisible(false)} productId={selectedProduct!} />
+                {holiday.data && (
+                    <PackItemsDialog visible={isPackItemDialogVisible && selectedProduct !== null} onDismiss={() => setIsPackItemDialogVisible(false)} productId={selectedProduct!} holiday={holiday.data} />
+                )}
             </Portal>
         </AppWrapper>
     )
 }
 
-function PackItemsDialog({ visible, onDismiss, productId }: { visible: boolean; onDismiss: () => void; productId: string }) {
-    const product = useProduct(productId); 
+function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: boolean; onDismiss: () => void; productId: string; holiday: Holiday }) {
+    const { db: hookDb } = useDatabase();
+    const theme = useTheme();
+    const product = useProduct(productId);
+    const productIdentifiersQ = useProductIdentifiers(productId);
+    const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
+    const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsResult[]>([]);
+    const [currentSelectedPack, setCurrentSelectedPack] = useState<Pack|null>(null);
+    const [unitsToTake, setUnitsToTake] = useState<number>(0);
+    const [coloredDotIds, setColoredDotIds] = useState<string[]>([]);
+    
+    useEffect(() => {
+        async function fetchNeeds() {
+            const needs = await calculateHolidayNeeds(holiday);
+            setHolidayNeeds(needs);
+        }
+        fetchNeeds();
+    }, [holiday]);
+    
+    useEffect(() => {
+        async function fetchCurrentPack() {
+            if (holidayNeeds.length === 0) return;
+            const need = holidayNeeds.find(n => n.product.id === productId);
+            if (!need || need.packs.length === 0) return;
+            const packEntry = need.packs[0];
+            const pack = await packsRepo(db).fetchPackById(packEntry.packId);
+            setCurrentSelectedPack(pack);
+            setUnitsToTake(packEntry.units);
+        }
+        fetchCurrentPack();
+    }, [holidayNeeds, productId]);
+
+    // Fetch colored dots for the selected pack
+    useEffect(() => {
+        async function fetchColoredDots() {
+            if (!currentSelectedPack || !hookDb || !coloredDotsEnabled || !product.data?.useColoredDots) {
+                setColoredDotIds([]);
+                return;
+            }
+            const assignment = await coloredDotsRepo(hookDb).getAssignmentByPackId(currentSelectedPack.id);
+            setColoredDotIds(assignment?.dotIds ?? []);
+        }
+        fetchColoredDots();
+    }, [currentSelectedPack, hookDb, coloredDotsEnabled, product.data?.useColoredDots]);
+
+    // Derive identifier info from the pack
+    const identifier = currentSelectedPack?.ais?.["21"]
+        ? currentSelectedPack.ais["21"]
+        : (productIdentifiersQ.data?.[0]?.value || 'N/A');
+    const identifierType = currentSelectedPack?.ais?.["21"] ? "Serial" : "Code";
+
     return (
         <Dialog visible={visible} onDismiss={onDismiss}>
             <Dialog.Title>{product.data?.name}</Dialog.Title>
+            <Dialog.Content>
+                {currentSelectedPack ? (
+                    <View>
+                        <Text>Please make sure to take exactly <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{unitsToTake} unit{unitsToTake !== 1 ? 's' : ''}</Text> from a pack with these <Text style={{ fontWeight: 'bold' }}>exact</Text> attributes:</Text>
+                        <View style={{ marginTop: 16 }}>
+                            <Text>{identifierType}: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{identifier}</Text></Text>
+                            {currentSelectedPack.expiry ? (
+                                <Text>Expiry Date: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{new Date(currentSelectedPack.expiry).toLocaleDateString()}</Text></Text>
+                            ) : null}
+                            <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{currentSelectedPack.unitsRemaining}</Text></Text>
+                            
+                            {coloredDotIds.length > 0 ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                    <Text>Colored Dots:</Text>
+                                    <View style={{ flexDirection: 'row', marginLeft: 8, gap: 4 }}>
+                                        {coloredDotIds.map((dotId, index) => (
+                                            <ColoredDot key={index} dotId={dotId} size={20} crossInactive={false} />
+                                        ))}
+                                    </View>
+                                </View>
+                            ) : null}
+                        </View>
+                    </View>
+                ) : (
+                    <Text>Loading pack information...</Text>
+                )}
+            </Dialog.Content>
+            <Dialog.Actions>
+                <Button onPress={onDismiss}>Close</Button>
+            </Dialog.Actions>
         </Dialog>
     )
 }
