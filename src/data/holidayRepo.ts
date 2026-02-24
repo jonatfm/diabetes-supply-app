@@ -145,6 +145,22 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       await db.update(holidays).set({ state, updatedAt: Date.now() }).where(eq(holidays.id, holidayId));
     },
 
+    async getActiveHoliday() {
+      const [active] = await db.select().from(holidays).where(eq(holidays.state, "ACTIVE")).limit(1);
+      return active ?? null;
+    },
+
+    /** Activate a holiday. Throws if another holiday is already active. */
+    async activateHoliday(holidayId: string) {
+      const existing = await this.getActiveHoliday();
+      if (existing && existing.id !== holidayId) {
+        throw new Error("Another holiday is already active. End it before activating a new one.");
+      }
+      await db.update(holidays)
+        .set({ state: "ACTIVE", updatedAt: Date.now() })
+        .where(eq(holidays.id, holidayId));
+    },
+
     async deletePacksForHoliday(holidayId: string) {
       await db.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
     }

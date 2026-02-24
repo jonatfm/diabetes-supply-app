@@ -2,6 +2,8 @@ import AppWrapper from "@/components/AppWrapper";
 import { db, useDatabase } from "@/db";
 import { Holiday } from "@/db/schema";
 import { holidayRepo } from "@/src/data/holidayRepo";
+import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
+import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { packsRepo } from "@/src/data/packsRepo";
@@ -20,6 +22,8 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     const active = holiday.state === "ACTIVE";
     const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsSimpleResult[]>([]);
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
+    const activateHolidayM = useActivateHoliday();
+    const activeHolidayQ = useActiveHoliday();
 
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
@@ -38,6 +42,12 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
         }
     }, [holidayNeeds]);
 
+    const activateHoliday = async () => {
+        if (active) return;
+        if (activeHolidayQ.data && activeHolidayQ.data.id !== holiday.id) return;
+        activateHolidayM.mutate(holiday.id);
+    }
+ 
     const borderColor = active ? theme.colors.primary : theme.colors.surfaceVariant;
     const borderWidth = active ? 3 : 0;
     const accentColor = active ? theme.colors.onPrimaryContainer : theme.colors.primary;
@@ -81,7 +91,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                             <Button icon="refresh" mode="outlined" onPress={() => onRepack(holiday.id)}>
                                 Repack
                             </Button>
-                            <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}}>
+                            <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}} onPress={activateHoliday} disabled={activeHolidayQ.data && activeHolidayQ.data.id !== holiday.id}>
                                 Go!
                             </Button>
                         </View>
