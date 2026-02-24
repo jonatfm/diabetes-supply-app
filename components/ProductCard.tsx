@@ -73,8 +73,8 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
     for (const bp of holidayInfo.packBreakdown) {
       const pack = packMap.get(bp.packId);
       if (pack) {
-        // Remaining is min of what was allocated and what's actually in the pack
-        unitsRemaining += Math.min(bp.packedUnits, pack.unitsRemaining);
+        // Use the holiday allocation's remaining count, capped by physical units
+        unitsRemaining += Math.min(bp.remainingUnits, pack.unitsRemaining);
       }
     }
 

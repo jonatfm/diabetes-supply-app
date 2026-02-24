@@ -175,7 +175,10 @@ export const packsForHoliday = sqliteTable("packs_for_holiday", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   holidayId: text("holidayId").notNull(),
   packId: text("packId").notNull(),
+  /** Remaining holiday-allocated units (decremented on each holiday consume). */
   units: integer("units").notNull(),
+  /** Original allocation at packing time (never changes). */
+  originalUnits: integer("originalUnits").notNull().default(0),
 }, (table) => [
   foreignKey({
     columns: [table.holidayId],

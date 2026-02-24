@@ -16,8 +16,8 @@ export type HolidayProductInfo = {
   unitsRemaining: number;
   /** How many units were planned (from pack_list_for_holiday.calculatedAmount) */
   calculatedAmount: number | null;
-  /** Per-pack breakdown: packId → { packed, remaining } */
-  packBreakdown: { packId: string; packedUnits: number }[];
+  /** Per-pack breakdown: packId → { originalUnits (at packing), remainingUnits (current allocation) } */
+  packBreakdown: { packId: string; originalUnits: number; remainingUnits: number }[];
 };
 
 /**
@@ -35,7 +35,7 @@ export function useIsProductOnActiveHoliday(productId: string): HolidayProductIn
       totalPackedUnits: 0,
       unitsRemaining: 0,
       calculatedAmount: null as number | null,
-      packBreakdown: [] as { packId: string; packedUnits: number }[],
+      packBreakdown: [] as { packId: string; originalUnits: number; remainingUnits: number }[],
     };
 
     if (!activeHolidayQ.data) {
@@ -54,8 +54,12 @@ export function useIsProductOnActiveHoliday(productId: string): HolidayProductIn
 
     // Build pack breakdown for this product
     const productPacks = (packsForHolidayQ.data ?? []).filter(p => p.productId === productId);
-    const packBreakdown = productPacks.map(p => ({ packId: p.packId, packedUnits: p.units }));
-    const totalPackedUnits = productPacks.reduce((sum, p) => sum + p.units, 0);
+    const packBreakdown = productPacks.map(p => ({
+      packId: p.packId,
+      originalUnits: p.originalUnits,
+      remainingUnits: p.units,
+    }));
+    const totalPackedUnits = productPacks.reduce((sum, p) => sum + p.originalUnits, 0);
 
     return {
       isOnHoliday: true,
@@ -64,7 +68,7 @@ export function useIsProductOnActiveHoliday(productId: string): HolidayProductIn
       activeHolidayId: activeHolidayQ.data.id,
       activeHoliday: activeHolidayQ.data,
       totalPackedUnits,
-      unitsRemaining: totalPackedUnits, // Will be refined by consumers with actual pack data
+      unitsRemaining: productPacks.reduce((sum, p) => sum + p.units, 0),
       calculatedAmount: packListEntry.calculatedAmount ?? null,
       packBreakdown,
     };

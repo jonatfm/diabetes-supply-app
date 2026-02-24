@@ -23,6 +23,9 @@ export function useConsumeOneUnit(productId: string) {
         qc.invalidateQueries({ queryKey: qk.takeEventStatistics(productId) }),
         qc.invalidateQueries({ queryKey: qk.sessionStatistics(productId) }),
         qc.invalidateQueries({ queryKey: qk.daysUntilOutOfStock(productId) }),
+        // Holiday allocation was decremented — refresh holiday pack data
+        qc.invalidateQueries({ queryKey: qk.activeHoliday() }),
+        qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "packsForHoliday" }),
       ]);
     },
   });

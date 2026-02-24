@@ -122,7 +122,7 @@ export const calculateHolidayNeeds = async (
   // Sum already-packed units per product from persisted records
   const packedUnitsByProduct = packedForHoliday.reduce((acc, packed) => {
     if (!packed.productId) return acc;
-    acc[packed.productId] = (acc[packed.productId] || 0) + packed.units;
+    acc[packed.productId] = (acc[packed.productId] || 0) + packed.originalUnits;
     return acc;
   }, {} as Record<string, number>);
 

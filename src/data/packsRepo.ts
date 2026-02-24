@@ -4,6 +4,7 @@ import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 import { appSettingsRepo } from "./appSettingsRepo";
 import { coloredDotsRepo } from "./coloredDotsRepo";
+import { holidayRepo } from "./holidayRepo";
 import { sessionsRepo } from "./sessionsRepo";
 
 export type ChangesFormat = {
@@ -141,6 +142,10 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         note: "Via app",
         relatedSessionId,
       });
+
+      // If there is an active holiday with this pack allocated, decrement the
+      // holiday allocation so the remaining count stays accurate.
+      await holidayRepo(db).decrementHolidayPackUnit(packId);
     },
 
     async manualDataUpdate(changes: ChangesFormat) {

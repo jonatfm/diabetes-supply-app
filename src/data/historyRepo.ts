@@ -1,7 +1,8 @@
-import { packs, sessions, stock_events } from "@/db/schema";
+import { packs, packsForHoliday, sessions, stock_events } from "@/db/schema";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
+import { holidayRepo } from "./holidayRepo";
 
 export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$client: SQLiteDatabase;})) {
   return {
@@ -73,9 +74,29 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
 
       // Restore the unit to the pack
       const pack = await db.select().from(packs).where(eq(packs.id, eventToUndo.packId));
-      return await db.update(packs)
+      await db.update(packs)
         .set({unitsRemaining: pack[0].unitsRemaining + 1})
         .where(eq(packs.id, eventToUndo.packId));
+
+      // If there is an active holiday with this pack allocated, re-increment
+      // the holiday allocation to reverse the decrement done during consume.
+      const active = await holidayRepo(db).getActiveHoliday();
+      if (active) {
+        const rows = await db.select()
+          .from(packsForHoliday)
+          .where(
+            and(
+              eq(packsForHoliday.holidayId, active.id),
+              eq(packsForHoliday.packId, eventToUndo.packId),
+            )
+          );
+        const row = rows.find(r => r.units < r.originalUnits);
+        if (row) {
+          await db.update(packsForHoliday)
+            .set({ units: row.units + 1 })
+            .where(eq(packsForHoliday.id, row.id));
+        }
+      }
     },
 
     async getTakeEventsByProduct(productId: string, periodInDays?: number) {

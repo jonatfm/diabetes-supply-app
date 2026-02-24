@@ -22,6 +22,7 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         holidayId: packsForHoliday.holidayId,
         packId: packsForHoliday.packId,
         units: packsForHoliday.units,
+        originalUnits: packsForHoliday.originalUnits,
         productId: packs.productId,
       }).from(packsForHoliday)
         .leftJoin(packs, eq(packsForHoliday.packId, packs.id))
@@ -105,6 +106,7 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         holidayId,
         packId,
         units,
+        originalUnits: units,
       });
     },
 
@@ -163,6 +165,36 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
 
     async deletePacksForHoliday(holidayId: string) {
       await db.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
-    }
+    },
+
+    /**
+     * Decrement the remaining holiday allocation for a pack by 1.
+     * Called when a unit is consumed from a holiday-allocated pack during an
+     * active holiday. Returns true if a row was found and decremented.
+     */
+    async decrementHolidayPackUnit(packId: string): Promise<boolean> {
+      const active = await this.getActiveHoliday();
+      if (!active) return false;
+
+      // Find allocation row(s) for this pack on the active holiday with remaining units
+      const rows = await db.select()
+        .from(packsForHoliday)
+        .where(
+          and(
+            eq(packsForHoliday.holidayId, active.id),
+            eq(packsForHoliday.packId, packId),
+          )
+        );
+
+      // Pick the first row that still has units > 0
+      const row = rows.find(r => r.units > 0);
+      if (!row) return false;
+
+      await db.update(packsForHoliday)
+        .set({ units: row.units - 1 })
+        .where(eq(packsForHoliday.id, row.id));
+
+      return true;
+    },
   }
 }

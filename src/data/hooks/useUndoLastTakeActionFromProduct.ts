@@ -20,6 +20,9 @@ export function useUndoLastTakeActionFromProduct(productId: string) {
         qc.invalidateQueries({ queryKey: qk.sessions() }),
         qc.invalidateQueries({ queryKey: qk.product(productId) }),
         qc.invalidateQueries({ queryKey: qk.identifiers(productId) }),
+        // Holiday allocation may have been re-incremented
+        qc.invalidateQueries({ queryKey: qk.activeHoliday() }),
+        qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "packsForHoliday" }),
       ]);
     },
   })

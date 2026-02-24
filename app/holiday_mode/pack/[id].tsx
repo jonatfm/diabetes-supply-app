@@ -51,7 +51,7 @@ export default function PackForHoliday() {
     // Derive packed units per product directly from persisted records
     const packedUnitsByProduct = packsForHoliday.data?.reduce((acc, packed) => {
         if (packed.productId) {
-            acc[packed.productId] = (acc[packed.productId] || 0) + packed.units;
+            acc[packed.productId] = (acc[packed.productId] || 0) + packed.originalUnits;
         }
         return acc;
     }, {} as Record<string, number>) ?? {};

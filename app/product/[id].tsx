@@ -104,17 +104,19 @@ export default function ProductPage() {
     if (!isOnHoliday || !packsQ.data || packBreakdown.length === 0) return null;
 
     const packMap = new Map(packsQ.data.map(p => [p.id, p]));
-    const items: { packId: string; packedUnits: number; unitsRemaining: number; expiry: number | null; serial: string | null }[] = [];
+    const items: { packId: string; originalUnits: number; unitsRemaining: number; expiry: number | null; serial: string | null }[] = [];
     let totalRemaining = 0;
 
     for (const bp of packBreakdown) {
       const pack = packMap.get(bp.packId);
       if (pack) {
-        const remaining = Math.min(bp.packedUnits, pack.unitsRemaining);
+        // Use the holiday allocation's own remaining count (decremented on
+        // each holiday consume), capped by the physical units in the pack.
+        const remaining = Math.min(bp.remainingUnits, pack.unitsRemaining);
         totalRemaining += remaining;
         items.push({
           packId: bp.packId,
-          packedUnits: bp.packedUnits,
+          originalUnits: bp.originalUnits,
           unitsRemaining: remaining,
           expiry: pack.expiry ? new Date(pack.expiry).getTime() : null,
           serial: pack.ais?.["21"] ?? productIdentifiersQ.data?.[0]?.value ?? null,
@@ -613,7 +615,7 @@ export default function ProductPage() {
                           : '-'
                           }
                         </DataTable.Cell>
-                        <DataTable.Cell>{item.packedUnits}</DataTable.Cell>
+                        <DataTable.Cell>{item.originalUnits}</DataTable.Cell>
                         <DataTable.Cell>
                           <Text style={{ color: item.unitsRemaining === 0 ? theme.colors.error : theme.colors.onSurface }}>
                             {item.unitsRemaining}
