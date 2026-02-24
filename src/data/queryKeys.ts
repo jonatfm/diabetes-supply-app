@@ -25,5 +25,6 @@ export const qk = {
   holidays: () => ["holidays"] as const,
   holiday: (id: string) => ["holiday", id] as const,
   activeHoliday: () => ["activeHoliday"] as const,
+  packListForHoliday: (holidayId: string) => ["packListForHoliday", holidayId] as const,
   packsForHoliday: (holidayId: string) => ["packsForHoliday", holidayId] as const,
 };

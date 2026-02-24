@@ -1,15 +1,19 @@
 import AppWrapper from "@/components/AppWrapper";
 import ProductCard from "@/components/ProductCard";
 import { Product } from "@/db/schema";
+import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
+import { usePackListForHoliday } from "@/src/data/hooks/usePackListForHoliday";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, SectionList, View } from 'react-native';
 import { ActivityIndicator, FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const productsQ = useProducts();
+  const activeHolidayQ = useActiveHoliday();
+  const packListQ = usePackListForHoliday(activeHolidayQ.data?.id);
   const theme = useTheme();
   const router = useRouter();
 
@@ -25,6 +29,21 @@ export default function Index() {
       prod.name.toLowerCase().includes(query)
     );
   }, [searchQuery, productsQ.data]);
+
+  const holidayProductIds = useMemo(() => {
+    if (!packListQ.data) return new Set<string>();
+    return new Set(packListQ.data.map(item => item.productId));
+  }, [packListQ.data]);
+
+  const sections = useMemo(() => {
+    if (!activeHolidayQ.data || holidayProductIds.size === 0) return null;
+    const onHoliday = filteredProds.filter(p => holidayProductIds.has(p.id));
+    const other = filteredProds.filter(p => !holidayProductIds.has(p.id));
+    return [
+      { title: `On current holiday (${activeHolidayQ.data.destination})`, data: onHoliday },
+      ...(other.length > 0 ? [{ title: 'Other items not with you', data: other }] : []),
+    ];
+  }, [activeHolidayQ.data, holidayProductIds, filteredProds]);
 
   const handleProductPress = useCallback((productId: string) => {
     router.push(`/product/${productId}`);
@@ -62,18 +81,39 @@ export default function Index() {
               style={{ marginBottom: 16, marginTop: 24 }} 
               elevation={1}
             />
-            <FlatList
-              data={filteredProds}
-              renderItem={renderProduct}
-              keyExtractor={keyExtractor}
-              contentContainerStyle={{ paddingBottom: 100 }}
-              showsVerticalScrollIndicator={false}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              updateCellsBatchingPeriod={50}
-              initialNumToRender={10}
-              windowSize={10}
-            />
+            {sections ? (
+              <SectionList
+                sections={sections}
+                renderItem={renderProduct}
+                keyExtractor={keyExtractor}
+                renderSectionHeader={({ section: { title } }) => (
+                  <Text variant="titleSmall" style={{ marginTop: 16, marginBottom: 8, color: theme.colors.onSurfaceVariant }}>
+                    {title}
+                  </Text>
+                )}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                initialNumToRender={10}
+                windowSize={10}
+                stickySectionHeadersEnabled={false}
+              />
+            ) : (
+              <FlatList
+                data={filteredProds}
+                renderItem={renderProduct}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                initialNumToRender={10}
+                windowSize={10}
+              />
+            )}
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
