@@ -3,6 +3,7 @@ import ColoredDot from "@/components/ColoredDot";
 import { db, useDatabase } from "@/db";
 import { Holiday, Pack } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
+import { holidayRepo } from "@/src/data/holidayRepo";
 import { useAddPackToHoliday } from "@/src/data/hooks/useAddPackToHoliday";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useGetPacksForHoliday } from "@/src/data/hooks/useGetPacksForHoliday";
@@ -176,6 +177,7 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
     const [currentSelectedPack, setCurrentSelectedPack] = useState<Pack|null>(null);
     const [unitsToTake, setUnitsToTake] = useState<number>(0);
     const [coloredDotIds, setColoredDotIds] = useState<string[]>([]);
+    const [reservedByOtherHolidays, setReservedByOtherHolidays] = useState<number>(0);
     const addPackToHolidayM = useAddPackToHoliday();
     
     useEffect(() => {
@@ -221,6 +223,22 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
         fetchColoredDots();
     }, [currentSelectedPack, hookDb, coloredDotsEnabled, product.data?.useColoredDots]);
 
+    // Check how many units from this pack are reserved by OTHER holidays
+    useEffect(() => {
+        async function fetchOtherReservations() {
+            if (!currentSelectedPack || !hookDb) {
+                setReservedByOtherHolidays(0);
+                return;
+            }
+            const reservedByPack = await holidayRepo(hookDb).getHolidayReservedUnitsByPack(
+                productId,
+                holiday.id, // exclude current holiday
+            );
+            setReservedByOtherHolidays(reservedByPack[currentSelectedPack.id] ?? 0);
+        }
+        fetchOtherReservations();
+    }, [currentSelectedPack, hookDb, productId, holiday.id]);
+
     const pack = async () => {
         if (!currentSelectedPack) return;
         await addPackToHolidayM.mutateAsync({
@@ -250,7 +268,9 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
                                 <Text>Expiry Date: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{new Date(currentSelectedPack.expiry).toLocaleDateString()}</Text></Text>
                             ) : null}
                             <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{currentSelectedPack.unitsRemaining}</Text></Text>
-                            
+                            {reservedByOtherHolidays > 0 ? (
+                                <Text>Reserved for other holidays: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{reservedByOtherHolidays}</Text></Text>
+                            ) : null}
                             {coloredDotIds.length > 0 ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                     <Text>Colored Dots:</Text>

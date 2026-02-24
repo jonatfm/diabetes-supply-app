@@ -4,6 +4,7 @@ import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useDatabase } from "@/db";
 import { Pack, SESSION_OUTCOMES } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
+import { holidayRepo } from "@/src/data/holidayRepo";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
 import { useDaysUntilOutOfStock } from "@/src/data/hooks/useDaysUntilOutOfStock";
@@ -57,6 +58,7 @@ type ConsumtionDialogInfo = {
   unitsLeftInPack: number;
   packId: string;
   coloredDotIds?: string[];
+  unitsOnHoliday?: number;
 }
 
 
@@ -89,7 +91,6 @@ export default function ProductPage() {
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
-  const isHolidayFunctionEnabled = useAppSetting("holidayFunctionEnabled").data ?? false;
   
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
@@ -190,14 +191,21 @@ export default function ProductPage() {
   }, [getSessionOutcomeStatsByProductQ.data]);
 
   const calculateChosenPack = useCallback(async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
-    if (!packsQ.data) return null;
+    if (!packsQ.data || !db) return null;
     
+    // Query holiday-reserved units per pack for this product
+    const holidayReservedByPack = await holidayRepo(db).getHolidayReservedUnitsByPack(id);
+
     // Never choose a pack that is expired
     const now = new Date();
     const validPacks = packsQ.data?.filter(pack => {
       if (!pack.expiry) return true;
       const expiryDate = new Date(pack.expiry);
       return expiryDate >= now;
+    }).filter(pack => {
+      // Only allow packs that have at least 1 unit not reserved for a holiday
+      const reserved = holidayReservedByPack[pack.id] ?? 0;
+      return pack.unitsRemaining - reserved > 0;
     });
 
     if (validPacks.length === 0) {
@@ -228,15 +236,18 @@ export default function ProductPage() {
       coloredDotIds = (await coloredDotsRepo(db).getAssignmentByPackId(chosenPack.id))?.dotIds || [];
     }
 
+    const unitsOnHoliday: number = holidayReservedByPack[chosenPack.id] ?? 0;
+
     return {
       expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
       identifier,
       identifierType: chosenPack.ais && chosenPack.ais["21"] ? "Serial" : "Code",
       unitsLeftInPack: chosenPack.unitsRemaining,
       packId: chosenPack.id,
+      unitsOnHoliday: unitsOnHoliday > 0 ? unitsOnHoliday : undefined,
       coloredDotIds,
     };
-  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db]);
+  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db, id]);
 
   const handlePressConsume = useCallback(async () => {
     if (!packsQ.data) return;
@@ -819,6 +830,10 @@ export default function ProductPage() {
                   <Text>Expiry Date: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.expiryDate.toLocaleDateString()}</Text></Text>
                 ) : null}
                 <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.unitsLeftInPack}</Text></Text>
+                
+                {consumtionDialogInfo.unitsOnHoliday ? (
+                  <Text>Units on holiday: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{consumtionDialogInfo.unitsOnHoliday}</Text></Text>
+                ) : null}
                 
                 {consumtionDialogInfo.coloredDotIds && consumtionDialogInfo.coloredDotIds.length > 0 ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>

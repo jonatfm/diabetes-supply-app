@@ -148,7 +148,7 @@ export const holidays = sqliteTable("holidays", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   destination: text("destination").notNull(),
   durationDays: integer("durationDays").$default(() => 0).notNull(),
-  state: text("state").$type<"PLANNED" | "PACKED" | "ACTIVE">().notNull(),
+  state: text("state").$type<"PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE">().notNull(),
   updatedAt: integer("updatedAt").$default(() => Date.now()).notNull(),
 });
 
@@ -158,6 +158,8 @@ export const packListForHoliday = sqliteTable("pack_list_for_holiday", {
   productId: text("productId").notNull(),
   amountCalculationType: text("amountCalculationType").$type<(typeof HOLIDAY_ITEM_METHODS)[number]>().notNull(),
   amountCalculationAttributes: text("amountCalculationAttributes", {mode: "json"}).$type<Record<(typeof HOLIDAY_ITEM_METHODS)[number], any>>().notNull(),
+  /** Snapshot of the computed amount at holiday-creation time. Null for legacy rows. */
+  calculatedAmount: integer("calculatedAmount"),
 }, (table) => [
   foreignKey({
     columns: [table.holidayId],
