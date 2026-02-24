@@ -288,6 +288,13 @@
       "when": 1771258649537,
       "tag": "0040_heavy_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1771977600000,
+      "tag": "0041_add_units_to_packs_for_holiday",
+      "breakpoints": true
     }
   ]
 }

@@ -173,6 +173,7 @@ export const packsForHoliday = sqliteTable("packs_for_holiday", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   holidayId: text("holidayId").notNull(),
   packId: text("packId").notNull(),
+  units: integer("units").notNull(),
 }, (table) => [
   foreignKey({
     columns: [table.holidayId],

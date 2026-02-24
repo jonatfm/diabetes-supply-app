@@ -10,8 +10,8 @@ export function useAddPackToHoliday() {
   const qc = useQueryClient();
   
   return useMutation({
-    mutationFn: (params: { holidayId: string; packId: string }) => 
-      repo!.addPackToHoliday(params.holidayId, params.packId),
+    mutationFn: (params: { holidayId: string; packId: string; units: number }) => 
+      repo!.addPackToHoliday(params.holidayId, params.packId, params.units),
     onSuccess: async (_, variables) => {
       await qc.invalidateQueries({ queryKey: qk.packsForHoliday(variables.holidayId) });
     },

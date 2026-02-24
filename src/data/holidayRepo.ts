@@ -18,6 +18,7 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         id: packsForHoliday.id,
         holidayId: packsForHoliday.holidayId,
         packId: packsForHoliday.packId,
+        units: packsForHoliday.units,
         productId: packs.productId,
       }).from(packsForHoliday)
         .leftJoin(packs, eq(packsForHoliday.packId, packs.id))
@@ -61,10 +62,11 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       return newHoliday;
     },
 
-    async addPackToHoliday(holidayId: string, packId: string) {
+    async addPackToHoliday(holidayId: string, packId: string, units: number) {
       await db.insert(packsForHoliday).values({
         holidayId,
         packId,
+        units,
       });
     }
   }

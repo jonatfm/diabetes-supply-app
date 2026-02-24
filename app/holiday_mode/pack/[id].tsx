@@ -3,6 +3,7 @@ import ColoredDot from "@/components/ColoredDot";
 import { db, useDatabase } from "@/db";
 import { Holiday, Pack } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
+import { useAddPackToHoliday } from "@/src/data/hooks/useAddPackToHoliday";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useGetPacksForHoliday } from "@/src/data/hooks/useGetPacksForHoliday";
 import { useHoliday } from "@/src/data/hooks/useHoliday";
@@ -13,7 +14,7 @@ import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsResult,
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
-import { Button, Card, Dialog, Portal, Text, useTheme } from "react-native-paper";
+import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native-paper";
 
 export default function PackForHoliday() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,13 +42,13 @@ export default function PackForHoliday() {
         calculateHolidayNeedsSimple(holiday.data).then(setHolidayNeedsSimple);
     }, [holiday.data]);
 
-    // Count packed items per product
-    const packedCounts = packsForHoliday.data?.reduce((acc, pack) => {
-        if (pack.productId) {
-            acc[pack.productId] = (acc[pack.productId] || 0) + 1;
+    // Derive packed units per product directly from persisted records
+    const packedUnitsByProduct = packsForHoliday.data?.reduce((acc, packed) => {
+        if (packed.productId) {
+            acc[packed.productId] = (acc[packed.productId] || 0) + packed.units;
         }
         return acc;
-    }, {} as Record<string, number>) || {};
+    }, {} as Record<string, number>) ?? {};
 
     const handleItemPress = (item: HolidayNeedsSimpleResult) => {
         setSelectedProduct(item.product.id);
@@ -81,12 +82,12 @@ export default function PackForHoliday() {
                             {holidayNeedsSimple.map((item, index) => (
                                 <Pressable onPress={() => handleItemPress(item)} 
                                     key={item.product.id} 
-                                    style={[{
+                                    style={{
                                         width: itemWidth, 
                                         aspectRatio: 1/1, 
                                         borderRadius: 12,
                                         overflow: 'hidden',
-                                    }, (packedCounts[item.product.id] || 0) < item.calculatedAmount ? { borderWidth: 2, borderColor: theme.colors.error } : {}]}
+                                    }}
                                 >
                                     <ImageBackground 
                                         source={item.product.imageUri ? { uri: item.product.imageUri } : undefined}
@@ -101,7 +102,7 @@ export default function PackForHoliday() {
                                             style={{
                                                 flex: 1,
                                                 backgroundColor: item.product.imageUri 
-                                                    ? (packedCounts[item.product.id] || 0) < item.calculatedAmount ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.2)'
+                                                    ? (packedUnitsByProduct[item.product.id] || 0) < item.calculatedAmount ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)'
                                                     : theme.colors.surfaceVariant,
                                                 padding: 12,
                                                 justifyContent: 'space-between'
@@ -134,9 +135,14 @@ export default function PackForHoliday() {
                                                     textShadowRadius: 3,
                                                 }}
                                             >
-                                                {packedCounts[item.product.id] || 0} / {item.calculatedAmount}
+                                                {packedUnitsByProduct[item.product.id] || 0} / {item.calculatedAmount}
                                             </Text>
                                         </View>
+                                        {(packedUnitsByProduct[item.product.id] || 0) >= item.calculatedAmount && (
+                                            <View style={{position: "absolute", left: "50%", top: "50%", transform: [{ translateX: -24 }, { translateY: -24 }]}}>
+                                                <Icon source="check-circle" size={48} color={theme.colors.primary} />
+                                            </View>
+                                        )}
                                     </ImageBackground>
                                 </Pressable>
                             ))}
@@ -147,7 +153,12 @@ export default function PackForHoliday() {
 
             <Portal>
                 {holiday.data && (
-                    <PackItemsDialog visible={isPackItemDialogVisible && selectedProduct !== null} onDismiss={() => setIsPackItemDialogVisible(false)} productId={selectedProduct!} holiday={holiday.data} />
+                    <PackItemsDialog
+                        visible={isPackItemDialogVisible && selectedProduct !== null}
+                        onDismiss={() => setIsPackItemDialogVisible(false)}
+                        productId={selectedProduct!}
+                        holiday={holiday.data}
+                    />
                 )}
             </Portal>
         </AppWrapper>
@@ -157,6 +168,7 @@ export default function PackForHoliday() {
 function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: boolean; onDismiss: () => void; productId: string; holiday: Holiday }) {
     const { db: hookDb } = useDatabase();
     const theme = useTheme();
+    const packsForHoliday = useGetPacksForHoliday(holiday.id);
     const product = useProduct(productId);
     const productIdentifiersQ = useProductIdentifiers(productId);
     const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
@@ -164,20 +176,30 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
     const [currentSelectedPack, setCurrentSelectedPack] = useState<Pack|null>(null);
     const [unitsToTake, setUnitsToTake] = useState<number>(0);
     const [coloredDotIds, setColoredDotIds] = useState<string[]>([]);
+    const addPackToHolidayM = useAddPackToHoliday();
     
     useEffect(() => {
         async function fetchNeeds() {
+            if (!visible) return;
             const needs = await calculateHolidayNeeds(holiday);
             setHolidayNeeds(needs);
         }
         fetchNeeds();
-    }, [holiday]);
+    }, [holiday, packsForHoliday.data, visible]);
     
     useEffect(() => {
         async function fetchCurrentPack() {
-            if (holidayNeeds.length === 0) return;
+            if (holidayNeeds.length === 0) {
+                setCurrentSelectedPack(null);
+                setUnitsToTake(0);
+                return;
+            }
             const need = holidayNeeds.find(n => n.product.id === productId);
-            if (!need || need.packs.length === 0) return;
+            if (!need || need.packs.length === 0) {
+                setCurrentSelectedPack(null);
+                setUnitsToTake(0);
+                return;
+            }
             const packEntry = need.packs[0];
             const pack = await packsRepo(db).fetchPackById(packEntry.packId);
             setCurrentSelectedPack(pack);
@@ -198,6 +220,16 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
         }
         fetchColoredDots();
     }, [currentSelectedPack, hookDb, coloredDotsEnabled, product.data?.useColoredDots]);
+
+    const pack = async () => {
+        if (!currentSelectedPack) return;
+        await addPackToHolidayM.mutateAsync({
+            holidayId: holiday.id,
+            packId: currentSelectedPack.id,
+            units: unitsToTake,
+        });
+        onDismiss();
+    }
 
     // Derive identifier info from the pack
     const identifier = currentSelectedPack?.ais?.["21"]
@@ -237,6 +269,7 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
             </Dialog.Content>
             <Dialog.Actions>
                 <Button onPress={onDismiss}>Close</Button>
+                <Button onPress={pack}>Pack and Continue</Button>
             </Dialog.Actions>
         </Dialog>
     )
