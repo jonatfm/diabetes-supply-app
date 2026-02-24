@@ -139,6 +139,14 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         acc[row.packId] = (acc[row.packId] || 0) + row.units;
         return acc;
       }, {} as Record<string, number>);
+    },
+
+    async updateHolidayState(holidayId: string, state: "PLANNED" | "PACKED" | "ACTIVE") {
+      await db.update(holidays).set({ state, updatedAt: Date.now() }).where(eq(holidays.id, holidayId));
+    },
+
+    async deletePacksForHoliday(holidayId: string) {
+      await db.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
     }
   }
 }

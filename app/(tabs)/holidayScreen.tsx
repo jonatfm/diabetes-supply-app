@@ -1,17 +1,20 @@
 import AppWrapper from "@/components/AppWrapper";
-import { db } from "@/db";
+import { db, useDatabase } from "@/db";
 import { Holiday } from "@/db/schema";
+import { holidayRepo } from "@/src/data/holidayRepo";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { packsRepo } from "@/src/data/packsRepo";
+import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
-import { Button, Card, FAB, Icon, Text, useTheme } from "react-native-paper";
+import { Button, Card, Dialog, FAB, Icon, Portal, Text, useTheme } from "react-native-paper";
 import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calendar";
 
-function HolidayCard(holiday: Holiday) {
+function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holidayId: string) => void }) {
     const theme = useTheme();
     const router = useRouter();
     const active = holiday.state === "ACTIVE";
@@ -75,7 +78,7 @@ function HolidayCard(holiday: Holiday) {
                     )}
                     {holiday.state === "PACKED" && (
                         <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
-                            <Button icon="refresh" mode="outlined">
+                            <Button icon="refresh" mode="outlined" onPress={() => onRepack(holiday.id)}>
                                 Repack
                             </Button>
                             <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}}>
@@ -98,13 +101,25 @@ function HolidayCard(holiday: Holiday) {
 export default function HolidayScreen() {
     const router = useRouter();
     const theme = useTheme();
+    const { db: hookDb } = useDatabase();
+    const qc = useQueryClient();
     const [location, setLocation] = useState<string>("");
+    const [repackHolidayId, setRepackHolidayId] = useState<string | null>(null);
     // const [numberOfDays, setNumberOfDays] = useState<number | null>(null);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
     const [startDate, setStartDate] = useState<Date | undefined>(undefined);
     const [endDate, setEndDate] = useState<Date | undefined>(undefined);
     const productsQ = useProducts();
     const holidaysQ = useHolidays();
+
+    const handleRepack = async () => {
+        if (!hookDb || !repackHolidayId) return;
+        await holidayRepo(hookDb).deletePacksForHoliday(repackHolidayId);
+        await holidayRepo(hookDb).updateHolidayState(repackHolidayId, "PLANNED");
+        await qc.invalidateQueries({ queryKey: qk.packsForHoliday(repackHolidayId) });
+        await holidaysQ.refetch();
+        setRepackHolidayId(null);
+    };
     
 
     const onConfirm = useCallback<RangeChange>(({startDate, endDate}) => {
@@ -133,7 +148,7 @@ export default function HolidayScreen() {
                                         // Then by updatedAt descending
                                         return b.updatedAt - a.updatedAt;
                                     })}
-                                renderItem={({ item }) => <HolidayCard key={item.id} {...item} />}
+                                renderItem={({ item }) => <HolidayCard key={item.id} holiday={item} onRepack={setRepackHolidayId} />}
                                 keyExtractor={(item) => item.id}
                                 contentContainerStyle={{ paddingBottom: 100 }}
                                 showsVerticalScrollIndicator={false}
@@ -163,6 +178,20 @@ export default function HolidayScreen() {
                     right: 16,
                 }}
             />
+
+            <Portal>
+                <Dialog visible={repackHolidayId !== null} onDismiss={() => setRepackHolidayId(null)}>
+                    <Dialog.Title>Repack holiday?</Dialog.Title>
+                    <Dialog.Content>
+                        <Text>This will remove all currently packed items for this holiday and reset it to the planning state.</Text>
+                        <Text style={{ marginTop: 8, fontWeight: 'bold' }}>You will need to pack everything again from scratch.</Text>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button onPress={() => setRepackHolidayId(null)}>Cancel</Button>
+                        <Button textColor={theme.colors.error} onPress={handleRepack}>Repack</Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
         </AppWrapper>
     );
 }

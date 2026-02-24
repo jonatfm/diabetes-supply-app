@@ -11,7 +11,9 @@ import { useHoliday } from "@/src/data/hooks/useHoliday";
 import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
 import { packsRepo } from "@/src/data/packsRepo";
+import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsResult, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
@@ -19,14 +21,17 @@ import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native
 
 export default function PackForHoliday() {
     const { id } = useLocalSearchParams<{ id: string }>();
+    const { db: hookDb } = useDatabase();
     const {width} = useWindowDimensions();
     const theme = useTheme();
     const router = useRouter();
+    const qc = useQueryClient();
     const holiday = useHoliday(id);
     const packsForHoliday = useGetPacksForHoliday(id);
     const [holidayNeedsSimple, setHolidayNeedsSimple] = useState<HolidayNeedsSimpleResult[]>([]);
     const [isPackItemDialogVisible, setIsPackItemDialogVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+    const [isMarkPackedDialogVisible, setIsMarkPackedDialogVisible] = useState(false);
 
     // Calculate responsive grid layout
     // Account for AppWrapper padding (typically 16px on each side) and Card.Content padding (16px on each side)
@@ -57,6 +62,44 @@ export default function PackForHoliday() {
     }
 
     const accentColor = holiday.data?.state === "ACTIVE" ? theme.colors.onPrimaryContainer : theme.colors.primary;
+
+    // Compute which products are under-packed for the warning dialog
+    const underPackedItems = holidayNeedsSimple.filter(item => {
+        const packed = packedUnitsByProduct[item.product.id] || 0;
+        return packed < item.calculatedAmount;
+    });
+
+    const handleMarkAsPacked = async () => {
+        if (!hookDb || !holiday.data) return;
+        await holidayRepo(hookDb).updateHolidayState(holiday.data.id, "PACKED");
+        await qc.invalidateQueries({ queryKey: qk.holidays() });
+        holiday.refetch();
+        setIsMarkPackedDialogVisible(false);
+        router.back();
+    };
+
+    // Auto-mark holiday as PACKED when every product meets its target
+    useEffect(() => {
+        if (
+            !hookDb ||
+            !holiday.data ||
+            holiday.data.state !== "PLANNED" ||
+            holidayNeedsSimple.length === 0 ||
+            !packsForHoliday.data
+        ) return;
+
+        const allPacked = holidayNeedsSimple.every(item => {
+            const packed = packedUnitsByProduct[item.product.id] || 0;
+            return packed >= item.calculatedAmount;
+        });
+
+        if (allPacked) {
+            holidayRepo(hookDb).updateHolidayState(holiday.data.id, "PACKED").then(() => {
+                qc.invalidateQueries({ queryKey: qk.holidays() });
+                holiday.refetch();
+            });
+        }
+    }, [packsForHoliday.data, holidayNeedsSimple, holiday.data, hookDb]);
 
     return (
         <AppWrapper>
@@ -150,6 +193,26 @@ export default function PackForHoliday() {
                         </View>
                     </Card.Content>
                 </Card>
+
+                {holiday.data?.state === "PLANNED" && (
+                    <Button
+                        mode="contained"
+                        icon="check-all"
+                        style={{ marginBottom: 16 }}
+                        onPress={() => {
+                            if (underPackedItems.length > 0) {
+                                setIsMarkPackedDialogVisible(true);
+                            } else {
+                                handleMarkAsPacked();
+                            }
+                        }}
+                    >
+                        Mark as packed
+                    </Button>
+                )}
+                {holiday.data?.state === "PACKED" && (
+                    <Text variant="titleLarge" style={{ color: theme.colors.primary, textAlign: "center" }}>Holiday is packed!</Text>
+                )}
             </View>
 
             <Portal>
@@ -161,6 +224,25 @@ export default function PackForHoliday() {
                         holiday={holiday.data}
                     />
                 )}
+                <Dialog visible={isMarkPackedDialogVisible} onDismiss={() => setIsMarkPackedDialogVisible(false)}>
+                    <Dialog.Title>Not fully packed</Dialog.Title>
+                    <Dialog.Content>
+                        <Text style={{ marginBottom: 12 }}>The following items have not been packed adequately:</Text>
+                        {underPackedItems.map(item => {
+                            const packed = packedUnitsByProduct[item.product.id] || 0;
+                            return (
+                                <Text key={item.product.id} style={{ color: theme.colors.error }}>
+                                    {item.product.name}: {packed} / {item.calculatedAmount} units
+                                </Text>
+                            );
+                        })}
+                        <Text style={{ marginTop: 12 }}>Are you sure you want to mark this holiday as packed anyway? You may run out of supplies.</Text>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button onPress={() => setIsMarkPackedDialogVisible(false)}>Cancel</Button>
+                        <Button textColor={theme.colors.error} onPress={handleMarkAsPacked}>Mark as packed</Button>
+                    </Dialog.Actions>
+                </Dialog>
             </Portal>
         </AppWrapper>
     )
