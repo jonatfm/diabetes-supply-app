@@ -14,6 +14,7 @@ import { useGetActiveSession } from "@/src/data/hooks/useGetActiveSession";
 import { useGetSessionOutcomeStatsByProduct } from "@/src/data/hooks/useGetSessionOutcomeStatsByProduct";
 import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistoryByProduct";
 import { useHandleDiscardExpired } from "@/src/data/hooks/useHandleDiscardExpired";
+import { useIsProductOnActiveHoliday } from "@/src/data/hooks/useIsProductOnActiveHoliday";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useProduct } from "@/src/data/hooks/useProduct";
 import { useProductIdentifiers } from "@/src/data/hooks/useProductIdentifiers";
@@ -91,6 +92,8 @@ export default function ProductPage() {
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
+  const { isOnHoliday, hasActiveHoliday } = useIsProductOnActiveHoliday(id);
+  const consumeDisabledByHoliday = hasActiveHoliday && !isOnHoliday;
   
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
@@ -460,8 +463,9 @@ export default function ProductPage() {
                   mode="contained"
                   icon="needle"
                   onPress={handlePressConsume}
+                  disabled={consumeDisabledByHoliday}
                 >
-                  Consume item
+                  {consumeDisabledByHoliday ? 'Not on current holiday' : 'Consume item'}
                 </Button>
               ) : null}
               {!!product.isSessionBased && getActiveSessionQ.data ? (
