@@ -10,7 +10,7 @@ export function useGetPacksForHoliday(holidayId: string) {
 
   return useQuery({
     queryKey: qk.packsForHoliday(holidayId),
-    enabled: ready && !!db,
+    enabled: ready && !!db && !!holidayId,
     queryFn: () => repo!.getPacksForHoliday(holidayId),
   })
 }

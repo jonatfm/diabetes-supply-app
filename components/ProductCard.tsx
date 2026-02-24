@@ -1,11 +1,12 @@
 import { Product } from "@/db/schema";
 import { useDaysUntilOutOfStock } from "@/src/data/hooks/useDaysUntilOutOfStock";
+import { useIsProductOnActiveHoliday } from "@/src/data/hooks/useIsProductOnActiveHoliday";
 import { usePacks } from "@/src/data/hooks/usePacks";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { formatDateForDisplay } from "@/src/utils/dateUtils";
 import React, { useMemo } from "react";
 import { Image, Pressable, View } from "react-native";
-import { Card, Icon, Text, useTheme } from "react-native-paper";
+import { Card, Icon, ProgressBar, Text, useTheme } from "react-native-paper";
 
 type ProductNotice = {
   type: 'lowStock' | 'expired' | 'expiringSoon' | 'noStock';
@@ -22,6 +23,7 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
   const totalUnitsQ = useTotalUnitsByProduct(product.id);
   const packsQ = usePacks(product.id);
   const daysUntilOOSQ = useDaysUntilOutOfStock(product.id);
+  const holidayInfo = useIsProductOnActiveHoliday(product.id);
   const theme = useTheme();
 
   // Get earliest expiry from packs (already sorted by expiry)
@@ -61,6 +63,39 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
 
     return null;
   }, [totalUnitsQ.data, earliestExpiry]);
+
+  // Compute holiday packing info: how many units remain in the holiday-allocated packs
+  const holidayPackingInfo = useMemo(() => {
+    if (!holidayInfo.isOnHoliday || !packsQ.data || holidayInfo.packBreakdown.length === 0) return null;
+    
+    const packMap = new Map(packsQ.data.map(p => [p.id, p]));
+    let unitsRemaining = 0;
+    for (const bp of holidayInfo.packBreakdown) {
+      const pack = packMap.get(bp.packId);
+      if (pack) {
+        // Remaining is min of what was allocated and what's actually in the pack
+        unitsRemaining += Math.min(bp.packedUnits, pack.unitsRemaining);
+      }
+    }
+
+    const totalPacked = holidayInfo.totalPackedUnits;
+    const unitsUsed = totalPacked - unitsRemaining;
+    const daysTotal = holidayInfo.activeHoliday?.durationDays ?? 0;
+    // Estimate days remaining based on usage rate during the holiday
+    let estimatedDaysLeft: number | null = null;
+    if (daysTotal > 0 && totalPacked > 0) {
+      const dailyRate = totalPacked / daysTotal;
+      estimatedDaysLeft = dailyRate > 0 ? unitsRemaining / dailyRate : null;
+    }
+
+    return {
+      totalPacked,
+      unitsRemaining,
+      unitsUsed,
+      estimatedDaysLeft,
+      progress: totalPacked > 0 ? unitsRemaining / totalPacked : 0,
+    };
+  }, [holidayInfo, packsQ.data]);
   
   return (
     <Pressable onPress={onPress}>
@@ -122,6 +157,26 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
                 {daysUntilOOSQ.data.estimatedDaysUntilOOS.toFixed(1)} days until out of stock
               </Text>
             ) : null}
+            {holidayPackingInfo && (
+              <View style={{ marginTop: 8, gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon source="bag-suitcase" size={16} color={theme.colors.primary} />
+                  <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
+                    Holiday: {holidayPackingInfo.unitsRemaining}/{holidayPackingInfo.totalPacked} units left
+                  </Text>
+                </View>
+                <ProgressBar
+                  progress={holidayPackingInfo.progress}
+                  color={holidayPackingInfo.progress < 0.2 ? theme.colors.error : theme.colors.primary}
+                  style={{ height: 4, borderRadius: 2 }}
+                />
+                {holidayPackingInfo.estimatedDaysLeft !== null && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    ~{holidayPackingInfo.estimatedDaysLeft.toFixed(1)} days of holiday supply left
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         </View>
       </Card>

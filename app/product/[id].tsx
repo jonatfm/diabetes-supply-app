@@ -23,10 +23,10 @@ import { useTakeEventStatistics } from "@/src/data/hooks/useTakeEventStatistics"
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { PieChart, pieDataItem } from "react-native-gifted-charts";
-import { ActivityIndicator, Button, Card, Chip, DataTable, Dialog, Icon, Portal, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, Chip, DataTable, Dialog, Icon, Portal, ProgressBar, RadioButton, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
 
 type PackColoredDots = {
   [packId: string]: string[];
@@ -92,12 +92,55 @@ export default function ProductPage() {
   const getActiveSessionQ = useGetActiveSession(id);
   const endSessionM = useEndSession();
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
-  const { isOnHoliday, hasActiveHoliday } = useIsProductOnActiveHoliday(id);
+  const { isOnHoliday, hasActiveHoliday, activeHolidayId, activeHoliday, totalPackedUnits, packBreakdown, calculatedAmount } = useIsProductOnActiveHoliday(id);
   const consumeDisabledByHoliday = hasActiveHoliday && !isOnHoliday;
   
   const getSessionOutcomeStatsByProductQ = useGetSessionOutcomeStatsByProduct(id);
   const [sessionOutcomePieData, setSessionOutcomePieData] = useState<pieDataItem[]>([]);
   const daysUntilOOSQ = useDaysUntilOutOfStock(id);
+
+  // Compute holiday packing details for the new card
+  const holidayPackDetails = useMemo(() => {
+    if (!isOnHoliday || !packsQ.data || packBreakdown.length === 0) return null;
+
+    const packMap = new Map(packsQ.data.map(p => [p.id, p]));
+    const items: { packId: string; packedUnits: number; unitsRemaining: number; expiry: number | null; serial: string | null }[] = [];
+    let totalRemaining = 0;
+
+    for (const bp of packBreakdown) {
+      const pack = packMap.get(bp.packId);
+      if (pack) {
+        const remaining = Math.min(bp.packedUnits, pack.unitsRemaining);
+        totalRemaining += remaining;
+        items.push({
+          packId: bp.packId,
+          packedUnits: bp.packedUnits,
+          unitsRemaining: remaining,
+          expiry: pack.expiry ? new Date(pack.expiry).getTime() : null,
+          serial: pack.ais?.["21"] ?? productIdentifiersQ.data?.[0]?.value ?? null,
+        });
+      }
+    }
+
+    const daysTotal = activeHoliday?.durationDays ?? 0;
+    let estimatedDaysLeft: number | null = null;
+    if (daysTotal > 0 && totalPackedUnits > 0) {
+      const dailyRate = totalPackedUnits / daysTotal;
+      estimatedDaysLeft = dailyRate > 0 ? totalRemaining / dailyRate : null;
+    }
+
+    return {
+      items,
+      totalPacked: totalPackedUnits,
+      totalRemaining,
+      totalUsed: totalPackedUnits - totalRemaining,
+      estimatedDaysLeft,
+      progress: totalPackedUnits > 0 ? totalRemaining / totalPackedUnits : 0,
+      daysTotal,
+      destination: activeHoliday?.destination ?? '',
+      calculatedAmount,
+    };
+  }, [isOnHoliday, packsQ.data, packBreakdown, totalPackedUnits, activeHoliday, calculatedAmount, productIdentifiersQ.data]);
   const sessionStatsQ = useSessionStatistics(id);
   const takeEventStatsQ = useTakeEventStatistics(id);
   
@@ -196,8 +239,20 @@ export default function ProductPage() {
   const calculateChosenPack = useCallback(async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
     if (!packsQ.data || !db) return null;
     
+    // When on an active holiday, only allow consuming from packs allocated to that holiday
+    const onActiveHoliday = hasActiveHoliday && isOnHoliday && activeHolidayId;
+    let holidayPackUnits: Record<string, number> = {};
+    if (onActiveHoliday) {
+      const packsForHol = await holidayRepo(db).getPacksForHoliday(activeHolidayId);
+      for (const p of packsForHol) {
+        holidayPackUnits[p.packId] = (holidayPackUnits[p.packId] ?? 0) + p.units;
+      }
+    }
+
     // Query holiday-reserved units per pack for this product
-    const holidayReservedByPack = await holidayRepo(db).getHolidayReservedUnitsByPack(id);
+    const holidayReservedByPack = onActiveHoliday
+      ? {} // skip regular reservation check; we use holiday allocation directly
+      : await holidayRepo(db).getHolidayReservedUnitsByPack(id);
 
     // Never choose a pack that is expired
     const now = new Date();
@@ -206,7 +261,12 @@ export default function ProductPage() {
       const expiryDate = new Date(pack.expiry);
       return expiryDate >= now;
     }).filter(pack => {
-      // Only allow packs that have at least 1 unit not reserved for a holiday
+      if (onActiveHoliday) {
+        // Only allow packs that are packed for this holiday with remaining allocation
+        const allocatedUnits = holidayPackUnits[pack.id] ?? 0;
+        return allocatedUnits > 0;
+      }
+      // Normal mode: only allow packs with at least 1 unit not reserved for a holiday
       const reserved = holidayReservedByPack[pack.id] ?? 0;
       return pack.unitsRemaining - reserved > 0;
     });
@@ -250,7 +310,7 @@ export default function ProductPage() {
       unitsOnHoliday: unitsOnHoliday > 0 ? unitsOnHoliday : undefined,
       coloredDotIds,
     };
-  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db, id]);
+  }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db, id, hasActiveHoliday, isOnHoliday, activeHolidayId]);
 
   const handlePressConsume = useCallback(async () => {
     if (!packsQ.data) return;
@@ -496,6 +556,78 @@ export default function ProductPage() {
           ) : null}
         </View>
 
+
+        {/* Holiday Packing Card */}
+        {holidayPackDetails && (
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Icon source="bag-suitcase" size={24} color={theme.colors.primary} />
+              <Text variant="titleLarge">Holiday Packing</Text>
+            </View>
+            <Card mode="elevated" elevation={2}>
+              <Card.Content>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Icon source="map-marker" size={20} color={theme.colors.primary} />
+                  <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
+                    {holidayPackDetails.destination}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    ({holidayPackDetails.daysTotal} days)
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text variant="bodyMedium">
+                    {holidayPackDetails.totalRemaining} of {holidayPackDetails.totalPacked} units remaining
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {holidayPackDetails.totalUsed} used
+                  </Text>
+                </View>
+                <ProgressBar
+                  progress={holidayPackDetails.progress}
+                  color={holidayPackDetails.progress < 0.2 ? theme.colors.error : theme.colors.primary}
+                  style={{ height: 6, borderRadius: 3, marginBottom: 8 }}
+                />
+                {holidayPackDetails.estimatedDaysLeft !== null && (
+                  <Text variant="bodyMedium" style={{ color: holidayPackDetails.estimatedDaysLeft < 2 ? theme.colors.error : theme.colors.onSurface, marginBottom: 12 }}>
+                    ~{holidayPackDetails.estimatedDaysLeft.toFixed(1)} days of holiday supply remaining
+                  </Text>
+                )}
+
+                {holidayPackDetails.items.length > 0 && (
+                  <DataTable>
+                    <DataTable.Header>
+                      <DataTable.Title>Pack</DataTable.Title>
+                      <DataTable.Title>Packed</DataTable.Title>
+                      <DataTable.Title>Left</DataTable.Title>
+                      <DataTable.Title>Expiry</DataTable.Title>
+                    </DataTable.Header>
+                    {holidayPackDetails.items.map((item) => (
+                      <DataTable.Row key={item.packId}>
+                        <DataTable.Cell>
+                          {item.serial
+                          ? item.serial.length > 8
+                            ? `${item.serial.slice(0, 4)}...${item.serial.slice(-4)}`
+                            : item.serial
+                          : '-'
+                          }
+                        </DataTable.Cell>
+                        <DataTable.Cell>{item.packedUnits}</DataTable.Cell>
+                        <DataTable.Cell>
+                          <Text style={{ color: item.unitsRemaining === 0 ? theme.colors.error : theme.colors.onSurface }}>
+                            {item.unitsRemaining}
+                          </Text>
+                        </DataTable.Cell>
+                        <DataTable.Cell>{item.expiry ? new Date(item.expiry).toLocaleDateString() : '-'}</DataTable.Cell>
+                      </DataTable.Row>
+                    ))}
+                  </DataTable>
+                )}
+              </Card.Content>
+            </Card>
+          </View>
+        )}
 
         {/* Show a card with the current item active. It should only show when the products code is of gs1 type. The item shown here should be the one of the last TAKE event */}
         {isGS1 && lastConsumedPackQ.data && lastConsumedPackQ.data.ais && productIdentifiersQ.data?.some(pack => pack.type === "GTIN") ? (() => {
