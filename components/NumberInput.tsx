@@ -1,5 +1,5 @@
 import type { TextInputProps } from "react-native-paper";
-import { TextInput, useTheme } from "react-native-paper";
+import { TextInput } from "react-native-paper";
 
 // Custom NumberInput function based on the TextInput
 export default function NumberInput({
@@ -17,8 +17,6 @@ export default function NumberInput({
     label?: string;
     style?: TextInputProps["style"];
 }) {
-    const theme = useTheme();
-
     const handleTextChange = (text: string) => {
         // Clean up text using regex (only numbers allowed)
         const cleanedText = text.replace(/\s/g, "").replace(/[^0-9]/g, "");

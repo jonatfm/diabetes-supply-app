@@ -48,15 +48,10 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       if (typeof params.name === 'string') updateValues.name = params.name;
       if (params.imageUri !== undefined) updateValues.imageUri = params.imageUri ?? null;
       if (typeof params.useColoredDots === 'boolean') updateValues.useColoredDots = params.useColoredDots;
-      //if (typeof params.requiredForHoliday === 'boolean') updateValues.requiredForHoliday = params.requiredForHoliday;
 
       if (Object.keys(updateValues).length === 0) return;
 
       await db.update(products).set(updateValues).where(eq(products.id, productId));
     },
-
-    // async getProductsRequiredForHoliday() {
-    //   return db.select().from(products).where(eq(products.requiredForHoliday, true));
-    // }
   }
 }

@@ -95,7 +95,6 @@ const filterAllowedAttributes = (attributes: Record<string, number|null>, method
 }
 
 export default function PlanHoliday() {
-    const theme = useTheme();
     const db = useDatabase();
     const router = useRouter();
     const [location, setLocation] = useState<string>("");

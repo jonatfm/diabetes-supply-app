@@ -37,8 +37,7 @@ export default function Settings() {
   const [newDotColor, setNewDotColor] = useState('');
   // Holiday function
   const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
-  // const allProductsQ = useProducts();
-  // const updateProductM = useUpdateAnyProduct();
+
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;

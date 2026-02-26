@@ -12,6 +12,6 @@ export function useGetStockHistoryByProduct(productId: string) {
     queryKey: qk.history(productId),
     enabled: ready && !!db && !!productId,
     queryFn: () => repo!.getStockHistoryByProduct(productId),
-    staleTime: 10000, // 10 seconds
+    staleTime: 0,
   });
 }

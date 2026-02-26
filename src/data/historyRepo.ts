@@ -57,19 +57,6 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       // Check if there is an associated session and delete it. Reopen the last session by deleting the endedAt and outcome.
       if (eventToUndo.relatedSessionId) {
         await db.delete(sessions).where(eq(sessions.id, eventToUndo.relatedSessionId));
-        //const lastSession = await db
-        //  .select({ id: sessions.id })
-        //  .from(sessions)
-        //  .where(eq(sessions.productId, productId))
-        //  .orderBy(desc(sessions.startedAt))
-        //  .limit(1);
-        //
-        //if (lastSession.length > 0) {
-        //  await db
-        //    .update(sessions)
-        //    .set({ endedAt: null, outcome: null })
-        //    .where(eq(sessions.id, lastSession[0].id));
-        //}
       }
 
       // Restore the unit to the pack

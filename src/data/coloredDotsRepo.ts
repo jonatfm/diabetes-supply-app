@@ -5,7 +5,6 @@ import { SQLiteDatabase } from "expo-sqlite";
 
 export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & { $client: SQLiteDatabase })) {
   return {
-    //// Dots --------------------
     async getAll(): Promise<ColoredDot[]> {
       return await db.select().from(coloredDots);
     },
@@ -29,12 +28,7 @@ export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
     async setActive(id: string, active: boolean): Promise<void> {
       await db.update(coloredDots).set({ active: active ? true : false }).where(eq(coloredDots.id, id));
     },
-//
-    //async updateColor(id: string, color: string): Promise<void> {
-    //  await db.update(coloredDots).set({ color }).where(eq(coloredDots.id, id));
-    //},
 
-    // Assignments -------------
     async getAssignmentByPackId(packId: string): Promise<ColoredDotAssignment | null> {
       const res = await db.select().from(coloredDotAssignments).where(eq(coloredDotAssignments.packId, packId));
       return res[0] || null;
@@ -48,12 +42,8 @@ export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
         await db.insert(coloredDotAssignments).values({ packId, dotIds });
       }
     },
-//
-    //async clearAssignmentForPack(packId: string): Promise<void> {
-    //  await db.delete(coloredDotAssignments).where(eq(coloredDotAssignments.packId, packId));
-    //},
 
-    // Generator ---------------
+    
     async generateUniqueCombinationForProduct(productId: string, opts?: { includeInactive?: boolean }): Promise<string[] | null> {
       const includeInactive = opts?.includeInactive ?? false;
 

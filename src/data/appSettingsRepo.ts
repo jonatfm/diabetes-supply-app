@@ -26,8 +26,6 @@ export function appSettingsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
     },
 
     async remove(key: string): Promise<void> {
-      // Not requested, but occasionally useful
-      // Drizzle SQLite core has delete; keep for completeness
       const { appSettings: as } = { appSettings };
       await db.delete(as).where(eq(as.key, key));
     },

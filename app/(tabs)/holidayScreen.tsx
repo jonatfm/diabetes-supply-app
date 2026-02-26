@@ -4,17 +4,15 @@ import { Holiday } from "@/db/schema";
 import { holidayRepo } from "@/src/data/holidayRepo";
 import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
 import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
-import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { packsRepo } from "@/src/data/packsRepo";
 import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 import { Button, Card, Dialog, FAB, Icon, Portal, Text, useTheme } from "react-native-paper";
-import { RangeChange } from "react-native-paper-dates/lib/typescript/Date/Calendar";
 
 function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holidayId: string) => void }) {
     const theme = useTheme();
@@ -113,13 +111,7 @@ export default function HolidayScreen() {
     const theme = useTheme();
     const { db: hookDb } = useDatabase();
     const qc = useQueryClient();
-    const [location, setLocation] = useState<string>("");
     const [repackHolidayId, setRepackHolidayId] = useState<string | null>(null);
-    // const [numberOfDays, setNumberOfDays] = useState<number | null>(null);
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-    const productsQ = useProducts();
     const holidaysQ = useHolidays();
 
     const handleRepack = async () => {
@@ -131,14 +123,6 @@ export default function HolidayScreen() {
         setRepackHolidayId(null);
     };
     
-
-    const onConfirm = useCallback<RangeChange>(({startDate, endDate}) => {
-        setIsDatePickerOpen(false);
-        setStartDate(startDate);
-        setEndDate(endDate);
-        console.log("[on-change-multi]", {startDate, endDate});
-    }, []);
-
     return (
         <AppWrapper bottomEdge={false}>
             <View style={{flex: 1}}>
