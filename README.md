@@ -2,7 +2,7 @@
 
 A mobile app for managing diabetes supplies with pack-level tracking, barcode scanning, usage history, and a dedicated holiday planning mode.
 
-This project focuses on solving a real everyday problem: keeping track of medical supplies reliably, planning ahead, and reducing the risk of running out of important items.
+This project was developed as a school software project and focuses on solving a real everyday problem: keeping track of medical supplies reliably, planning ahead, and reducing the risk of running out of important items.
 
 ## Overview
 
@@ -79,3 +79,26 @@ This helps avoid double-booking the same stock.
 - **Data layer:** TanStack React Query
 - **UI:** React Native Paper
 - **Native scanning modules:** C++ / Kotlin integration for barcode processing
+
+
+## Running the project
+### Requirements
+
+- Node.js
+- npm
+- Expo tooling
+- Android Studio / Android SDK for Android builds
+
+### Install dependencies
+`npm install`
+
+### Start development server
+`npx expo start`
+
+### Run on Android
+`npx expo run:android`
+
+## Notes
+
+Because this project includes native modules, a full native build is required for all functionality.
+Some parts, especially barcode processing, are designed for a real mobile environment and are not intended as a simple browser-only demo.
