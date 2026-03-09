@@ -1,94 +1,81 @@
-# Diabetes Supply App - Frame Processor V2
+# Diabetes Supply App
 
-This project contains a high-performance native barcode scanning module optimized for medical supplies (GS1 DataMatrix, etc.).
+A mobile app for managing diabetes supplies with pack-level tracking, barcode scanning, usage history, and a dedicated holiday planning mode.
 
-## Features
+This project focuses on solving a real everyday problem: keeping track of medical supplies reliably, planning ahead, and reducing the risk of running out of important items.
 
-- **Native C++ Implementation**: Uses JNI and pure C++ for maximum performance.
-- **Advanced Preprocessing**: Includes CLAHE, Laplacian Sharpening, and Adaptive Thresholding to handle difficult lighting and low-contrast codes.
-- **Multi-Strategy Detection**: Automatically retries with different image enhancements (Grayscale, Sharpened, Inverted, etc.) if the initial scan fails.
-- **High Resolution Support**: Designed to work with full-resolution images captured by Expo Camera.
+## Overview
 
-## Usage
+The app is built with Expo / React Native and uses a local SQLite database via Drizzle ORM.  
+It is designed around individual products and physical packs, not just rough stock counts.
 
-The module is located in `modules/frame-processor-v2`.
+Core idea:
+- track what supplies exist,
+- know which exact pack is being used,
+- estimate future needs from real usage,
+- support safe packing for holidays.
 
-### Importing
+## Main Features
 
-```typescript
-import { processImage, processBase64 } from '../modules/frame-processor-v2';
-```
+### Supply management
+- Create and manage diabetes-related products
+- Store product-specific defaults such as units per pack
+- Mark products as active/inactive
+- Support different product types, including session-based items
 
-### API
+### Pack-level inventory
+- Add individual packs to stock
+- Track remaining units per pack
+- Store expiry dates, production dates, and raw code data
+- Keep inventory grounded in real physical packs instead of abstract totals
 
-#### `processImage(imagePath: string): Promise<ProcessingResult>`
+### Barcode scanning
+- Integrated scanning flow for medical supply barcodes
+- Native processing modules for performance-critical barcode recognition
+- Support for GS1-style structured barcode content and extracted identifiers
 
-Processes an image file stored on the device.
+### Usage tracking
+- Record stock events such as adding, taking, discarding, adjusting, and undoing stock
+- Track sessions for session-based products
+- Build statistics from actual usage history
 
-- **imagePath**: Absolute path or `file://` URI to the image.
-- **Returns**: A promise resolving to a `ProcessingResult` object.
+### Holiday Mode
+A dedicated mode for planning supplies for a trip.
 
-#### `processBase64(base64Image: string): Promise<ProcessingResult>`
+The user can:
+- enter a destination and trip duration,
+- choose which products are relevant,
+- choose how each product should be calculated,
+- generate a packing target per product,
+- assign real packs to the holiday.
 
-Processes a base64-encoded image string.
+Supported calculation strategies include:
+- average usage + percentage buffer
+- average usage + fixed buffer
+- fixed amount
+- per day
+- per day + buffer days
 
-- **base64Image**: The base64 string of the image.
-- **Returns**: A promise resolving to a `ProcessingResult` object.
+A key design decision is that the calculated required amount is snapshotted when a holiday is created.  
+This prevents the plan from drifting later when usage statistics change.
 
-### Types
+The packing logic also considers:
+- already packed units for the current holiday,
+- reservations caused by other holidays,
+- real remaining units in physical packs.
 
-```typescript
-interface ProcessingResult {
-  success: boolean;
-  barcodes?: BarcodeResult[];
-  error?: string;
-  processingTimeMs?: number;
-}
+This helps avoid double-booking the same stock.
 
-interface BarcodeResult {
-  format: string; // e.g., "DATA_MATRIX"
-  text: string;   // The raw content
-  gs1Data?: {     // Parsed GS1 keys if available
-    gtin: string;
-    lot: string;
-    expiry: string;
-    serial: string;
-  };
-}
-```
+### Optional identification support
+- Product identifiers such as GTIN / UDI-DI / EAN-13
+- Optional colored-dot assignment for distinguishing physical packs more easily
 
-### Example with Expo Camera
+## Tech Stack
 
-```typescript
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { processImage } from '../modules/frame-processor-v2';
-import { useRef } from 'react';
-
-// ... inside your component
-const cameraRef = useRef<CameraView>(null);
-
-const takePicture = async () => {
-  if (cameraRef.current) {
-    const photo = await cameraRef.current.takePictureAsync({
-      quality: 1.0, // Use maximum quality for best results
-      skipProcessing: true, // Skip internal processing for speed
-    });
-    
-    if (photo) {
-      const result = await processImage(photo.uri);
-      if (result.success && result.barcodes && result.barcodes.length > 0) {
-        console.log('Found barcode:', result.barcodes[0].text);
-      }
-    }
-  }
-};
-```
-
-## Building
-
-This project uses a custom native module. You must build the native app to run it.
-
-```bash
-# Build for Android
-npx expo run:android
-```
+- **Frontend:** React Native, Expo, Expo Router
+- **Language:** TypeScript
+- **Database:** SQLite
+- **ORM:** Drizzle ORM
+- **Data layer:** TanStack React Query
+- **UI:** React Native Paper
+- **Native scanning modules:** C++ / Kotlin integration for barcode processing
