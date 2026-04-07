@@ -10,11 +10,16 @@ export function useEndHoliday() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (holidayId: string) => repo!.endHoliday(holidayId),
+    mutationFn: async (holidayId: string) => {
+      if (!repo) throw new Error("Database not ready");
+      return repo.endHoliday(holidayId);
+    },
     onSuccess: async (_data, holidayId) => {
-      await qc.invalidateQueries({ queryKey: qk.holidays() });
-      await qc.invalidateQueries({ queryKey: qk.activeHoliday() });
-      await qc.invalidateQueries({ queryKey: qk.holiday(holidayId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.holidays() }),
+        qc.invalidateQueries({ queryKey: qk.activeHoliday() }),
+        qc.invalidateQueries({ queryKey: qk.holiday(holidayId) }),
+      ]);
     },
   });
 }
