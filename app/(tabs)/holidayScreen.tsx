@@ -4,6 +4,7 @@ import { Holiday } from "@/db/schema";
 import { holidayRepo } from "@/src/data/holidayRepo";
 import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
 import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
+import { useEndHoliday } from "@/src/data/hooks/useEndHoliday";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { packsRepo } from "@/src/data/packsRepo";
 import { qk } from "@/src/data/queryKeys";
@@ -22,6 +23,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
     const activateHolidayM = useActivateHoliday();
     const activeHolidayQ = useActiveHoliday();
+    const endHolidayM = useEndHoliday();
 
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
@@ -95,7 +97,13 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                         </View>
                     )}
                     {holiday.state === "ACTIVE" && (
-                        <Button icon="airplane-landing" mode="contained" buttonColor={theme.colors.error} style={{marginTop: 16}}>
+                        <Button
+                            icon="airplane-landing"
+                            mode="contained"
+                            buttonColor={theme.colors.error}
+                            style={{marginTop: 16}}
+                            onPress={() => endHolidayM.mutate(holiday.id)}
+                        >
                             End Holiday
                         </Button>
                     )}
