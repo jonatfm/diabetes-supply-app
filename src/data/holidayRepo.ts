@@ -143,7 +143,7 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       }, {} as Record<string, number>);
     },
 
-    async updateHolidayState(holidayId: string, state: "PLANNED" | "PACKED" | "ACTIVE") {
+    async updateHolidayState(holidayId: string, state: "PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE") {
       await db.update(holidays).set({ state, updatedAt: Date.now() }).where(eq(holidays.id, holidayId));
     },
 
@@ -160,6 +160,13 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       }
       await db.update(holidays)
         .set({ state: "ACTIVE", updatedAt: Date.now() })
+        .where(eq(holidays.id, holidayId));
+    },
+
+    /** End an active holiday and mark it complete. */
+    async endHoliday(holidayId: string) {
+      await db.update(holidays)
+        .set({ state: "COMPLETE", updatedAt: Date.now() })
         .where(eq(holidays.id, holidayId));
     },
 
