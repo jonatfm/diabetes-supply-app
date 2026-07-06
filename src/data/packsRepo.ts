@@ -1,5 +1,5 @@
 import { Pack, packs, products, stock_events } from "@/db/schema";
-import { and, eq, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gt, lt, ne, sql } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 import { appSettingsRepo } from "./appSettingsRepo";
@@ -40,10 +40,49 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
     },
 
     async discardExpiredByProduct(productId: string, nowIso = new Date().toISOString()) {
-      await db
-        .update(packs)
-        .set({ active: true })
-        .where(and(eq(packs.productId, productId), lt(packs.expiry, nowIso)));
+      const expiredPacks = await db
+        .select()
+        .from(packs)
+        .where(and(
+          eq(packs.productId, productId),
+          eq(packs.active, true),
+          gt(packs.unitsRemaining, 0),
+          lt(packs.expiry, nowIso),
+        ));
+
+      for (const pack of expiredPacks) {
+        const now = Date.now();
+        await db
+          .update(packs)
+          .set({
+            active: false,
+            unitsRemaining: 0,
+          })
+          .where(eq(packs.id, pack.id));
+
+        await db.insert(stock_events).values({
+          productId,
+          packId: pack.id,
+          type: "DISCARD",
+          deltaUnits: -pack.unitsRemaining,
+          occurredAt: now,
+          createdAt: now,
+          note: "Expired pack discarded via app",
+          meta: {
+            reason: "expired",
+            before: {
+              unitsRemaining: pack.unitsRemaining,
+              expiry: pack.expiry,
+              active: pack.active,
+            },
+            after: {
+              unitsRemaining: 0,
+              expiry: pack.expiry,
+              active: false,
+            },
+          },
+        });
+      }
     },
 
     async addPackWithStockEvent(params: {

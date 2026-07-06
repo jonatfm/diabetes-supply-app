@@ -14,6 +14,7 @@ export function useHandleDiscardExpired(productId: string) {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: qk.packs(productId) });
       await qc.invalidateQueries({ queryKey: qk.totalUnits(productId) });
+      await qc.invalidateQueries({ queryKey: qk.history(productId) });
     },
   })
 }
