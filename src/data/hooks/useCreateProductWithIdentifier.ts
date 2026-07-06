@@ -24,7 +24,7 @@ export function useCreateProductWithIdentifier() {
       nominalSessionTimeDays?: number;
       useColoredDots?: boolean;
     }) => {
-      if (!repo || !identifiers) throw new Error("Database not ready");
+      if (!db || !repo || !identifiers) throw new Error("Database not ready");
 
       const existingIdentifier = await identifiers.findByTypeAndValue(params.identifierType, params.identifier);
       if (existingIdentifier.length > 0) {
@@ -37,7 +37,7 @@ export function useCreateProductWithIdentifier() {
       }
 
       const productId = await db.transaction(async (tx) => {
-        const txDb = tx as unknown as typeof db;
+        const txDb = tx as unknown as NonNullable<typeof db>;
         const [product] = await productRepo(txDb).createProduct({
           name: params.name,
           unitsPerPackDefault: params.unitsPerPack,

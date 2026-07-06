@@ -940,6 +940,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for `src/data/packsRepo.ts`. `git diff --check` passed after the manual adjustment transaction change.
 - Done: Cleaned the remaining project lint baseline issues, including unescaped UI text, the conditional Drizzle Studio hook in the root layout, stale hook dependencies, and unused variables in affected screens.
 - Verified: Full `npm run lint` now passes with no warnings or errors. `git diff --check` passed after the lint cleanup.
+- Done: Fixed the remaining TypeScript blocker by making `expo-modules-core` an explicit dependency for the local native module import and tightening the database null check in product creation with identifier.
+- Verified: Full `npx tsc --noEmit` now passes. Full `npm run lint` still passes.
 
 ### Phase 2: Domain Services
 
