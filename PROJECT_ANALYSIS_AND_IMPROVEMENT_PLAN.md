@@ -922,6 +922,8 @@ Updated: 2026-07-06
 - Known verification gap: full `npm run lint` still reports pre-existing unrelated lint errors in other app screens. `npx tsc --noEmit` is blocked by missing native-module type resolution for `expo-modules-core`.
 - Done: Normalized query invalidation keys in mutation hooks by adding `src/data/invalidation.ts` domain helpers and root query keys in `src/data/queryKeys.ts`. Inventory, usage-statistics, session, identity, and holiday-reservation invalidations now reuse shared helpers instead of raw query-key arrays or predicates.
 - Verified: Focused ESLint passed for the invalidation helper, updated query keys, and changed mutation/query hooks. `git diff --check` passed after the invalidation cleanup.
+- Done: Started Phase 2 domain-service extraction by adding `src/domain/inventoryService.ts`. The product screen now delegates consume-pack selection rules to a pure `choosePackForConsumption` service while keeping data fetching and UI rendering in the screen.
+- Verified: Focused ESLint passed for the new inventory service and the refactored product screen. `git diff --check` passed after the service extraction.
 
 ### Phase 2: Domain Services
 

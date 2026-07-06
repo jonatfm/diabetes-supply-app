@@ -2,7 +2,7 @@ import AppWrapper from "@/components/AppWrapper";
 import ColoredDot from "@/components/ColoredDot";
 import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useDatabase } from "@/db";
-import { Pack, SESSION_OUTCOMES } from "@/db/schema";
+import { SESSION_OUTCOMES } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
 import { holidayRepo } from "@/src/data/holidayRepo";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
@@ -22,6 +22,7 @@ import { useSessionStatistics } from "@/src/data/hooks/useSessionStatistics";
 import { useTakeEventStatistics } from "@/src/data/hooks/useTakeEventStatistics";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
+import { choosePackForConsumption, ConsumeSortPreference } from "@/src/domain/inventoryService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
@@ -156,7 +157,7 @@ export default function ProductPage() {
   
   const [isEndSessionDialogVisible, setIsEndSessionDialogVisible] = useState<boolean>(false);
   const [selectedSessionOutcome, setSelectedSessionOutcome] = useState<typeof SESSION_OUTCOMES[number]>('completed');
-  const [consumeSortPreference, setConsumeSortPreference] = useState<'expiry' | 'fewest_units'>('expiry');
+  const [consumeSortPreference, setConsumeSortPreference] = useState<ConsumeSortPreference>('expiry');
   const [anyPackHasColoredDots, setAnyPackHasColoredDots] = useState<boolean>(false);
   const [packColoredDots, setPackColoredDots] = useState<PackColoredDots>({});
 
@@ -249,78 +250,49 @@ export default function ProductPage() {
     setSessionOutcomePieData(pieData);
   }, [getSessionOutcomeStatsByProductQ.data]);
 
-  const calculateChosenPack = useCallback(async (sortPreference: 'expiry' | 'fewest_units'): Promise<ConsumtionDialogInfo | null> => {
+  const calculateChosenPack = useCallback(async (sortPreference: ConsumeSortPreference): Promise<ConsumtionDialogInfo | null> => {
     if (!packsQ.data || !db) return null;
     
     // When on an active holiday, only allow consuming from packs allocated to that holiday
     const onActiveHoliday = hasActiveHoliday && isOnHoliday && activeHolidayId;
-    let holidayPackUnits: Record<string, number> = {};
+    let activeHolidayPackUnits: Record<string, number> | undefined = undefined;
     if (onActiveHoliday) {
+      activeHolidayPackUnits = {};
       const packsForHol = await holidayRepo(db).getPacksForHoliday(activeHolidayId);
       for (const p of packsForHol) {
-        holidayPackUnits[p.packId] = (holidayPackUnits[p.packId] ?? 0) + p.units;
+        activeHolidayPackUnits[p.packId] = (activeHolidayPackUnits[p.packId] ?? 0) + p.units;
       }
     }
 
-    // Query holiday-reserved units per pack for this product
     const holidayReservedByPack = onActiveHoliday
-      ? {} // skip regular reservation check; we use holiday allocation directly
+      ? {}
       : await holidayRepo(db).getHolidayReservedUnitsByPack(id);
 
-    // Never choose a pack that is expired
-    const now = new Date();
-    const validPacks = packsQ.data?.filter(pack => {
-      if (!pack.expiry) return true;
-      const expiryDate = new Date(pack.expiry);
-      return expiryDate >= now;
-    }).filter(pack => {
-      if (onActiveHoliday) {
-        // Only allow packs that are packed for this holiday with remaining allocation
-        const allocatedUnits = holidayPackUnits[pack.id] ?? 0;
-        return allocatedUnits > 0;
-      }
-      // Normal mode: only allow packs with at least 1 unit not reserved for a holiday
-      const reserved = holidayReservedByPack[pack.id] ?? 0;
-      return pack.unitsRemaining - reserved > 0;
+    const chosenPackInfo = choosePackForConsumption({
+      packs: packsQ.data,
+      productIdentifiers: productIdentifiersQ.data,
+      sortPreference,
+      activeHolidayPackUnits,
+      holidayReservedByPack,
     });
 
-    if (validPacks.length === 0) {
+    if (!chosenPackInfo) {
       return null;
     }
 
-    // Choose the pack based on sorting preference
-    let chosenPack: Pack;
-    if (sortPreference === 'expiry') {
-      validPacks.sort((a, b) => {
-        const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
-        const bExpiry = b.expiry ? new Date(b.expiry).getTime() : Infinity;
-        return aExpiry - bExpiry;
-      });
-    } else {
-      // Sort by fewest units remaining
-      validPacks.sort((a, b) => a.unitsRemaining - b.unitsRemaining);
-    }
-    chosenPack = validPacks[0];
-
-    // Get identifier / serial for the dialog
-    const identifier = chosenPack.ais && chosenPack.ais["21"] ? chosenPack.ais["21"] : (productIdentifiersQ.data?.[0]?.value || 'N/A');
-
-    // Check colored dots
+    const chosenPack = chosenPackInfo.pack;
     let coloredDotIds: string[] | undefined = undefined;
-    // use productQ.data here (hook value available earlier) instead of the later-declared `product` variable
     if (coloredDotsEnabled && productQ.data && productQ.data.useColoredDots && db) {
       coloredDotIds = (await coloredDotsRepo(db).getAssignmentByPackId(chosenPack.id))?.dotIds || [];
     }
 
-    const unitsOnHoliday: number = holidayReservedByPack[chosenPack.id] ?? 0;
-
     return {
       expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
-      identifier,
-      identifierType: chosenPack.ais && chosenPack.ais["21"] ? "Serial" : "Code",
+      identifier: chosenPackInfo.identifier,
+      identifierType: chosenPackInfo.identifierType,
       unitsLeftInPack: chosenPack.unitsRemaining,
       packId: chosenPack.id,
-      unitsOnHoliday: unitsOnHoliday > 0 ? unitsOnHoliday : undefined,
+      unitsOnHoliday: chosenPackInfo.unitsOnHoliday,
       coloredDotIds,
     };
   }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db, id, hasActiveHoliday, isOnHoliday, activeHolidayId]);
