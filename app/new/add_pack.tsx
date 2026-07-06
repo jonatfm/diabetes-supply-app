@@ -17,7 +17,7 @@ import { DatePickerInput } from 'react-native-paper-dates';
 
 export default function AddPack() {
   const router = useRouter();
-  const params = useLocalSearchParams<{productId: string}>();
+  const params = useLocalSearchParams<{productId: string; mode?: string}>();
   const {convenience, lastBarcodeResult} = useScanFlow();
   const { db } = useDatabase();
   const productQ = useProduct(params.productId as string);
@@ -26,6 +26,7 @@ export default function AddPack() {
   const canHaveExpiry = product ? product.canHaveExpiry : false;
   const [manualExpiryDate, setManualExpiryDate] = useState<Date | undefined>(undefined);
   const addPack = useAddPack(params.productId as string);
+  const isManualMode = params.mode === "manual" || !convenience || !lastBarcodeResult;
 
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
   const coloredDots = useColoredDots({includeInactive: true}).data;
@@ -72,8 +73,6 @@ export default function AddPack() {
   //const handleAddNewPack = async (productId: number, unitsInPack: number | undefined, convenience: { expiry?: string; lot?: string; identifier: string, productionDate?: string }) => {
   const handleAddNewPack = async() => {
     if (!product) return;
-    if (!convenience) return;
-    if (!lastBarcodeResult) return;
 
     // Check unitsInPack validity
     if (unitsInPack && !/^\d+$/.test(unitsInPack)) {
@@ -86,7 +85,7 @@ export default function AddPack() {
       return;
     }
 
-    if (canHaveExpiry && !convenience.expiry && !manualExpiryDate) {
+    if (canHaveExpiry && !convenience?.expiry && !manualExpiryDate) {
       alert("Expiry date is required for this product.");
       return;
     }
@@ -97,14 +96,14 @@ export default function AddPack() {
       : undefined;
     
     await addPack.mutateAsync({
-      expiry: normalizeExpiryDate(convenience.expiry) || formattedExpiry,
-      productionDate: normalizeExpiryDate(convenience.productionDate),
+      expiry: normalizeExpiryDate(convenience?.expiry) || formattedExpiry,
+      productionDate: normalizeExpiryDate(convenience?.productionDate),
       units: parseInt(unitsInPack || '1', 10),
-      ais: convenience.ais || null,
-      note: "Via app",
+      ais: convenience?.ais || null,
+      note: isManualMode ? "Manual entry via app" : "Via app",
       dateSetManually: !!manualExpiryDate,
       coloredDotIds: displayedDots || undefined,
-      rawCode: lastBarcodeResult.text,
+      rawCode: lastBarcodeResult?.text,
     });
 
     alert('New pack added successfully');
@@ -117,6 +116,15 @@ export default function AddPack() {
         Add Pack to {product ? product.name : 'Loading...'}
       </Text>
       <View style={{gap: 20, marginTop: 8}}>
+        {isManualMode && (
+          <Card elevation={1}>
+            <Card.Content>
+              <Text variant="bodyMedium">
+                Add this pack manually when scanning is unavailable or the package has no usable barcode.
+              </Text>
+            </Card.Content>
+          </Card>
+        )}
         {product && convenience && canHaveExpiry && convenience.expiry && (
           <Text variant="labelLarge">Expiry: {normalizeExpiryDate(convenience.expiry)}</Text>
         )}

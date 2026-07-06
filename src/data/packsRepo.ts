@@ -98,7 +98,7 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       timestamp?: number;
       dateSetManually?: boolean;
       coloredDotIds?: string[];
-      rawCode: string;
+      rawCode?: string;
     }) {
       return await db.transaction(async (tx) => {
         const txDb = tx as unknown as typeof db;

@@ -527,6 +527,18 @@ export default function ProductPage() {
             </>
           ) : null}
           {product ? (
+            <Button
+              mode="outlined"
+              icon="plus"
+              onPress={() => router.push({
+                pathname: '/new/add_pack',
+                params: { productId: product.id, mode: 'manual' },
+              })}
+            >
+              Add pack
+            </Button>
+          ) : null}
+          {product ? (
             <Button mode="outlined" icon="cog" onPress={() => router.push(`/product/settings/${product.id}`)}>Settings</Button>
           ) : null}
         </View>

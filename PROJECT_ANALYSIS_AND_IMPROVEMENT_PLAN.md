@@ -944,6 +944,8 @@ Updated: 2026-07-06
 - Verified: Full `npx tsc --noEmit` now passes. Full `npm run lint` still passes.
 - Done: Completed the basic archive/reactivate workflow path by making the home inventory hide archived products by default, adding a Show archived products toggle, and labeling archived product cards when visible.
 - Verified: Focused ESLint passed for the home screen and product card. Full `npx tsc --noEmit` passed. `git diff --check` passed after the archive filter change.
+- Done: Added manual pack creation by reusing the existing add-pack screen in manual mode. Product detail now has an Add pack action, and manual entries can create packs without scan context while preserving optional expiry, units, colored dots, and audit notes.
+- Verified: Focused ESLint passed for manual add-pack files. Full `npx tsc --noEmit` passed. `git diff --check` passed after the manual add-pack change.
 
 ### Phase 2: Domain Services
 
