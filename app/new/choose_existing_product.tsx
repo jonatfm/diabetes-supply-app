@@ -63,7 +63,7 @@ export default function ChooseExistingProduct() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge" style={{ marginBottom: 16 }}>Couldn't match this product</Text>
+      <Text variant="headlineLarge" style={{ marginBottom: 16 }}>Could not match this product</Text>
       <Text variant="bodyMedium" style={{ marginBottom: 16 }}>Please select the product from the list below or create a new one.</Text>
 
       {prods.length !== 0 ? (

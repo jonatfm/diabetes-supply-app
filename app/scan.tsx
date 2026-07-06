@@ -192,7 +192,7 @@ export default function Scan() {
           {isScanning ? 'Scanning...' : 'Take Picture'}
         </Button>
         <Button icon="barcode-off" mode="outlined" onPress={() => setShowManualCodeInputModal(true)}>
-          Can't Scan?
+          Cannot Scan?
         </Button>
       </View>
 

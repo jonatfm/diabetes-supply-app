@@ -13,18 +13,6 @@ import { Button, Card, Text, useTheme } from 'react-native-paper';
  */
 async function normalizeImageOrientation(uri: string): Promise<string> {
   try {
-    // Read the image info to get dimensions
-    const imageInfo = await ImageManipulator.manipulateAsync(
-      uri,
-      [],
-      { format: ImageManipulator.SaveFormat.JPEG }
-    );
-    
-    // Get dimensions to determine if image needs rotation
-    // If width > height, the image is in landscape and needs rotation
-    const response = await fetch(imageInfo.uri);
-    const blob = await response.blob();
-    
     // Create a simple check based on image dimensions by re-reading the manipulated image
     const checkResult = await ImageManipulator.manipulateAsync(
       uri,

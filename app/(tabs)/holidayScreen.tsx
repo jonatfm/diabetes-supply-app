@@ -27,7 +27,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
 
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
-    }, []);
+    }, [holiday]);
 
     useEffect(() => {
         async function fetchTotalUnits() {

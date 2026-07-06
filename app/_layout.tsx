@@ -26,11 +26,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { db, ready: dbReady, rawDb, error } = useDatabase();
-
-  if (Platform.OS !== 'web') {
-    useDrizzleStudio(rawDb ?? undefined);
-  }
+  const { ready: dbReady, rawDb, error } = useDatabase();
 
   const scheme = useColorScheme();
   const {theme} = useMaterial3Theme();
@@ -54,6 +50,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <PaperProvider theme={paperTheme}>
           <ScanFlowProvider>
+            {Platform.OS !== 'web' && <DrizzleStudioConnector rawDb={rawDb} />}
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="holiday_mode/plan_holiday" />
@@ -73,4 +70,9 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+function DrizzleStudioConnector({ rawDb }: { rawDb: any }) {
+  useDrizzleStudio(rawDb ?? undefined);
+  return null;
 }

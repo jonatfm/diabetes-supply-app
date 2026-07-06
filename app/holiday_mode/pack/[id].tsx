@@ -15,7 +15,7 @@ import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsResult, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
 import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native-paper";
 
@@ -49,12 +49,12 @@ export default function PackForHoliday() {
     }, [holiday.data]);
 
     // Derive packed units per product directly from persisted records
-    const packedUnitsByProduct = packsForHoliday.data?.reduce((acc, packed) => {
+    const packedUnitsByProduct = useMemo(() => packsForHoliday.data?.reduce((acc, packed) => {
         if (packed.productId) {
             acc[packed.productId] = (acc[packed.productId] || 0) + packed.originalUnits;
         }
         return acc;
-    }, {} as Record<string, number>) ?? {};
+    }, {} as Record<string, number>) ?? {}, [packsForHoliday.data]);
 
     const handleItemPress = (item: HolidayNeedsSimpleResult) => {
         setSelectedProduct(item.product.id);
@@ -99,7 +99,7 @@ export default function PackForHoliday() {
                 holiday.refetch();
             });
         }
-    }, [packsForHoliday.data, holidayNeedsSimple, holiday.data, hookDb]);
+    }, [packsForHoliday.data, holidayNeedsSimple, holiday.data, hookDb, packedUnitsByProduct, qc, holiday]);
 
     return (
         <AppWrapper>

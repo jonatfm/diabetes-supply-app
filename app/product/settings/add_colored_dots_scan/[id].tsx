@@ -238,7 +238,7 @@ export default function AddColoredDotsByScanning() {
       alert("Color code saved successfully!");
       setScanResult({ type: 'idle' });
       setSelectedPackId(null);
-    } catch (error) {
+    } catch {
       alert("Failed to save color code. Please try again.");
     } finally {
       setIsSaving(false);

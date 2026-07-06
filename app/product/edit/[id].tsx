@@ -221,7 +221,7 @@ export default function EditProductPage() {
     if (!db || !id) return;
     const combo = await coloredDotsRepo(db).generateUniqueCombinationForProduct(id);
     setGeneratedDots(combo);
-  }, [db, id, coloredDots, coloredDotsEnabled]);
+  }, [db, id]);
 
   // Regenerate dots when modal opens and colors change
   useEffect(() => {
@@ -342,7 +342,6 @@ export default function EditProductPage() {
   };
 
   const handleShowMore = (packId: string) => {
-    const pack = packsQ.data?.find(p => p.id === packId);
     setShowMorePackId(packId);
     setShowMoreModalVisible(true);
   };

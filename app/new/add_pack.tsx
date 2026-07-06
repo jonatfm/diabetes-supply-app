@@ -113,7 +113,9 @@ export default function AddPack() {
 
   return (
     <AppWrapper>
-      <Text variant="headlineLarge" style={{ marginBottom: 24 }}>Add Pack to "{product ? product.name : 'Loading…'}"</Text>
+      <Text variant="headlineLarge" style={{ marginBottom: 24 }}>
+        Add Pack to {product ? product.name : 'Loading...'}
+      </Text>
       <View style={{gap: 20, marginTop: 8}}>
         {product && convenience && canHaveExpiry && convenience.expiry && (
           <Text variant="labelLarge">Expiry: {normalizeExpiryDate(convenience.expiry)}</Text>

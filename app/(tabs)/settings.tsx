@@ -502,7 +502,7 @@ export default function Settings() {
               All your current data will be permanently lost.
             </Text>
             <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 16, color: theme.colors.secondary }}>
-              After clicking "Import Now", you will be prompted to select your backup file.
+              After clicking Import Now, you will be prompted to select your backup file.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

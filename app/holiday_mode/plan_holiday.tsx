@@ -28,16 +28,19 @@ function ItemCard({
     useEffect(() => {
         if (!itemState.selectedMethod) return;
         const newValues = {...itemState.selectedAttributeValues};
+        let hasMissingDefaults = false;
         HOLIDAY_ITEM_METHODS_ATTRIBUTES[itemState.selectedMethod]?.forEach((attr) => {
             if (!(attr.attributeName in newValues)) {
                 newValues[attr.attributeName] = attr.default || 0;
+                hasMissingDefaults = true;
             }
         });
+        if (!hasMissingDefaults) return;
         onStateChange({
             ...itemState,
             selectedAttributeValues: newValues
         });
-    }, [itemState.selectedMethod]);
+    }, [itemState, onStateChange]);
 
     return (
         <View key={product.id} style={{backgroundColor: theme.colors.surface, padding: 12, borderRadius: 8}}>
