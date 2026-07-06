@@ -139,7 +139,15 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
             )}
           </View>
           <View style={{flex: 1, margin: 12}}>
-            <Text variant="titleLarge">{product.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Text variant="titleLarge">{product.name}</Text>
+              {!product.active && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Icon source="archive" size={16} color={theme.colors.onSurfaceVariant} />
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Archived</Text>
+                </View>
+              )}
+            </View>
             <Text variant="bodyLarge">{totalUnitsQ.data ?? 'Loading…'} units left</Text>
             {packsQ.data && packsQ.data.length > 0 ? (
               <>

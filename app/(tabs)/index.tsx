@@ -7,10 +7,11 @@ import { usePackListForHoliday } from "@/src/data/hooks/usePackListForHoliday";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, SectionList, View } from 'react-native';
-import { ActivityIndicator, FAB, Icon, Searchbar, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, FAB, Icon, Searchbar, Switch, Text, useTheme } from "react-native-paper";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const productsQ = useProducts();
   const activeHolidayQ = useActiveHoliday();
   const packListQ = usePackListForHoliday(activeHolidayQ.data?.id);
@@ -20,15 +21,19 @@ export default function Index() {
   const filteredProds = useMemo(() => {
     if (!productsQ.data) return [];
     
+    const visibleProducts = showArchived
+      ? productsQ.data
+      : productsQ.data.filter((prod: Product) => prod.active);
+
     if (searchQuery.trim() === '') {
-      return productsQ.data;
+      return visibleProducts;
     }
     
     const query = searchQuery.toLowerCase();
-    return productsQ.data.filter((prod: Product) =>
+    return visibleProducts.filter((prod: Product) =>
       prod.name.toLowerCase().includes(query)
     );
-  }, [searchQuery, productsQ.data]);
+  }, [searchQuery, productsQ.data, showArchived]);
 
   const holidayProductIds = useMemo(() => {
     if (!packListQ.data) return new Set<string>();
@@ -81,6 +86,10 @@ export default function Index() {
               style={{ marginBottom: 16, marginTop: 24 }} 
               elevation={1}
             />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Show archived products</Text>
+              <Switch value={showArchived} onValueChange={setShowArchived} />
+            </View>
             {sections ? (
               <SectionList
                 sections={sections}

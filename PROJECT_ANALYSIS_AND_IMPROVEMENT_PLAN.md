@@ -942,6 +942,8 @@ Updated: 2026-07-06
 - Verified: Full `npm run lint` now passes with no warnings or errors. `git diff --check` passed after the lint cleanup.
 - Done: Fixed the remaining TypeScript blocker by making `expo-modules-core` an explicit dependency for the local native module import and tightening the database null check in product creation with identifier.
 - Verified: Full `npx tsc --noEmit` now passes. Full `npm run lint` still passes.
+- Done: Completed the basic archive/reactivate workflow path by making the home inventory hide archived products by default, adding a Show archived products toggle, and labeling archived product cards when visible.
+- Verified: Focused ESLint passed for the home screen and product card. Full `npx tsc --noEmit` passed. `git diff --check` passed after the archive filter change.
 
 ### Phase 2: Domain Services
 
