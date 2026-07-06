@@ -419,9 +419,6 @@ export default function ProductPage() {
               )}
               <View style={{ flex: 1 }}>
                 <Text variant="headlineSmall">{product.name}</Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.secondary, marginTop: 4 }}>
-                  ID: {product.id}
-                </Text>
               </View>
             </View>
 

@@ -930,6 +930,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for `scripts/gs1.ts` and `src/utils/dateUtils.ts`. `git diff --check` passed after the parser fix.
 - Done: Added editable product defaults to the product settings screen: default units per pack, active/archive status, expiry behavior, session-based behavior, nominal session length, photo, name, and colored-dot use. Photo capture and colored-dot scan return flows now preserve these unsaved settings parameters.
 - Verified: Focused ESLint passed for the changed product-settings, photo-return, product repo, and update-hook files with only pre-existing unused-variable warnings. `git diff --check` passed after the product settings update.
+- Done: Removed the prominent internal product ID from the product detail header so normal users see meaningful inventory information rather than database identifiers.
+- Verified: Focused ESLint passed for the product detail screen. `git diff --check` passed after the ID display cleanup.
 
 ### Phase 2: Domain Services
 
