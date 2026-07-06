@@ -26,7 +26,7 @@ export function useCreateProductWithIdentifier() {
     }) => {
       if (!repo || !identifiers) throw new Error("Database not ready");
 
-      const existingIdentifier = await identifiers.findByValue(params.identifier);
+      const existingIdentifier = await identifiers.findByTypeAndValue(params.identifierType, params.identifier);
       if (existingIdentifier.length > 0) {
         throw new Error("identifier-exists");
       }
@@ -36,24 +36,29 @@ export function useCreateProductWithIdentifier() {
         throw new Error("name-exists");
       }
 
-      const [product] = await repo.createProduct({
-        name: params.name,
-        unitsPerPackDefault: params.unitsPerPack,
-        imageUri: params.imageUri,
-        canHaveExpiry: params.canHaveExpiry,
-        isSessionBased: params.isSessionBased,
-        nominalSessionTimeDays: params.nominalSessionTimeDays,
-        useColoredDots: params.useColoredDots ?? false,
+      const productId = await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [product] = await productRepo(txDb).createProduct({
+          name: params.name,
+          unitsPerPackDefault: params.unitsPerPack,
+          imageUri: params.imageUri,
+          canHaveExpiry: params.canHaveExpiry,
+          isSessionBased: params.isSessionBased,
+          nominalSessionTimeDays: params.nominalSessionTimeDays,
+          useColoredDots: params.useColoredDots ?? false,
+        });
+
+        await productIdentifiersRepo(txDb).createIdentifier({
+          productId: product.id,
+          value: params.identifier,
+          type: params.identifierType,
+          createdAt: Date.now(),
+        });
+
+        return product.id;
       });
 
-      await identifiers.createIdentifier({
-        productId: product.id,
-        value: params.identifier,
-        type: params.identifierType,
-        createdAt: Date.now(),
-      });
-
-      return product.id;
+      return productId;
     },
     onSuccess: async (productId) => {
       await Promise.all([

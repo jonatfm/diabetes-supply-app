@@ -1,5 +1,5 @@
 import { ColoredDot, ColoredDotAssignment, coloredDotAssignments, coloredDots, packs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
 
@@ -35,9 +35,24 @@ export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
     },
 
     async setAssignmentForPack(packId: string, dotIds: string[]): Promise<void> {
-      const existing = await this.getAssignmentByPackId(packId);
+      const existingAssignments = await db
+        .select()
+        .from(coloredDotAssignments)
+        .where(eq(coloredDotAssignments.packId, packId));
+
+      const existing = existingAssignments[0];
       if (existing) {
-        await db.update(coloredDotAssignments).set({ dotIds }).where(eq(coloredDotAssignments.id, existing.id));
+        await db
+          .update(coloredDotAssignments)
+          .set({ dotIds })
+          .where(eq(coloredDotAssignments.id, existing.id));
+
+        const duplicateIds = existingAssignments.slice(1).map((assignment) => assignment.id);
+        if (duplicateIds.length > 0) {
+          await db
+            .delete(coloredDotAssignments)
+            .where(inArray(coloredDotAssignments.id, duplicateIds));
+        }
       } else {
         await db.insert(coloredDotAssignments).values({ packId, dotIds });
       }
