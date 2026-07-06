@@ -924,6 +924,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the invalidation helper, updated query keys, and changed mutation/query hooks. `git diff --check` passed after the invalidation cleanup.
 - Done: Started Phase 2 domain-service extraction by adding `src/domain/inventoryService.ts`. The product screen now delegates consume-pack selection rules to a pure `choosePackForConsumption` service while keeping data fetching and UI rendering in the screen.
 - Verified: Focused ESLint passed for the new inventory service and the refactored product screen. `git diff --check` passed after the service extraction.
+- Done: Added transactions around holiday creation and holiday pack allocation. Repeated allocation of the same pack to the same holiday now merges into the existing row instead of creating duplicate allocation rows.
+- Verified: Focused ESLint passed for `src/data/holidayRepo.ts`. `git diff --check` passed after the holiday transaction/allocation change.
 
 ### Phase 2: Domain Services
 

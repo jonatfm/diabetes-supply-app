@@ -46,27 +46,26 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       /** Pre-computed snapshot amounts keyed by productId. */
       snapshotAmounts: Record<string, number>,
     ) {
-      // Add new holiday
-      const [newHoliday] = await db.insert(holidays).values({
-        destination,
-        durationDays,
-        state: "PLANNED",
-      }).returning({id: holidays.id});
+      return await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [newHoliday] = await txDb.insert(holidays).values({
+          destination,
+          durationDays,
+          state: "PLANNED",
+        }).returning({id: holidays.id});
 
-      // Add products for the holiday to the pack list, storing the frozen calculatedAmount
-      await Promise.all(
-        Object.entries(products).map(([productId, { amountCalculationType, amountCalculationAttributes }]) =>
-          db.insert(packListForHoliday).values({
+        for (const [productId, { amountCalculationType, amountCalculationAttributes }] of Object.entries(products)) {
+          await txDb.insert(packListForHoliday).values({
             holidayId: newHoliday.id,
             productId,
             amountCalculationType,
             amountCalculationAttributes,
             calculatedAmount: snapshotAmounts[productId] ?? 0,
-          })
-        )
-      );
+          });
+        }
 
-      return newHoliday;
+        return newHoliday;
+      });
     },
 
     /**
@@ -76,37 +75,58 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
      * units before inserting. Throws if it would over-commit.
      */
     async addPackToHoliday(holidayId: string, packId: string, units: number) {
-      // Fetch current physical state of the pack
-      const [pack] = await db.select().from(packs).where(eq(packs.id, packId));
-      if (!pack) throw new Error("Pack not found");
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [pack] = await txDb.select().from(packs).where(eq(packs.id, packId));
+        if (!pack) throw new Error("Pack not found");
 
-      // Sum units already reserved across ALL active holidays for this specific pack
-      const existingReservations = await db.select({
-        units: packsForHoliday.units,
-      }).from(packsForHoliday)
-        .innerJoin(holidays, eq(packsForHoliday.holidayId, holidays.id))
-        .where(
-          and(
-            eq(packsForHoliday.packId, packId),
-            inArray(holidays.state, [...ACTIVE_HOLIDAY_STATES]),
+        const existingReservations = await txDb.select({
+          units: packsForHoliday.units,
+        }).from(packsForHoliday)
+          .innerJoin(holidays, eq(packsForHoliday.holidayId, holidays.id))
+          .where(
+            and(
+              eq(packsForHoliday.packId, packId),
+              inArray(holidays.state, [...ACTIVE_HOLIDAY_STATES]),
+            )
+          );
+
+        const totalReserved = existingReservations.reduce((sum, r) => sum + r.units, 0);
+        const physicallyAvailable = pack.unitsRemaining - totalReserved;
+
+        if (units > physicallyAvailable) {
+          throw new Error(
+            `Cannot reserve ${units} units from pack ${packId}: only ${physicallyAvailable} physically available ` +
+            `(${pack.unitsRemaining} remaining - ${totalReserved} already reserved).`
+          );
+        }
+
+        const [existingAllocation] = await txDb.select()
+          .from(packsForHoliday)
+          .where(
+            and(
+              eq(packsForHoliday.holidayId, holidayId),
+              eq(packsForHoliday.packId, packId),
+            )
           )
-        );
+          .limit(1);
 
-      const totalReserved = existingReservations.reduce((sum, r) => sum + r.units, 0);
-      const physicallyAvailable = pack.unitsRemaining - totalReserved;
+        if (existingAllocation) {
+          await txDb.update(packsForHoliday)
+            .set({
+              units: existingAllocation.units + units,
+              originalUnits: existingAllocation.originalUnits + units,
+            })
+            .where(eq(packsForHoliday.id, existingAllocation.id));
+          return;
+        }
 
-      if (units > physicallyAvailable) {
-        throw new Error(
-          `Cannot reserve ${units} units from pack ${packId}: only ${physicallyAvailable} physically available ` +
-          `(${pack.unitsRemaining} remaining − ${totalReserved} already reserved).`
-        );
-      }
-
-      await db.insert(packsForHoliday).values({
-        holidayId,
-        packId,
-        units,
-        originalUnits: units,
+        await txDb.insert(packsForHoliday).values({
+          holidayId,
+          packId,
+          units,
+          originalUnits: units,
+        });
       });
     },
 
