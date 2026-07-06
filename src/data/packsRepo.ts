@@ -176,7 +176,15 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
           relatedSessionId = await sessionsRepo(txDb).startSession(productId, packId, new Date());
         }
 
-        await txDb.update(packs).set({ unitsRemaining: p.unitsRemaining - 1 }).where(eq(packs.id, packId));
+        const updatedPacks = await txDb
+          .update(packs)
+          .set({ unitsRemaining: p.unitsRemaining - 1 })
+          .where(and(eq(packs.id, packId), gt(packs.unitsRemaining, 0)))
+          .returning({ id: packs.id });
+
+        if (updatedPacks.length === 0) {
+          throw new Error("No units left");
+        }
 
         const now = Date.now();
         await txDb.insert(stock_events).values({

@@ -934,6 +934,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the product detail screen. `git diff --check` passed after the ID display cleanup.
 - Done: Made backup import safer by validating required/optional arrays before destructive writes, restoring all database rows inside one transaction, and cleaning up newly restored image files if the database restore fails. Export now writes version 3 backups including holidays, holiday pack lists, holiday pack allocations, and warning records while import remains backward-compatible with v1/v2 backups.
 - Verified: Focused ESLint passed for import/export hooks. `git diff --check` passed after the backup import/export safety change.
+- Done: Hardened `consumeOneUnit` against over-consumption by making the pack decrement conditional on `unitsRemaining > 0` and failing the transaction if no row is updated.
+- Verified: Focused ESLint passed for `src/data/packsRepo.ts`. `git diff --check` passed after the consume race guard.
 
 ### Phase 2: Domain Services
 
