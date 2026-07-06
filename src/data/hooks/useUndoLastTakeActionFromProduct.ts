@@ -2,7 +2,7 @@ import { useDatabase } from "@/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { historyRepo } from "../historyRepo";
-import { qk } from "../queryKeys";
+import { invalidateHolidayReservations, invalidateProductIdentity, invalidateProductInventory, invalidateProductSessions, invalidateProductUsageStats } from "../invalidation";
 
 export function useUndoLastTakeActionFromProduct(productId: string) {
   const {db} = useDatabase();
@@ -13,21 +13,11 @@ export function useUndoLastTakeActionFromProduct(productId: string) {
     mutationFn: ({productId}: {productId: string}) => repo!.undoLastTakeActionFromProduct(productId),
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.history(productId) }),
-        qc.invalidateQueries({ queryKey: qk.packs(productId) }),
-        qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
-        qc.invalidateQueries({ queryKey: qk.session(productId) }),
-        qc.invalidateQueries({ queryKey: qk.sessions() }),
-        qc.invalidateQueries({ queryKey: qk.sessionOutcomeStatsByProduct(productId) }),
-        qc.invalidateQueries({ queryKey: qk.averageTimeBetweenTakes(productId) }),
-        qc.invalidateQueries({ queryKey: qk.takeEventStatistics(productId) }),
-        qc.invalidateQueries({ queryKey: qk.sessionStatistics(productId) }),
-        qc.invalidateQueries({ queryKey: qk.daysUntilOutOfStock(productId) }),
-        qc.invalidateQueries({ queryKey: qk.product(productId) }),
-        qc.invalidateQueries({ queryKey: qk.identifiers(productId) }),
-        // Holiday allocation may have been re-incremented
-        qc.invalidateQueries({ queryKey: qk.activeHoliday() }),
-        qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "packsForHoliday" }),
+        invalidateProductInventory(qc, productId),
+        invalidateProductSessions(qc, productId),
+        invalidateProductUsageStats(qc, productId),
+        invalidateProductIdentity(qc, productId),
+        invalidateHolidayReservations(qc),
       ]);
     },
   })

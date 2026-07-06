@@ -18,11 +18,9 @@ export function useEndSession() {
     }) => repo!.endSession(params.sessionId, params.endedAt, params.outcome),
     onSuccess: async() => {
       await qc.invalidateQueries({queryKey: qk.sessions()});
-      // Invalidate all session queries to ensure child queries stay in sync
-      await qc.invalidateQueries({queryKey: ["session"]});
-      // Invalidate statistics queries
-      await qc.invalidateQueries({queryKey: ["sessionStatistics"]});
-      await qc.invalidateQueries({queryKey: ["daysUntilOutOfStock"]});
+      await qc.invalidateQueries({queryKey: qk.sessionRoot()});
+      await qc.invalidateQueries({queryKey: qk.sessionStatisticsRoot()});
+      await qc.invalidateQueries({queryKey: qk.daysUntilOutOfStockRoot()});
     }
   })
 }

@@ -1,6 +1,7 @@
 import { useDatabase } from "@/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { invalidateProductInventory } from "../invalidation";
 import { packsRepo } from "../packsRepo";
 import { qk } from "../queryKeys";
 
@@ -23,9 +24,7 @@ export function useAddPack(productId: string) {
     }) => repo!.addPackWithStockEvent({ ...params, productId }),
     onSuccess: async (newPackId: string) => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: qk.packs(productId) }),
-        qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
-        qc.invalidateQueries({ queryKey: qk.history(productId) }),
+        invalidateProductInventory(qc, productId),
         qc.invalidateQueries({ queryKey: qk.coloredDotAssignments(newPackId) }),
         qc.invalidateQueries({ queryKey: qk.dotCombination(productId) }),
       ]);

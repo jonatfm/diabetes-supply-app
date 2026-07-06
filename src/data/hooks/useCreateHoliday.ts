@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { computeAmountForMethod } from "@/src/utils/calculateHolidayNeeds";
 import { holidayRepo } from "../holidayRepo";
+import { qk } from "../queryKeys";
 
 export function useCreateHoliday() {
   const {db} = useDatabase();
@@ -35,7 +36,7 @@ export function useCreateHoliday() {
       return repo!.createHoliday(params.destination, params.durationDays, params.products, snapshotAmounts);
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["holidays"] });
+      await qc.invalidateQueries({ queryKey: qk.holidays() });
     },
   });
 }

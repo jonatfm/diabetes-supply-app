@@ -53,3 +53,6 @@ app-example
 _personal.md
 
 *.apk
+PROJECT_ANALYSIS_AND_IMPROVEMENT_PLAN.md
+pnpm-lock.yaml
+pnpm-workspace.yaml

@@ -1,6 +1,7 @@
 import { useDatabase } from "@/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { invalidateProductInventory } from "../invalidation";
 import { ChangesFormat, packsRepo } from "../packsRepo";
 import { qk } from "../queryKeys";
 
@@ -16,9 +17,7 @@ export function useSaveManualPacksChanges(productId: string) {
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: qk.product(productId) }),
-        qc.invalidateQueries({ queryKey: qk.packs(productId) }),
-        qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
-        qc.invalidateQueries({ queryKey: qk.history(productId) }),
+        invalidateProductInventory(qc, productId),
       ]);
     },
   });

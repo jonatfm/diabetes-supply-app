@@ -1,8 +1,8 @@
 import { useDatabase } from "@/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { invalidateProductInventory } from "../invalidation";
 import { packsRepo } from "../packsRepo";
-import { qk } from "../queryKeys";
 
 export function useHandleDiscardExpired(productId: string) {
   const {db} = useDatabase();
@@ -12,9 +12,7 @@ export function useHandleDiscardExpired(productId: string) {
   return useMutation({
     mutationFn: ({productId}: {productId: string}) => repo!.discardExpiredByProduct(productId),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: qk.packs(productId) });
-      await qc.invalidateQueries({ queryKey: qk.totalUnits(productId) });
-      await qc.invalidateQueries({ queryKey: qk.history(productId) });
+      await invalidateProductInventory(qc, productId);
     },
   })
 }
