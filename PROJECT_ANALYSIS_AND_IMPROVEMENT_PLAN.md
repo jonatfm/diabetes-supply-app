@@ -948,6 +948,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for manual add-pack files. Full `npx tsc --noEmit` passed. `git diff --check` passed after the manual add-pack change.
 - Done: Added an export confirmation dialog that warns backups are unencrypted plain JSON and may contain personal inventory data, product images, history, settings, and trip plans.
 - Verified: Focused ESLint passed for the settings screen. Full `npm run lint` and full `npx tsc --noEmit` passed after the export warning change.
+- Done: Added an npm `typecheck` script so TypeScript verification can be run consistently with `npm run typecheck`.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after adding the script.
 
 ### Phase 2: Domain Services
 
