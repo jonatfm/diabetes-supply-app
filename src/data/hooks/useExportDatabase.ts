@@ -1,5 +1,5 @@
 import { useDatabase } from "@/db";
-import { appSettings, coloredDotAssignments, coloredDots, packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
+import { appSettings, appWarningsForProducts, coloredDotAssignments, coloredDots, holidays, packListForHoliday, packs, packsForHoliday, product_identifiers, products, sessions, stock_events } from "@/db/schema";
 import { useMutation } from "@tanstack/react-query";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -15,6 +15,10 @@ interface ExportData {
   coloredDots: any[];
   coloredDotAssignments: any[];
   appSettings: any[];
+  holidays: any[];
+  packListForHoliday: any[];
+  packsForHoliday: any[];
+  appWarningsForProducts: any[];
   images: Record<string, string>; // imageUri -> base64 data
 }
 
@@ -36,6 +40,10 @@ export function useExportDatabase() {
       const allColoredDots = await db.select().from(coloredDots);
       const allColoredDotAssignments = await db.select().from(coloredDotAssignments);
       const allAppSettings = await db.select().from(appSettings);
+      const allHolidays = await db.select().from(holidays);
+      const allPackListForHoliday = await db.select().from(packListForHoliday);
+      const allPacksForHoliday = await db.select().from(packsForHoliday);
+      const allAppWarningsForProducts = await db.select().from(appWarningsForProducts);
 
       // Collect all unique image URIs and convert to base64
       const images: Record<string, string> = {};
@@ -56,7 +64,7 @@ export function useExportDatabase() {
       }
 
       const exportData: ExportData = {
-        version: 2, // Bumped version to indicate new schema
+        version: 3, // Includes holiday reservations and warning records
         exportedAt: new Date().toISOString(),
         products: allProducts,
         productIdentifiers: allProductIdentifiers,
@@ -66,6 +74,10 @@ export function useExportDatabase() {
         coloredDots: allColoredDots,
         coloredDotAssignments: allColoredDotAssignments,
         appSettings: allAppSettings,
+        holidays: allHolidays,
+        packListForHoliday: allPackListForHoliday,
+        packsForHoliday: allPacksForHoliday,
+        appWarningsForProducts: allAppWarningsForProducts,
         images,
       };
 

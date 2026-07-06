@@ -1,5 +1,5 @@
 import { useDatabase } from "@/db";
-import { appSettings, coloredDotAssignments, coloredDots, packs, product_identifiers, products, sessions, stock_events } from "@/db/schema";
+import { appSettings, appWarningsForProducts, coloredDotAssignments, coloredDots, holidays, packListForHoliday, packs, packsForHoliday, product_identifiers, products, sessions, stock_events } from "@/db/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sql } from "drizzle-orm";
 import * as DocumentPicker from "expo-document-picker";
@@ -18,6 +18,24 @@ interface ExportDataBase {
   coloredDots?: any[];
   coloredDotAssignments?: any[];
   appSettings?: any[];
+  // V3 additions (optional for backwards compatibility)
+  holidays?: any[];
+  packListForHoliday?: any[];
+  packsForHoliday?: any[];
+  appWarningsForProducts?: any[];
+}
+
+function requireArray(value: unknown, fieldName: string): any[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid backup file structure: ${fieldName} must be an array`);
+  }
+
+  return value;
+}
+
+function optionalArray(value: unknown, fieldName: string): any[] {
+  if (value === undefined) return [];
+  return requireArray(value, fieldName);
 }
 
 export function useImportDatabase() {
@@ -53,20 +71,27 @@ export function useImportDatabase() {
         throw new Error("Invalid JSON file format");
       }
 
-      // Validate the import data structure
-      if (!importData.version || !importData.products || !importData.packs) {
-        throw new Error("Invalid backup file structure");
-      }
-
-      // Support both version 1 and version 2
-      if (importData.version !== 1 && importData.version !== 2) {
+      // Support versions 1, 2, and 3. Newer sections are optional for backwards compatibility.
+      if (importData.version !== 1 && importData.version !== 2 && importData.version !== 3) {
         throw new Error(`Unsupported backup version: ${importData.version}`);
       }
 
-      const isV2 = importData.version === 2;
+      const importedProducts = requireArray(importData.products, "products");
+      const importedProductIdentifiers = requireArray(importData.productIdentifiers, "productIdentifiers");
+      const importedPacks = requireArray(importData.packs, "packs");
+      const importedStockEvents = requireArray(importData.stockEvents, "stockEvents");
+      const importedSessions = requireArray(importData.sessions, "sessions");
+      const importedColoredDots = optionalArray(importData.coloredDots, "coloredDots");
+      const importedColoredDotAssignments = optionalArray(importData.coloredDotAssignments, "coloredDotAssignments");
+      const importedAppSettings = optionalArray(importData.appSettings, "appSettings");
+      const importedHolidays = optionalArray(importData.holidays, "holidays");
+      const importedPackListForHoliday = optionalArray(importData.packListForHoliday, "packListForHoliday");
+      const importedPacksForHoliday = optionalArray(importData.packsForHoliday, "packsForHoliday");
+      const importedAppWarningsForProducts = optionalArray(importData.appWarningsForProducts, "appWarningsForProducts");
 
       // Restore images first and create a mapping from old URIs to new URIs
       const imageUriMapping: Record<string, string> = {};
+      const restoredImageFiles: File[] = [];
       
       if (importData.images) {
         for (const [originalUri, base64Data] of Object.entries(importData.images)) {
@@ -103,81 +128,108 @@ export function useImportDatabase() {
             newFile.write(base64Data, { encoding: "base64" });
 
             imageUriMapping[originalUri] = newFile.uri;
+            restoredImageFiles.push(newFile);
           } catch (err) {
             console.warn(`Failed to restore image ${originalUri}:`, err);
           }
         }
       }
 
-      // Clear existing data (in reverse order of dependencies)
-      // Using raw SQL to avoid FK constraint issues
-      await db.run(sql`DELETE FROM ${coloredDotAssignments}`);
-      await db.run(sql`DELETE FROM ${coloredDots}`);
-      await db.run(sql`DELETE FROM ${sessions}`);
-      await db.run(sql`DELETE FROM ${stock_events}`);
-      await db.run(sql`DELETE FROM ${packs}`);
-      await db.run(sql`DELETE FROM ${product_identifiers}`);
-      await db.run(sql`DELETE FROM ${products}`);
-      await db.run(sql`DELETE FROM ${appSettings}`);
-
-      // Insert products with updated image URIs
-      for (const product of importData.products) {
-        const updatedImageUri = product.imageUri ? (imageUriMapping[product.imageUri] || product.imageUri) : null;
-        await db.insert(products).values({
-          ...product,
-          imageUri: updatedImageUri,
-        });
-      }
-
-      // Insert product identifiers
-      for (const identifier of importData.productIdentifiers) {
-        await db.insert(product_identifiers).values(identifier);
-      }
-
-      // Insert packs
-      for (const pack of importData.packs) {
-        await db.insert(packs).values(pack);
-      }
-
-      // Insert stock events
-      for (const event of importData.stockEvents) {
-        await db.insert(stock_events).values(event);
-      }
-
-      // Insert sessions
-      for (const session of importData.sessions) {
-        await db.insert(sessions).values(session);
-      }
-
-      // Version 2 specific data
       let coloredDotsRestored = 0;
       let coloredDotAssignmentsRestored = 0;
       let appSettingsRestored = 0;
+      let holidaysRestored = 0;
+      let packListForHolidayRestored = 0;
+      let packsForHolidayRestored = 0;
+      let appWarningsForProductsRestored = 0;
 
-      if (isV2) {
-        // Insert colored dots
-        if (importData.coloredDots) {
-          for (const dot of importData.coloredDots) {
-            await db.insert(coloredDots).values(dot);
+      try {
+        await db.transaction(async (tx) => {
+          const txDb = tx as unknown as typeof db;
+
+          // Clear existing data in reverse dependency order.
+          await txDb.run(sql`DELETE FROM ${coloredDotAssignments}`);
+          await txDb.run(sql`DELETE FROM ${packsForHoliday}`);
+          await txDb.run(sql`DELETE FROM ${packListForHoliday}`);
+          await txDb.run(sql`DELETE FROM ${appWarningsForProducts}`);
+          await txDb.run(sql`DELETE FROM ${coloredDots}`);
+          await txDb.run(sql`DELETE FROM ${sessions}`);
+          await txDb.run(sql`DELETE FROM ${stock_events}`);
+          await txDb.run(sql`DELETE FROM ${packs}`);
+          await txDb.run(sql`DELETE FROM ${product_identifiers}`);
+          await txDb.run(sql`DELETE FROM ${holidays}`);
+          await txDb.run(sql`DELETE FROM ${products}`);
+          await txDb.run(sql`DELETE FROM ${appSettings}`);
+
+          for (const product of importedProducts) {
+            const updatedImageUri = product.imageUri ? (imageUriMapping[product.imageUri] || product.imageUri) : null;
+            await txDb.insert(products).values({
+              ...product,
+              imageUri: updatedImageUri,
+            });
+          }
+
+          for (const holiday of importedHolidays) {
+            await txDb.insert(holidays).values(holiday);
+            holidaysRestored++;
+          }
+
+          for (const identifier of importedProductIdentifiers) {
+            await txDb.insert(product_identifiers).values(identifier);
+          }
+
+          for (const pack of importedPacks) {
+            await txDb.insert(packs).values(pack);
+          }
+
+          for (const event of importedStockEvents) {
+            await txDb.insert(stock_events).values(event);
+          }
+
+          for (const session of importedSessions) {
+            await txDb.insert(sessions).values(session);
+          }
+
+          for (const dot of importedColoredDots) {
+            await txDb.insert(coloredDots).values(dot);
             coloredDotsRestored++;
           }
-        }
 
-        // Insert colored dot assignments
-        if (importData.coloredDotAssignments) {
-          for (const assignment of importData.coloredDotAssignments) {
-            await db.insert(coloredDotAssignments).values(assignment);
+          for (const assignment of importedColoredDotAssignments) {
+            await txDb.insert(coloredDotAssignments).values(assignment);
             coloredDotAssignmentsRestored++;
           }
-        }
 
-        // Insert app settings
-        if (importData.appSettings) {
-          for (const setting of importData.appSettings) {
-            await db.insert(appSettings).values(setting);
+          for (const setting of importedAppSettings) {
+            await txDb.insert(appSettings).values(setting);
             appSettingsRestored++;
           }
+
+          for (const warning of importedAppWarningsForProducts) {
+            await txDb.insert(appWarningsForProducts).values(warning);
+            appWarningsForProductsRestored++;
+          }
+
+          for (const item of importedPackListForHoliday) {
+            await txDb.insert(packListForHoliday).values(item);
+            packListForHolidayRestored++;
+          }
+
+          for (const allocation of importedPacksForHoliday) {
+            await txDb.insert(packsForHoliday).values(allocation);
+            packsForHolidayRestored++;
+          }
+        });
+      } catch (error) {
+        for (const restoredFile of restoredImageFiles) {
+          try {
+            restoredFile.delete();
+          } catch {
+            // Ignore image cleanup errors; the database transaction is already rolled back.
+          }
         }
+
+        throw error;
       }
 
       // Invalidate all queries to refresh the UI
@@ -193,14 +245,18 @@ export function useImportDatabase() {
       return {
         success: true,
         stats: {
-          products: importData.products.length,
-          productIdentifiers: importData.productIdentifiers.length,
-          packs: importData.packs.length,
-          stockEvents: importData.stockEvents.length,
-          sessions: importData.sessions.length,
+          products: importedProducts.length,
+          productIdentifiers: importedProductIdentifiers.length,
+          packs: importedPacks.length,
+          stockEvents: importedStockEvents.length,
+          sessions: importedSessions.length,
           coloredDots: coloredDotsRestored,
           coloredDotAssignments: coloredDotAssignmentsRestored,
           appSettings: appSettingsRestored,
+          holidays: holidaysRestored,
+          packListForHoliday: packListForHolidayRestored,
+          packsForHoliday: packsForHolidayRestored,
+          appWarningsForProducts: appWarningsForProductsRestored,
           imagesRestored: Object.keys(imageUriMapping).length,
         },
       };

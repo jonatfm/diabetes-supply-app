@@ -932,6 +932,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the changed product-settings, photo-return, product repo, and update-hook files with only pre-existing unused-variable warnings. `git diff --check` passed after the product settings update.
 - Done: Removed the prominent internal product ID from the product detail header so normal users see meaningful inventory information rather than database identifiers.
 - Verified: Focused ESLint passed for the product detail screen. `git diff --check` passed after the ID display cleanup.
+- Done: Made backup import safer by validating required/optional arrays before destructive writes, restoring all database rows inside one transaction, and cleaning up newly restored image files if the database restore fails. Export now writes version 3 backups including holidays, holiday pack lists, holiday pack allocations, and warning records while import remains backward-compatible with v1/v2 backups.
+- Verified: Focused ESLint passed for import/export hooks. `git diff --check` passed after the backup import/export safety change.
 
 ### Phase 2: Domain Services
 
