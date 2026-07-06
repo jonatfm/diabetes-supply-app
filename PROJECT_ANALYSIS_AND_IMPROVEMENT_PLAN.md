@@ -936,6 +936,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for import/export hooks. `git diff --check` passed after the backup import/export safety change.
 - Done: Hardened `consumeOneUnit` against over-consumption by making the pack decrement conditional on `unitsRemaining > 0` and failing the transaction if no row is updated.
 - Verified: Focused ESLint passed for `src/data/packsRepo.ts`. `git diff --check` passed after the consume race guard.
+- Done: Wrapped manual pack edits and their `ADJUST` stock events in a transaction so partial manual adjustments cannot leave pack state and audit history out of sync.
+- Verified: Focused ESLint passed for `src/data/packsRepo.ts`. `git diff --check` passed after the manual adjustment transaction change.
 
 ### Phase 2: Domain Services
 

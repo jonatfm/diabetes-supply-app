@@ -205,53 +205,58 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
     },
 
     async manualDataUpdate(changes: ChangesFormat) {
-      // Manually apply changes to packs
-      for (const packId in changes) {
-        const change = changes[packId];
-        
-        // Get the pack's productId, current unitsRemaining, expiry and active before updating
-        const [pack] = await db.select({ productId: packs.productId, unitsRemaining: packs.unitsRemaining, expiry: packs.expiry, active: packs.active }).from(packs).where(eq(packs.id, packId));
-        if (!pack) throw new Error("Pack not found");
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
 
-        // Calculate deltaUnits only when unitsRemaining is provided in the change
-        const oldUnits = typeof pack.unitsRemaining === "number" ? pack.unitsRemaining : 0;
-        const unitsProvided = change.unitsRemaining !== null;
-        const newUnits = unitsProvided ? change.unitsRemaining as number : oldUnits;
-        const deltaUnits = unitsProvided ? (newUnits - oldUnits) : 0;
+        for (const packId in changes) {
+          const change = changes[packId];
 
-        // Build a meta object describing before/after for traceability
-        const metaObj = {
-          change,
-          before: {
-            unitsRemaining: oldUnits,
-            expiry: pack.expiry ?? null,
-            active: typeof pack.active === 'number' ? pack.active : 1,
-          },
-          after: {
-            unitsRemaining: unitsProvided ? newUnits : oldUnits,
-            expiry: change.expiry !== null ? change.expiry : (pack.expiry ?? null),
-            active: unitsProvided && newUnits === 0 ? 0 : (typeof pack.active === 'number' ? pack.active : 1),
-          },
-        } as Record<string, any>;
+          const [pack] = await txDb.select({
+            productId: packs.productId,
+            unitsRemaining: packs.unitsRemaining,
+            expiry: packs.expiry,
+            active: packs.active,
+          }).from(packs).where(eq(packs.id, packId));
+          if (!pack) throw new Error("Pack not found");
 
-        await db.update(packs).set({
-          unitsRemaining: unitsProvided ? newUnits : undefined,
-          expiry: change.expiry !== null ? change.expiry : undefined,
-          active: unitsProvided && newUnits === 0 ? false : undefined,
-        }).where(eq(packs.id, packId));
+          const oldUnits = typeof pack.unitsRemaining === "number" ? pack.unitsRemaining : 0;
+          const unitsProvided = change.unitsRemaining !== null;
+          const newUnits = unitsProvided ? change.unitsRemaining as number : oldUnits;
+          const deltaUnits = unitsProvided ? (newUnits - oldUnits) : 0;
 
-        // Insert a stock event to track the adjustment (include deltaUnits)
-        await db.insert(stock_events).values({
-          productId: pack.productId,
-          packId: packId,
-          type: "ADJUST",
-          deltaUnits: deltaUnits,
-          meta: metaObj,
-          occurredAt: Date.now(),
-          createdAt: Date.now(),
-          note: "Manual adjustment via app",
-        });
-      }
+          const metaObj = {
+            change,
+            before: {
+              unitsRemaining: oldUnits,
+              expiry: pack.expiry ?? null,
+              active: typeof pack.active === 'number' ? pack.active : 1,
+            },
+            after: {
+              unitsRemaining: unitsProvided ? newUnits : oldUnits,
+              expiry: change.expiry !== null ? change.expiry : (pack.expiry ?? null),
+              active: unitsProvided && newUnits === 0 ? 0 : (typeof pack.active === 'number' ? pack.active : 1),
+            },
+          } as Record<string, any>;
+
+          await txDb.update(packs).set({
+            unitsRemaining: unitsProvided ? newUnits : undefined,
+            expiry: change.expiry !== null ? change.expiry : undefined,
+            active: unitsProvided && newUnits === 0 ? false : undefined,
+          }).where(eq(packs.id, packId));
+
+          const now = Date.now();
+          await txDb.insert(stock_events).values({
+            productId: pack.productId,
+            packId: packId,
+            type: "ADJUST",
+            deltaUnits: deltaUnits,
+            meta: metaObj,
+            occurredAt: now,
+            createdAt: now,
+            note: "Manual adjustment via app",
+          });
+        }
+      });
     },
 
     async fetchPackById(packId: string): Promise<Pack | null> {
