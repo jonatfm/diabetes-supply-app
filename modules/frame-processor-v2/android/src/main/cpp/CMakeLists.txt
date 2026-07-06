@@ -39,6 +39,7 @@ target_compile_options(frame_processor_v2 PRIVATE
     -fexceptions
     -frtti
     -O3
+    -DZXING_READERS
     -DZXING_EXPERIMENTAL_API
 )
 
