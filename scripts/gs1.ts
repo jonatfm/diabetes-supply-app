@@ -135,9 +135,9 @@ function isValidGS1Date(str: string): boolean {
   const mm = parseInt(str.substring(2, 4), 10);
   const dd = parseInt(str.substring(4, 6), 10);
   
-  // Month must be 01-12, day must be 01-31
-  // (We're lenient on day validation since some months have fewer days)
-  return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31;
+  // Month must be 01-12. Per GS1, day 00 means the last day of the month.
+  // We remain lenient on upper day validation since some months have fewer days.
+  return mm >= 1 && mm <= 12 && dd >= 0 && dd <= 31;
 }
 
 /**

@@ -926,6 +926,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the new inventory service and the refactored product screen. `git diff --check` passed after the service extraction.
 - Done: Added transactions around holiday creation and holiday pack allocation. Repeated allocation of the same pack to the same holiday now merges into the existing row instead of creating duplicate allocation rows.
 - Verified: Focused ESLint passed for `src/data/holidayRepo.ts`. `git diff --check` passed after the holiday transaction/allocation change.
+- Done: Fixed GS1 parser date validation to accept day `00`, allowing expiry dates such as `YYMM00` to flow into the existing expiry normalizer where they become the last day of the month.
+- Verified: Focused ESLint passed for `scripts/gs1.ts` and `src/utils/dateUtils.ts`. `git diff --check` passed after the parser fix.
 
 ### Phase 2: Domain Services
 
