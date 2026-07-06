@@ -946,6 +946,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the home screen and product card. Full `npx tsc --noEmit` passed. `git diff --check` passed after the archive filter change.
 - Done: Added manual pack creation by reusing the existing add-pack screen in manual mode. Product detail now has an Add pack action, and manual entries can create packs without scan context while preserving optional expiry, units, colored dots, and audit notes.
 - Verified: Focused ESLint passed for manual add-pack files. Full `npx tsc --noEmit` passed. `git diff --check` passed after the manual add-pack change.
+- Done: Added an export confirmation dialog that warns backups are unencrypted plain JSON and may contain personal inventory data, product images, history, settings, and trip plans.
+- Verified: Focused ESLint passed for the settings screen. Full `npm run lint` and full `npx tsc --noEmit` passed after the export warning change.
 
 ### Phase 2: Domain Services
 

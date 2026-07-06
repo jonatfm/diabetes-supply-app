@@ -18,6 +18,7 @@ export default function Settings() {
   
   const [isImportDialogVisible, setIsImportDialogVisible] = useState(false);
   const [isImportConfirmDialogVisible, setIsImportConfirmDialogVisible] = useState(false);
+  const [isExportDialogVisible, setIsExportDialogVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
 
@@ -52,7 +53,12 @@ export default function Settings() {
     );
   }, [newDotColor, createColoredDotM]);
 
+  const handleExportPress = useCallback(() => {
+    setIsExportDialogVisible(true);
+  }, []);
+
   const handleExport = useCallback(async () => {
+    setIsExportDialogVisible(false);
     try {
       await exportMutation.mutateAsync();
       setSnackbarError(false);
@@ -341,7 +347,7 @@ export default function Settings() {
             <Button 
               mode="contained" 
               icon="export" 
-              onPress={handleExport}
+              onPress={handleExportPress}
               loading={exportMutation.isPending}
               disabled={exportMutation.isPending}
               style={{ marginBottom: 16 }}
@@ -439,6 +445,31 @@ export default function Settings() {
       </ScrollView>
 
       <Portal>
+        <Dialog visible={isExportDialogVisible} onDismiss={() => setIsExportDialogVisible(false)}>
+          <Dialog.Icon icon="shield-alert" color={theme.colors.error} />
+          <Dialog.Title style={{ textAlign: 'center' }}>Export Unencrypted Backup?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+              The backup file is plain JSON. It can include product names, images, inventory history, settings, and trip plans.
+            </Text>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', color: theme.colors.error }}>
+              Store it somewhere private.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setIsExportDialogVisible(false)}>Cancel</Button>
+            <Button
+              mode="contained"
+              icon="export"
+              onPress={handleExport}
+              loading={exportMutation.isPending}
+              disabled={exportMutation.isPending}
+            >
+              Export
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
         {/* First Import Warning Dialog */}
         <Dialog visible={isImportDialogVisible} onDismiss={() => setIsImportDialogVisible(false)}>
           <Dialog.Icon icon="alert-circle" color={theme.colors.error} />
