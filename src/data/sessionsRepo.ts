@@ -56,7 +56,7 @@ export function sessionsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & 
       const sessionForPack = await db.select().from(sessions).where(
         eq(sessions.packId, packId)
       );
-      return sessionForPack[0] || null;
+      return sessionForPack.find((session) => !session.meta?.undone) || null;
     },
 
     async getSessionOutcomeStatsByProduct(productId: string) {
@@ -71,7 +71,7 @@ export function sessionsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & 
         "lost": 0,
         "unknown": 0,
       };
-      sessionsList.forEach((session) => {
+      sessionsList.filter((session) => !session.meta?.undone).forEach((session) => {
         if (session.outcome && session.outcome in stats) {
           stats[session.outcome as SessionOutcome]++;
         }

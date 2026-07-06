@@ -71,6 +71,14 @@ const sessionStatusColors: Record<string, string> = {
   unknown: "#BDBDBD",        // lighter neutral / placeholder (Grey 400)
 };
 
+function getUndoneEventIds(events: { type: string; relatedEventId: string | null }[]) {
+  return new Set(
+    events
+      .filter((event) => event.type === "UNDO" && event.relatedEventId)
+      .map((event) => event.relatedEventId as string)
+  );
+}
+
 export default function ProductPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { db, ready: dbReady } = useDatabase();
@@ -185,7 +193,10 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (productHistoryQ.data && productHistoryQ.data.length > 0) {
-      const lastTakeEvent = productHistoryQ.data.find(event => event.type === "TAKE");
+      const undoneEventIds = getUndoneEventIds(productHistoryQ.data);
+      const lastTakeEvent = productHistoryQ.data.find(
+        event => event.type === "TAKE" && !undoneEventIds.has(event.id)
+      );
       if (lastTakeEvent?.packId) {
         setLastConsumedPackId(lastTakeEvent.packId);
       } else {

@@ -20,6 +20,14 @@ export interface TakeEventStatistics {
   periodInDays?: number;
 }
 
+function getUndoneEventIds(events: { type: string; relatedEventId: string | null }[]) {
+  return new Set(
+    events
+      .filter((event) => event.type === "UNDO" && event.relatedEventId)
+      .map((event) => event.relatedEventId as string)
+  );
+}
+
 export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$client: SQLiteDatabase;})) {
   return {
     /**
@@ -41,18 +49,21 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
           startedAt: sessions.startedAt,
           endedAt: sessions.endedAt,
           outcome: sessions.outcome,
+          meta: sessions.meta,
         })
         .from(sessions)
         .where(and(...conditions, isNotNull(sessions.endedAt)))
         .orderBy(desc(sessions.startedAt));
 
-      if (completedSessions.length === 0) {
+      const auditableSessions = completedSessions.filter((session) => !session.meta?.undone);
+
+      if (auditableSessions.length === 0) {
         return null;
       }
 
       // Calculate average session duration
       const sessionDurations: number[] = [];
-      for (const session of completedSessions) {
+      for (const session of auditableSessions) {
         if (session.endedAt && session.startedAt) {
           const duration = session.endedAt - session.startedAt;
           sessionDurations.push(duration);
@@ -65,17 +76,9 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
 
       // Calculate average time between sessions (from end of one session to start of next)
       const timeBetweenSessions: number[] = [];
-      for (let i = 0; i < completedSessions.length - 1; i++) {
-        const currentSessionEnd = completedSessions[i].endedAt!;
-        const nextSessionStart = completedSessions[i + 1].startedAt;
-        
-        // Sessions are ordered DESC by startedAt, so [i] is more recent than [i+1]
-        // Time between = start of current session - end of previous (older) session
-        // But we need: end of older session to start of newer session
-        // Since [i] is newer and [i+1] is older:
-        // We want: startedAt[i] - endedAt[i+1]
-        const olderSessionEnd = completedSessions[i + 1].endedAt;
-        const newerSessionStart = completedSessions[i].startedAt;
+      for (let i = 0; i < auditableSessions.length - 1; i++) {
+        const olderSessionEnd = auditableSessions[i + 1].endedAt;
+        const newerSessionStart = auditableSessions[i].startedAt;
         
         if (olderSessionEnd) {
           const timeBetween = newerSessionStart - olderSessionEnd;
@@ -98,7 +101,7 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
         averageSessionDurationDays: averageSessionDurationMs / MS_PER_DAY,
         averageTimeBetweenSessionsMs,
         averageTimeBetweenSessionsDays: averageTimeBetweenSessionsMs / MS_PER_DAY,
-        totalCompletedSessions: completedSessions.length,
+        totalCompletedSessions: auditableSessions.length,
         periodInDays,
       };
     },
@@ -108,24 +111,24 @@ export function statisticsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> 
      * Calculates average time between TAKE events, excluding periods with ADJUST events
      */
     async getTakeEventStatistics(productId: string, periodInDays?: number): Promise<TakeEventStatistics | null> {
-      let conditions = [
-        eq(stock_events.productId, productId),
-        eq(stock_events.type, "TAKE")
-      ];
-
-      if (periodInDays) {
-        const cutoffTime = Date.now() - (periodInDays * 24 * 60 * 60 * 1000);
-        conditions.push(gte(stock_events.occurredAt, cutoffTime));
-      }
-
-      const takeEvents = await db
+      const allEvents = await db
         .select({
           id: stock_events.id,
           occurredAt: stock_events.occurredAt,
+          type: stock_events.type,
+          relatedEventId: stock_events.relatedEventId,
         })
         .from(stock_events)
-        .where(and(...conditions))
+        .where(eq(stock_events.productId, productId))
         .orderBy(desc(stock_events.occurredAt));
+
+      const cutoffTime = periodInDays
+        ? Date.now() - (periodInDays * 24 * 60 * 60 * 1000)
+        : null;
+      const undoneEventIds = getUndoneEventIds(allEvents);
+      const takeEvents = allEvents
+        .filter((event) => event.type === "TAKE" && !undoneEventIds.has(event.id))
+        .filter((event) => cutoffTime === null || event.occurredAt >= cutoffTime);
 
       if (takeEvents.length < 2) {
         return null; // Need at least 2 events to calculate an average

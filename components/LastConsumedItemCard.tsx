@@ -11,6 +11,13 @@ import { Card, Icon, Text, useTheme } from "react-native-paper";
 import ColoredDot from "./ColoredDot";
 import DaysProgressBar from "./DaysProgressBar";
 
+function getUndoneEventIds(events: { type: string; relatedEventId: string | null }[]) {
+  return new Set(
+    events
+      .filter((event) => event.type === "UNDO" && event.relatedEventId)
+      .map((event) => event.relatedEventId as string)
+  );
+}
 
 export default function LastConsumedItemCard({ productId, packId }: { productId: string; packId: string }) {
   const theme = useTheme();
@@ -34,8 +41,9 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
 
   useEffect(() => {
     if (productHistoryQ.data && productHistoryQ.data.length > 0) {
+      const undoneEventIds = getUndoneEventIds(productHistoryQ.data);
       const takeEventForPack = productHistoryQ.data.find(
-        event => event.type === "TAKE" && event.packId === packId
+        event => event.type === "TAKE" && event.packId === packId && !undoneEventIds.has(event.id)
       );
       if (takeEventForPack) {
         setLastConsumedAt(new Date(takeEventForPack.occurredAt));

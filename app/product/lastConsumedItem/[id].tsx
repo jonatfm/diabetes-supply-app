@@ -4,19 +4,29 @@ import { useGetStockHistoryByProduct } from "@/src/data/hooks/useGetStockHistory
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-import { Button, Card, Text, useTheme } from "react-native-paper";
+import { Button, Card, Text } from "react-native-paper";
+
+function getUndoneEventIds(events: { type: string; relatedEventId: string | null }[]) {
+  return new Set(
+    events
+      .filter((event) => event.type === "UNDO" && event.relatedEventId)
+      .map((event) => event.relatedEventId as string)
+  );
+}
 
 export default function LastConsumedItemPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const productId = id ?? "";
   const router = useRouter();
-  const theme = useTheme();
 
   const historyQ = useGetStockHistoryByProduct(productId);
-  const takeEvents = useMemo(
-    () => historyQ.data?.filter((event) => event.type === "TAKE" && !!event.packId) ?? [],
-    [historyQ.data]
-  );
+  const takeEvents = useMemo(() => {
+    if (!historyQ.data) return [];
+    const undoneEventIds = getUndoneEventIds(historyQ.data);
+    return historyQ.data.filter(
+      (event) => event.type === "TAKE" && !!event.packId && !undoneEventIds.has(event.id)
+    );
+  }, [historyQ.data]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 

@@ -18,6 +18,11 @@ export function useUndoLastTakeActionFromProduct(productId: string) {
         qc.invalidateQueries({ queryKey: qk.totalUnits(productId) }),
         qc.invalidateQueries({ queryKey: qk.session(productId) }),
         qc.invalidateQueries({ queryKey: qk.sessions() }),
+        qc.invalidateQueries({ queryKey: qk.sessionOutcomeStatsByProduct(productId) }),
+        qc.invalidateQueries({ queryKey: qk.averageTimeBetweenTakes(productId) }),
+        qc.invalidateQueries({ queryKey: qk.takeEventStatistics(productId) }),
+        qc.invalidateQueries({ queryKey: qk.sessionStatistics(productId) }),
+        qc.invalidateQueries({ queryKey: qk.daysUntilOutOfStock(productId) }),
         qc.invalidateQueries({ queryKey: qk.product(productId) }),
         qc.invalidateQueries({ queryKey: qk.identifiers(productId) }),
         // Holiday allocation may have been re-incremented
