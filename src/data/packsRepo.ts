@@ -40,49 +40,52 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
     },
 
     async discardExpiredByProduct(productId: string, nowIso = new Date().toISOString()) {
-      const expiredPacks = await db
-        .select()
-        .from(packs)
-        .where(and(
-          eq(packs.productId, productId),
-          eq(packs.active, true),
-          gt(packs.unitsRemaining, 0),
-          lt(packs.expiry, nowIso),
-        ));
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const expiredPacks = await txDb
+          .select()
+          .from(packs)
+          .where(and(
+            eq(packs.productId, productId),
+            eq(packs.active, true),
+            gt(packs.unitsRemaining, 0),
+            lt(packs.expiry, nowIso),
+          ));
 
-      for (const pack of expiredPacks) {
-        const now = Date.now();
-        await db
-          .update(packs)
-          .set({
-            active: false,
-            unitsRemaining: 0,
-          })
-          .where(eq(packs.id, pack.id));
-
-        await db.insert(stock_events).values({
-          productId,
-          packId: pack.id,
-          type: "DISCARD",
-          deltaUnits: -pack.unitsRemaining,
-          occurredAt: now,
-          createdAt: now,
-          note: "Expired pack discarded via app",
-          meta: {
-            reason: "expired",
-            before: {
-              unitsRemaining: pack.unitsRemaining,
-              expiry: pack.expiry,
-              active: pack.active,
-            },
-            after: {
-              unitsRemaining: 0,
-              expiry: pack.expiry,
+        for (const pack of expiredPacks) {
+          const now = Date.now();
+          await txDb
+            .update(packs)
+            .set({
               active: false,
+              unitsRemaining: 0,
+            })
+            .where(eq(packs.id, pack.id));
+
+          await txDb.insert(stock_events).values({
+            productId,
+            packId: pack.id,
+            type: "DISCARD",
+            deltaUnits: -pack.unitsRemaining,
+            occurredAt: now,
+            createdAt: now,
+            note: "Expired pack discarded via app",
+            meta: {
+              reason: "expired",
+              before: {
+                unitsRemaining: pack.unitsRemaining,
+                expiry: pack.expiry,
+                active: pack.active,
+              },
+              after: {
+                unitsRemaining: 0,
+                expiry: pack.expiry,
+                active: false,
+              },
             },
-          },
-        });
-      }
+          });
+        }
+      });
     },
 
     async addPackWithStockEvent(params: {
@@ -97,47 +100,49 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
       coloredDotIds?: string[];
       rawCode: string;
     }) {
-      const now = params.timestamp ?? Date.now();
-      const [pack] = await db.insert(packs).values({
-        productId: params.productId,
-        expiry: params.expiry,
-        productionDate: params.productionDate,
-        createdAt: now,
-        unitsRemaining: params.units,
-        ais: params.ais ?? null,
-        dateSetManually: params.dateSetManually,
-        rawCode: params.rawCode,
-      }).returning({ id: packs.id });
+      return await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const now = params.timestamp ?? Date.now();
+        const [pack] = await txDb.insert(packs).values({
+          productId: params.productId,
+          expiry: params.expiry,
+          productionDate: params.productionDate,
+          createdAt: now,
+          unitsRemaining: params.units,
+          ais: params.ais ?? null,
+          dateSetManually: params.dateSetManually,
+          rawCode: params.rawCode,
+        }).returning({ id: packs.id });
 
-      await db.insert(stock_events).values({
-        productId: params.productId,
-        packId: pack.id,
-        type: "ADD",
-        deltaUnits: params.units,
-        occurredAt: now,
-        createdAt: now,
-        note: params.note ?? "Via app",
-      });
+        await txDb.insert(stock_events).values({
+          productId: params.productId,
+          packId: pack.id,
+          type: "ADD",
+          deltaUnits: params.units,
+          occurredAt: now,
+          createdAt: now,
+          note: params.note ?? "Via app",
+        });
 
-      // Use provided colored dot IDs if available, otherwise generate new ones
-      if (params.coloredDotIds && params.coloredDotIds.length > 0) {
-        const dotsRepo = coloredDotsRepo(db);
-        await dotsRepo.setAssignmentForPack(pack.id, params.coloredDotIds);
-      } else {
-        // Check if colored dots are enabled for this product and assign if so
-        const dotsEnabled = await appSettingsRepo(db).getByKey<boolean>("coloredDotsEnabled");
-        const product = await db.select().from(products).where(eq(products.id, params.productId)).limit(1);
-        if (dotsEnabled && product.length > 0 && product[0].useColoredDots) {
-          const dotsRepo = coloredDotsRepo(db);
-          const combo = await dotsRepo.generateUniqueCombinationForProduct(params.productId);
-          if (combo && combo.length > 0) {
-            await dotsRepo.setAssignmentForPack(pack.id, combo);
+        // Use provided colored dot IDs if available, otherwise generate new ones.
+        if (params.coloredDotIds && params.coloredDotIds.length > 0) {
+          const dotsRepo = coloredDotsRepo(txDb);
+          await dotsRepo.setAssignmentForPack(pack.id, params.coloredDotIds);
+        } else {
+          const dotsEnabled = await appSettingsRepo(txDb).getByKey<boolean>("coloredDotsEnabled");
+          const product = await txDb.select().from(products).where(eq(products.id, params.productId)).limit(1);
+          if (dotsEnabled && product.length > 0 && product[0].useColoredDots) {
+            const dotsRepo = coloredDotsRepo(txDb);
+            const combo = await dotsRepo.generateUniqueCombinationForProduct(params.productId);
+            if (combo && combo.length > 0) {
+              await dotsRepo.setAssignmentForPack(pack.id, combo);
+            }
           }
         }
-      }
 
 
-      return pack.id;
+        return pack.id;
+      });
     },
 
     async findDuplicatePackByAis(productId: string, ais: Record<string, string>) {
@@ -155,36 +160,40 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
     },
 
     async consumeOneUnit(productId: string, packId: string) {
-      const [p] = await db.select().from(packs).where(eq(packs.id, packId));
-      if (!p) throw new Error("Pack not found");
-      if (p.unitsRemaining <= 0) throw new Error("No units left");
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [p] = await txDb.select().from(packs).where(eq(packs.id, packId));
+        if (!p) throw new Error("Pack not found");
+        if (p.unitsRemaining <= 0) throw new Error("No units left");
 
-      // Check if product is session based
-      const product = await db.select().from(products).where(eq(products.id, productId)).limit(1);
-      if (product.length === 0) throw new Error("Product not found");
+        // Check if product is session based
+        const product = await txDb.select().from(products).where(eq(products.id, productId)).limit(1);
+        if (product.length === 0) throw new Error("Product not found");
 
-      let relatedSessionId: string | null = null;
-      if (product[0].isSessionBased) {
-        // Create a new session
-        relatedSessionId = await sessionsRepo(db).startSession(productId, packId, new Date());
-      }
+        let relatedSessionId: string | null = null;
+        if (product[0].isSessionBased) {
+          // Create a new session
+          relatedSessionId = await sessionsRepo(txDb).startSession(productId, packId, new Date());
+        }
 
-      await db.update(packs).set({ unitsRemaining: p.unitsRemaining - 1 }).where(eq(packs.id, packId));
+        await txDb.update(packs).set({ unitsRemaining: p.unitsRemaining - 1 }).where(eq(packs.id, packId));
 
-      await db.insert(stock_events).values({
-        productId,
-        packId,
-        type: "TAKE",
-        deltaUnits: -1,
-        occurredAt: Date.now(),
-        createdAt: Date.now(),
-        note: "Via app",
-        relatedSessionId,
+        const now = Date.now();
+        await txDb.insert(stock_events).values({
+          productId,
+          packId,
+          type: "TAKE",
+          deltaUnits: -1,
+          occurredAt: now,
+          createdAt: now,
+          note: "Via app",
+          relatedSessionId,
+        });
+
+        // If there is an active holiday with this pack allocated, decrement the
+        // holiday allocation so the remaining count stays accurate.
+        await holidayRepo(txDb).decrementHolidayPackUnit(packId);
       });
-
-      // If there is an active holiday with this pack allocated, decrement the
-      // holiday allocation so the remaining count stays accurate.
-      await holidayRepo(db).decrementHolidayPackUnit(packId);
     },
 
     async manualDataUpdate(changes: ChangesFormat) {
