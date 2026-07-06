@@ -43,10 +43,24 @@ export function productRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       }).returning({id: products.id});
     },
 
-    async updateProduct(productId: string, params: { name?: string; imageUri?: string | null; useColoredDots?: boolean; }) {
+    async updateProduct(productId: string, params: {
+      name?: string;
+      imageUri?: string | null;
+      unitsPerPackDefault?: number;
+      active?: boolean;
+      canHaveExpiry?: boolean;
+      isSessionBased?: boolean;
+      nominalSessionTimeDays?: number | null;
+      useColoredDots?: boolean;
+    }) {
       const updateValues: Partial<Product> & { useColoredDots?: boolean } = {};
       if (typeof params.name === 'string') updateValues.name = params.name;
       if (params.imageUri !== undefined) updateValues.imageUri = params.imageUri ?? null;
+      if (typeof params.unitsPerPackDefault === 'number') updateValues.unitsPerPackDefault = params.unitsPerPackDefault;
+      if (typeof params.active === 'boolean') updateValues.active = params.active;
+      if (typeof params.canHaveExpiry === 'boolean') updateValues.canHaveExpiry = params.canHaveExpiry;
+      if (typeof params.isSessionBased === 'boolean') updateValues.isSessionBased = params.isSessionBased;
+      if (params.nominalSessionTimeDays !== undefined) updateValues.nominalSessionTimeDays = params.nominalSessionTimeDays;
       if (typeof params.useColoredDots === 'boolean') updateValues.useColoredDots = params.useColoredDots;
 
       if (Object.keys(updateValues).length === 0) return;

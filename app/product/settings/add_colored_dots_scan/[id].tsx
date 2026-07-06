@@ -31,12 +31,27 @@ type ScanParams = {
   id: string;
   returnName?: string;
   returnImageUri?: string;
+  returnUnitsPerPack?: string;
+  returnActive?: string;
+  returnCanHaveExpiry?: string;
+  returnIsSessionBased?: string;
+  returnNominalSessionTimeDays?: string;
   returnUseColoredDots?: string;
 };
 
 export default function AddColoredDotsByScanning() {
   const params = useLocalSearchParams<ScanParams>();
-  const { id: productId, returnName, returnImageUri, returnUseColoredDots } = params;
+  const {
+    id: productId,
+    returnName,
+    returnImageUri,
+    returnUnitsPerPack,
+    returnActive,
+    returnCanHaveExpiry,
+    returnIsSessionBased,
+    returnNominalSessionTimeDays,
+    returnUseColoredDots,
+  } = params;
   const cameraRef = useRef<CameraView>(null);
   const router = useRouter();
   const theme = useTheme();
@@ -62,6 +77,11 @@ export default function AddColoredDotsByScanning() {
         id: productId,
         name: returnName ?? '',
         photoUri: returnImageUri ?? '',
+        unitsPerPack: returnUnitsPerPack ?? '',
+        active: returnActive ?? '',
+        canHaveExpiry: returnCanHaveExpiry ?? '',
+        isSessionBased: returnIsSessionBased ?? '',
+        nominalSessionTimeDays: returnNominalSessionTimeDays ?? '',
         useColoredDotsForProduct: returnUseColoredDots ?? '',
       }
     });
@@ -326,7 +346,7 @@ export default function AddColoredDotsByScanning() {
                   No Matching Pack Found
                 </Text>
                 <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onSurfaceVariant }}>
-                  This barcode doesn't match any pack in your inventory for this product. Make sure the pack has been added first.
+                  This barcode does not match any pack in your inventory for this product. Make sure the pack has been added first.
                 </Text>
                 <Button mode="contained" onPress={closeModal}>
                   Scan Another

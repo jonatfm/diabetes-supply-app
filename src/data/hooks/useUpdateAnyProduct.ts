@@ -14,6 +14,11 @@ export function useUpdateAnyProduct() {
       productId: string;
       name?: string; 
       imageUri?: string | null; 
+      unitsPerPackDefault?: number;
+      active?: boolean;
+      canHaveExpiry?: boolean;
+      isSessionBased?: boolean;
+      nominalSessionTimeDays?: number | null;
       useColoredDots?: boolean; 
       requiredForHoliday?: boolean 
     }) => {

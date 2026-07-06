@@ -928,6 +928,8 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for `src/data/holidayRepo.ts`. `git diff --check` passed after the holiday transaction/allocation change.
 - Done: Fixed GS1 parser date validation to accept day `00`, allowing expiry dates such as `YYMM00` to flow into the existing expiry normalizer where they become the last day of the month.
 - Verified: Focused ESLint passed for `scripts/gs1.ts` and `src/utils/dateUtils.ts`. `git diff --check` passed after the parser fix.
+- Done: Added editable product defaults to the product settings screen: default units per pack, active/archive status, expiry behavior, session-based behavior, nominal session length, photo, name, and colored-dot use. Photo capture and colored-dot scan return flows now preserve these unsaved settings parameters.
+- Verified: Focused ESLint passed for the changed product-settings, photo-return, product repo, and update-hook files with only pre-existing unused-variable warnings. `git diff --check` passed after the product settings update.
 
 ### Phase 2: Domain Services
 

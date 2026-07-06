@@ -10,7 +10,16 @@ export function useUpdateProduct(productId: string) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { name?: string; imageUri?: string | null; useColoredDots?: boolean; requiredForHoliday?: boolean }) => {
+    mutationFn: async (params: {
+      name?: string;
+      imageUri?: string | null;
+      unitsPerPackDefault?: number;
+      active?: boolean;
+      canHaveExpiry?: boolean;
+      isSessionBased?: boolean;
+      nominalSessionTimeDays?: number | null;
+      useColoredDots?: boolean;
+    }) => {
       if (!repo) throw new Error("Database not ready");
       await repo.updateProduct(productId, params);
     },

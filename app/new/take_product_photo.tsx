@@ -54,7 +54,17 @@ async function normalizeImageOrientation(uri: string): Promise<string> {
 export default function TakeProductPhoto() {
   const router = useRouter();
   const theme = useTheme();
-  const params = useLocalSearchParams<{ name?: string; unitsPerPack?: string; isSessionBased?: string; nominalSessionTimeDays?: string; useColoredDotsForProduct?: string; returnTo?: string; id?: string }>();
+  const params = useLocalSearchParams<{
+    name?: string;
+    unitsPerPack?: string;
+    active?: string;
+    canHaveExpiry?: string;
+    isSessionBased?: string;
+    nominalSessionTimeDays?: string;
+    useColoredDotsForProduct?: string;
+    returnTo?: string;
+    id?: string;
+  }>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -124,6 +134,8 @@ export default function TakeProductPhoto() {
               id: params.id ?? '',
               name: params.name ?? '',
               unitsPerPack: params.unitsPerPack ?? '',
+              active: params.active ?? '',
+              canHaveExpiry: params.canHaveExpiry ?? '',
               isSessionBased: params.isSessionBased ?? '',
               nominalSessionTimeDays: params.nominalSessionTimeDays ?? '',
               useColoredDotsForProduct: params.useColoredDotsForProduct ?? '',
