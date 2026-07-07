@@ -90,10 +90,11 @@ function GoogleDriveAutoBackup() {
     async function runBackupIfDue() {
       const settings = appSettingsRepo(activeDb);
       const accessToken = await settings.getByKey<string>("googleDriveAccessToken");
+      const refreshToken = await settings.getByKey<string>("googleDriveRefreshToken");
       const frequency = await settings.getByKey<GoogleDriveBackupFrequency>("googleDriveBackupFrequency");
       const lastBackupAt = await settings.getByKey<number>("googleDriveLastBackupAt");
 
-      if (!accessToken?.trim() || !shouldRunGoogleDriveBackup({ frequency, lastBackupAt })) {
+      if ((!accessToken?.trim() && !refreshToken?.trim()) || !shouldRunGoogleDriveBackup({ frequency, lastBackupAt })) {
         return;
       }
 
@@ -102,7 +103,6 @@ function GoogleDriveAutoBackup() {
 
       await performGoogleDriveBackup({
         db: activeDb,
-        accessToken,
         folderId,
         retentionCount: retentionCount ?? 5,
       });

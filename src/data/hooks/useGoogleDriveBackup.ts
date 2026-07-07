@@ -4,34 +4,27 @@ import { File, Paths } from "expo-file-system";
 import { buildDatabaseExportData } from "./useExportDatabase";
 import { restoreImportFromFile } from "./useImportDatabase";
 import { downloadGoogleDriveBackup, listGoogleDriveBackups, pruneGoogleDriveBackups, uploadBackupToGoogleDrive } from "@/src/services/googleDriveBackupService";
+import { getFreshGoogleDriveAccessToken } from "@/src/services/googleDriveOAuthService";
 
 export type GoogleDriveBackupFrequency = "manual" | "daily" | "weekly" | "monthly";
 
-function requireAccessToken(accessToken: string | null | undefined) {
-  const token = accessToken?.trim();
-  if (!token) {
-    throw new Error("Google Drive access token is required.");
-  }
-
-  return token;
-}
-
 export async function performGoogleDriveBackup(params: {
   db: NonNullable<ReturnType<typeof useDatabase>["db"]>;
-  accessToken: string;
+  accessToken?: string | null;
   folderId?: string | null;
   retentionCount?: number | null;
 }) {
+  const accessToken = params.accessToken?.trim() || await getFreshGoogleDriveAccessToken(params.db);
   const data = await buildDatabaseExportData(params.db);
   const uploaded = await uploadBackupToGoogleDrive({
-    accessToken: params.accessToken,
+    accessToken,
     fileName: `diabetes-supply-backup-${Date.now()}.json`,
     data,
     folderId: params.folderId,
   });
   const pruned = params.retentionCount
     ? await pruneGoogleDriveBackups({
-      accessToken: params.accessToken,
+      accessToken,
       folderId: params.folderId,
       keepCount: params.retentionCount,
     })
@@ -60,11 +53,13 @@ export function shouldRunGoogleDriveBackup(params: {
   return !params.lastBackupAt || now - params.lastBackupAt >= intervalMs;
 }
 
-export function useGoogleDriveBackups(accessToken: string | null | undefined, folderId?: string | null) {
+export function useGoogleDriveBackups(accessToken: string | null | undefined, folderId?: string | null, refreshToken?: string | null) {
+  const { db, ready } = useDatabase();
+
   return useQuery({
-    queryKey: ["googleDriveBackups", accessToken ? "configured" : "missing", folderId ?? "root"],
-    enabled: !!accessToken?.trim(),
-    queryFn: () => listGoogleDriveBackups(requireAccessToken(accessToken), folderId),
+    queryKey: ["googleDriveBackups", accessToken || refreshToken ? "configured" : "missing", folderId ?? "root"],
+    enabled: ready && !!db && (!!accessToken?.trim() || !!refreshToken?.trim()),
+    queryFn: async () => listGoogleDriveBackups(await getFreshGoogleDriveAccessToken(db!), folderId),
   });
 }
 
@@ -81,10 +76,9 @@ export function useUploadGoogleDriveBackup(
         throw new Error("Database not ready");
       }
 
-      const token = requireAccessToken(accessToken);
       return performGoogleDriveBackup({
         db,
-        accessToken: token,
+        accessToken,
         folderId,
         retentionCount,
       });
@@ -92,7 +86,7 @@ export function useUploadGoogleDriveBackup(
   });
 }
 
-export function useRestoreLatestGoogleDriveBackup(accessToken: string | null | undefined, folderId?: string | null) {
+export function useRestoreLatestGoogleDriveBackup(accessToken: string | null | undefined, folderId?: string | null, refreshToken?: string | null) {
   const { db, ready } = useDatabase();
   const queryClient = useQueryClient();
 
@@ -102,7 +96,7 @@ export function useRestoreLatestGoogleDriveBackup(accessToken: string | null | u
         throw new Error("Database not ready");
       }
 
-      const token = requireAccessToken(accessToken);
+      const token = await getFreshGoogleDriveAccessToken(db);
       const backups = await listGoogleDriveBackups(token, folderId);
       const latest = backups[0];
       if (!latest) {

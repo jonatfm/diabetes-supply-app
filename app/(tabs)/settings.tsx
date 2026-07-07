@@ -1,5 +1,6 @@
 import AppWrapper from '@/components/AppWrapper';
 import NumberInput from '@/components/NumberInput';
+import { useDatabase } from '@/db';
 import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
@@ -8,6 +9,9 @@ import { GoogleDriveBackupFrequency, useGoogleDriveBackups, useRestoreLatestGoog
 import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
 import { useRefreshNotifications } from '@/src/data/hooks/useRefreshNotifications';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
+import { qk } from '@/src/data/queryKeys';
+import { connectGoogleDriveOAuth, disconnectGoogleDriveOAuth, getGoogleDriveOAuthRedirectUri, refreshGoogleDriveAccessToken } from '@/src/services/googleDriveOAuthService';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
@@ -15,6 +19,8 @@ import ColoredDot from '../../components/ColoredDot';
 
 export default function Settings() {
   const theme = useTheme();
+  const { db, ready: dbReady } = useDatabase();
+  const queryClient = useQueryClient();
   const exportMutation = useExportDatabase();
   const importPreviewMutation = usePreviewImportDatabase();
   const importConfirmMutation = useConfirmImportDatabase();
@@ -25,6 +31,8 @@ export default function Settings() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
+  const [googleDriveClientIdInput, setGoogleDriveClientIdInput] = useState('');
+  const [googleDriveRedirectUriInput, setGoogleDriveRedirectUriInput] = useState(getGoogleDriveOAuthRedirectUri());
   const [googleDriveAccessTokenInput, setGoogleDriveAccessTokenInput] = useState('');
   const [googleDriveFolderIdInput, setGoogleDriveFolderIdInput] = useState('');
   const [googleDriveRetentionInput, setGoogleDriveRetentionInput] = useState<number | null>(5);
@@ -39,16 +47,21 @@ export default function Settings() {
   const runningOutWarningEnabledSetting = useAppSetting<boolean>("runningOutWarningEnabled").data;
   const runningOutDaysSetting = useAppSetting<number|null>("runningOutDays").data;
   const googleDriveAccessTokenSetting = useAppSetting<string>("googleDriveAccessToken").data;
+  const googleDriveRefreshTokenSetting = useAppSetting<string>("googleDriveRefreshToken").data;
+  const googleDriveAccessTokenExpiresAtSetting = useAppSetting<number | null>("googleDriveAccessTokenExpiresAt").data;
+  const googleDriveOAuthClientIdSetting = useAppSetting<string>("googleDriveOAuthClientId").data;
+  const googleDriveOAuthRedirectUriSetting = useAppSetting<string>("googleDriveOAuthRedirectUri").data;
   const googleDriveFolderIdSetting = useAppSetting<string>("googleDriveFolderId").data;
   const googleDriveBackupFrequencySetting = useAppSetting<GoogleDriveBackupFrequency>("googleDriveBackupFrequency").data ?? "manual";
   const googleDriveBackupRetentionCountSetting = useAppSetting<number>("googleDriveBackupRetentionCount").data ?? 5;
-  const googleDriveBackupsQ = useGoogleDriveBackups(googleDriveAccessTokenSetting, googleDriveFolderIdSetting);
+  const googleDriveBackupsQ = useGoogleDriveBackups(googleDriveAccessTokenSetting, googleDriveFolderIdSetting, googleDriveRefreshTokenSetting);
   const uploadGoogleDriveBackupM = useUploadGoogleDriveBackup(
     googleDriveAccessTokenSetting,
     googleDriveFolderIdSetting,
     googleDriveBackupRetentionCountSetting,
   );
-  const restoreLatestGoogleDriveBackupM = useRestoreLatestGoogleDriveBackup(googleDriveAccessTokenSetting, googleDriveFolderIdSetting);
+  const restoreLatestGoogleDriveBackupM = useRestoreLatestGoogleDriveBackup(googleDriveAccessTokenSetting, googleDriveFolderIdSetting, googleDriveRefreshTokenSetting);
+  const hasGoogleDriveCredentials = !!googleDriveAccessTokenSetting?.trim() || !!googleDriveRefreshTokenSetting?.trim();
   // Colored dots
   const coloredDotsEnabledSetting = useAppSetting<boolean>('coloredDotsEnabled').data;
   const coloredDots = useColoredDots({includeInactive: true}).data;
@@ -59,10 +72,23 @@ export default function Settings() {
   const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
 
   useEffect(() => {
+    setGoogleDriveClientIdInput(googleDriveOAuthClientIdSetting ?? '');
+    setGoogleDriveRedirectUriInput(googleDriveOAuthRedirectUriSetting ?? getGoogleDriveOAuthRedirectUri());
     setGoogleDriveAccessTokenInput(googleDriveAccessTokenSetting ?? '');
     setGoogleDriveFolderIdInput(googleDriveFolderIdSetting ?? '');
     setGoogleDriveRetentionInput(googleDriveBackupRetentionCountSetting);
-  }, [googleDriveAccessTokenSetting, googleDriveBackupRetentionCountSetting, googleDriveFolderIdSetting]);
+  }, [googleDriveAccessTokenSetting, googleDriveBackupRetentionCountSetting, googleDriveFolderIdSetting, googleDriveOAuthClientIdSetting, googleDriveOAuthRedirectUriSetting]);
+
+  const refreshGoogleDriveSettingsQueries = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.appSetting("googleDriveAccessToken") }),
+      queryClient.invalidateQueries({ queryKey: qk.appSetting("googleDriveRefreshToken") }),
+      queryClient.invalidateQueries({ queryKey: qk.appSetting("googleDriveAccessTokenExpiresAt") }),
+      queryClient.invalidateQueries({ queryKey: qk.appSetting("googleDriveOAuthClientId") }),
+      queryClient.invalidateQueries({ queryKey: qk.appSetting("googleDriveOAuthRedirectUri") }),
+      queryClient.invalidateQueries({ queryKey: ["googleDriveBackups"] }),
+    ]);
+  }, [queryClient]);
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
@@ -147,6 +173,14 @@ export default function Settings() {
     try {
       await Promise.all([
         upsertAppSetting.mutateAsync({
+          key: "googleDriveOAuthClientId",
+          value: googleDriveClientIdInput.trim(),
+        }),
+        upsertAppSetting.mutateAsync({
+          key: "googleDriveOAuthRedirectUri",
+          value: googleDriveRedirectUriInput.trim(),
+        }),
+        upsertAppSetting.mutateAsync({
           key: "googleDriveAccessToken",
           value: googleDriveAccessTokenInput.trim(),
         }),
@@ -165,7 +199,69 @@ export default function Settings() {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : 'Failed to save Google Drive settings');
     }
-  }, [googleDriveAccessTokenInput, googleDriveFolderIdInput, googleDriveRetentionInput, upsertAppSetting]);
+  }, [googleDriveAccessTokenInput, googleDriveClientIdInput, googleDriveFolderIdInput, googleDriveRedirectUriInput, googleDriveRetentionInput, upsertAppSetting]);
+
+  const handleConnectGoogleDrive = useCallback(async () => {
+    if (!db || !dbReady) {
+      setSnackbarError(true);
+      setSnackbarMessage('Database not ready');
+      return;
+    }
+
+    try {
+      await connectGoogleDriveOAuth({
+        db,
+        clientId: googleDriveClientIdInput,
+        redirectUri: googleDriveRedirectUriInput,
+      });
+      await refreshGoogleDriveSettingsQueries();
+      setSnackbarError(false);
+      setSnackbarMessage('Google Drive connected. Refresh token stored locally.');
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive sign-in failed');
+    }
+  }, [db, dbReady, googleDriveClientIdInput, googleDriveRedirectUriInput, refreshGoogleDriveSettingsQueries]);
+
+  const handleRefreshGoogleDriveToken = useCallback(async () => {
+    if (!db || !dbReady) {
+      setSnackbarError(true);
+      setSnackbarMessage('Database not ready');
+      return;
+    }
+
+    try {
+      await refreshGoogleDriveAccessToken({
+        db,
+        clientId: googleDriveClientIdInput,
+        refreshToken: googleDriveRefreshTokenSetting,
+      });
+      await refreshGoogleDriveSettingsQueries();
+      setSnackbarError(false);
+      setSnackbarMessage('Google Drive access token refreshed.');
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive token refresh failed');
+    }
+  }, [db, dbReady, googleDriveClientIdInput, googleDriveRefreshTokenSetting, refreshGoogleDriveSettingsQueries]);
+
+  const handleDisconnectGoogleDrive = useCallback(async () => {
+    if (!db || !dbReady) {
+      setSnackbarError(true);
+      setSnackbarMessage('Database not ready');
+      return;
+    }
+
+    try {
+      await disconnectGoogleDriveOAuth(db);
+      await refreshGoogleDriveSettingsQueries();
+      setSnackbarError(false);
+      setSnackbarMessage('Google Drive disconnected locally.');
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive disconnect failed');
+    }
+  }, [db, dbReady, refreshGoogleDriveSettingsQueries]);
 
   const handleUploadGoogleDriveBackup = useCallback(async () => {
     try {
@@ -441,7 +537,65 @@ export default function Settings() {
             </View>
 
             <TextInput
-              label="Google Drive access token"
+              label="Google OAuth client ID"
+              value={googleDriveClientIdInput}
+              onChangeText={setGoogleDriveClientIdInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Required for Google sign-in"
+            />
+            <TextInput
+              label="OAuth redirect URI"
+              value={googleDriveRedirectUriInput}
+              onChangeText={setGoogleDriveRedirectUriInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              Add this redirect URI to your Google OAuth client. The app requests Drive file access with offline access so Google can return a refresh token.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="contained"
+                icon="login"
+                onPress={handleConnectGoogleDrive}
+                disabled={!googleDriveClientIdInput.trim() || !dbReady}
+              >
+                Connect Google Drive
+              </Button>
+              <Button
+                mode="outlined"
+                icon="refresh"
+                onPress={handleRefreshGoogleDriveToken}
+                disabled={!googleDriveRefreshTokenSetting || !dbReady}
+              >
+                Refresh Token
+              </Button>
+              <Button
+                mode="outlined"
+                icon="logout"
+                onPress={handleDisconnectGoogleDrive}
+                disabled={(!googleDriveRefreshTokenSetting && !googleDriveAccessTokenSetting) || !dbReady}
+              >
+                Disconnect
+              </Button>
+            </View>
+            {(googleDriveRefreshTokenSetting || googleDriveAccessTokenSetting) ? (
+              <View style={{ gap: 2 }}>
+                <Text variant="labelLarge">Drive status: connected</Text>
+                {googleDriveAccessTokenExpiresAtSetting ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                    Access token expires {new Date(googleDriveAccessTokenExpiresAtSetting).toLocaleString()}
+                  </Text>
+                ) : (
+                  <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                    Access token expiry is unknown. OAuth refresh will update it after the next refresh.
+                  </Text>
+                )}
+              </View>
+            ) : null}
+            <TextInput
+              label="Google Drive access token (advanced fallback)"
               value={googleDriveAccessTokenInput}
               onChangeText={setGoogleDriveAccessTokenInput}
               secureTextEntry
@@ -449,10 +603,7 @@ export default function Settings() {
               autoCorrect={false}
             />
             <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
-              Use a token with Google Drive file access. It is stored locally in app settings and backups uploaded to Drive are not encrypted yet.
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
-              Temporary setup: create an OAuth access token for the `https://www.googleapis.com/auth/drive.file` scope, then paste it here. Access tokens expire; full Google sign-in with refresh tokens is still a follow-up.
+              Optional manual fallback for a token with Google Drive file access. OAuth refresh tokens are preferred because access tokens expire.
             </Text>
             <TextInput
               label="Google Drive folder ID"
@@ -499,7 +650,7 @@ export default function Settings() {
                 mode="contained"
                 icon="cloud-upload"
                 onPress={handleUploadGoogleDriveBackup}
-                disabled={!googleDriveAccessTokenSetting || uploadGoogleDriveBackupM.isPending}
+                disabled={!hasGoogleDriveCredentials || uploadGoogleDriveBackupM.isPending}
                 loading={uploadGoogleDriveBackupM.isPending}
               >
                 Upload Backup
@@ -508,7 +659,7 @@ export default function Settings() {
                 mode="outlined"
                 icon="refresh"
                 onPress={() => googleDriveBackupsQ.refetch()}
-                disabled={!googleDriveAccessTokenSetting || googleDriveBackupsQ.isFetching}
+                disabled={!hasGoogleDriveCredentials || googleDriveBackupsQ.isFetching}
                 loading={googleDriveBackupsQ.isFetching}
               >
                 Check Drive
@@ -518,7 +669,7 @@ export default function Settings() {
                 icon="cloud-download"
                 textColor={theme.colors.error}
                 onPress={() => setIsDriveRestoreDialogVisible(true)}
-                disabled={!googleDriveAccessTokenSetting || restoreLatestGoogleDriveBackupM.isPending}
+                disabled={!hasGoogleDriveCredentials || restoreLatestGoogleDriveBackupM.isPending}
                 loading={restoreLatestGoogleDriveBackupM.isPending}
               >
                 Restore Latest

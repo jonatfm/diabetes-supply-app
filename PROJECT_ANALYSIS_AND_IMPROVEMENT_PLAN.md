@@ -980,6 +980,8 @@ Updated: 2026-07-07
 - Known follow-up: Google Drive OAuth consent/client configuration is still external to the app. The current implementation is access-token driven so no Google client ID is hardcoded and the feature remains configurable.
 - Done: Cleaned up the product detail page by keeping the product summary/actions visible and splitting secondary detail into Overview, Packs, Insights, and History tabs.
 - Verified: `npm run typecheck` passed after the product detail cleanup.
+- Done: Added full configurable Google Drive OAuth support using AuthSession PKCE authorization-code flow, offline access, locally stored refresh tokens, manual refresh/disconnect controls, and automatic token refresh for Drive list/upload/restore/startup backup operations.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive OAuth refresh-token slice.
 
 ### Phase 2: Domain Services
 
