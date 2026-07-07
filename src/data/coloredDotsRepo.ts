@@ -1,4 +1,5 @@
 import { ColoredDot, ColoredDotAssignment, coloredDotAssignments, coloredDots, packs } from "@/db/schema";
+import { canonicalDotCombinationKey, generateUniqueDotCombination } from "@/src/domain/coloredDotCombinationService";
 import { eq, inArray } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
@@ -68,90 +69,20 @@ export function coloredDotsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>>
       const colorIds = colors.map((c) => c.id);
       if (colorIds.length === 0) return [];
 
-      const productPacks = await db.select({ id: packs.id }).from(packs).where(eq(packs.productId, productId));
-      const packIds = productPacks.map((p) => p.id);
+      const assignments = await db
+        .select({ dotIds: coloredDotAssignments.dotIds })
+        .from(coloredDotAssignments)
+        .innerJoin(packs, eq(coloredDotAssignments.packId, packs.id))
+        .where(eq(packs.productId, productId));
 
-      // Collect existing combinations under the product as canonical keys
-      const used = new Set<string>();
-      for (const pid of packIds) {
-        const a = await db
-          .select({ dotIds: coloredDotAssignments.dotIds })
-          .from(coloredDotAssignments)
-          .where(eq(coloredDotAssignments.packId, pid));
-        if (a.length && Array.isArray(a[0].dotIds)) {
-          const key = (a[0].dotIds as string[]).slice().sort().join(",");
-          if (key.length > 0) used.add(key);
+      const usedKeys = new Set<string>();
+      for (const assignment of assignments) {
+        if (Array.isArray(assignment.dotIds) && assignment.dotIds.length > 0) {
+          usedKeys.add(canonicalDotCombinationKey(assignment.dotIds as string[]));
         }
       }
 
-      // Helper to shuffle array in-place
-      const shuffle = <T,>(arr: T[]): T[] => {
-        for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        return arr;
-      };
-
-      // Try size 1 first
-      {
-        const single = shuffle([...colorIds]);
-        for (const id of single) {
-          const key = id;
-          if (!used.has(key)) return [id];
-        }
-      }
-
-      // If all singles are used, try increasing sizes starting from 2 (without repetition)
-      for (let size = 2; size <= colorIds.length; size++) {
-        const ids = [...colorIds];
-        // Generate all combinations of given size
-        const combos: string[][] = [];
-        const backtrack = (start: number, path: string[]) => {
-          if (path.length === size) {
-            combos.push([...path]);
-            return;
-          }
-          for (let i = start; i < ids.length; i++) {
-            path.push(ids[i]);
-            backtrack(i + 1, path);
-            path.pop();
-          }
-        };
-        backtrack(0, []);
-        shuffle(combos);
-
-        for (const combo of combos) {
-          const key = combo.slice().sort().join(",");
-          if (!used.has(key)) return combo;
-        }
-      }
-
-      // If all unique combinations are exhausted, try combinations with repetition
-      for (let size = 1; size <= colorIds.length + 1; size++) {
-        const combos: string[][] = [];
-        const backtrackWithRepetition = (path: string[]) => {
-          if (path.length === size) {
-            combos.push([...path]);
-            return;
-          }
-          for (const id of colorIds) {
-            path.push(id);
-            backtrackWithRepetition(path);
-            path.pop();
-          }
-        };
-        backtrackWithRepetition([]);
-        shuffle(combos);
-
-        for (const combo of combos) {
-          const key = combo.slice().sort().join(",");
-          if (!used.has(key)) return combo;
-        }
-      }
-
-      // No available combination found
-      return null;
+      return generateUniqueDotCombination({ dotIds: colorIds, usedKeys });
     },
   };
 }

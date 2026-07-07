@@ -4,7 +4,6 @@ import LastConsumedItemCard from "@/components/LastConsumedItemCard";
 import { useDatabase } from "@/db";
 import { SESSION_OUTCOMES } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
-import { holidayRepo } from "@/src/data/holidayRepo";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useConsumeOneUnit } from "@/src/data/hooks/useConsumeOneUnit";
 import { useDaysUntilOutOfStock } from "@/src/data/hooks/useDaysUntilOutOfStock";
@@ -22,7 +21,8 @@ import { useSessionStatistics } from "@/src/data/hooks/useSessionStatistics";
 import { useTakeEventStatistics } from "@/src/data/hooks/useTakeEventStatistics";
 import { useTotalUnitsByProduct } from "@/src/data/hooks/useTotalUnitsByProduct";
 import { useUndoLastTakeActionFromProduct } from "@/src/data/hooks/useUndoLastTakeActionFromProduct";
-import { choosePackForConsumption, ConsumeSortPreference } from "@/src/domain/inventoryService";
+import { ConsumeSortPreference } from "@/src/domain/inventoryService";
+import { buildConsumptionDialogPackInfo, ConsumptionDialogPackInfo } from "@/src/services/productConsumptionService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
@@ -53,17 +53,7 @@ function formatRelativeTime(date: Date | number, nowMs: number): string {
   return `${diffYear}y ago`;
 }
 
-type ConsumtionDialogInfo = {
-  expiryDate: Date | null;
-  identifier: string;
-  identifierType: "Serial" | "Code";
-  unitsLeftInPack: number;
-  packId: string;
-  coloredDotIds?: string[];
-  unitsOnHoliday?: number;
-}
-
-type ProductView = "overview" | "packs" | "insights" | "history";
+type ConsumtionDialogInfo = ConsumptionDialogPackInfo;
 
 const sessionStatusColors: Record<string, string> = {
   completed: "#81C784",      // green
@@ -91,7 +81,6 @@ export default function ProductPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [isDiscardDialogVisible, setIsDiscardDialogVisible] = useState<boolean>(false);
   const [lastConsumedPackId, setLastConsumedPackId] = useState<string | null>(null);
-  const [productView, setProductView] = useState<ProductView>("overview");
   const packsQ = usePacks(id);
   const productQ = useProduct(id);
   const productIdentifiersQ = useProductIdentifiers(id);
@@ -255,49 +244,18 @@ export default function ProductPage() {
 
   const calculateChosenPack = useCallback(async (sortPreference: ConsumeSortPreference): Promise<ConsumtionDialogInfo | null> => {
     if (!packsQ.data || !db) return null;
-    
-    // When on an active holiday, only allow consuming from packs allocated to that holiday
-    const onActiveHoliday = hasActiveHoliday && isOnHoliday && activeHolidayId;
-    let activeHolidayPackUnits: Record<string, number> | undefined = undefined;
-    if (onActiveHoliday) {
-      activeHolidayPackUnits = {};
-      const packsForHol = await holidayRepo(db).getPacksForHoliday(activeHolidayId);
-      for (const p of packsForHol) {
-        activeHolidayPackUnits[p.packId] = (activeHolidayPackUnits[p.packId] ?? 0) + p.units;
-      }
-    }
-
-    const holidayReservedByPack = onActiveHoliday
-      ? {}
-      : await holidayRepo(db).getHolidayReservedUnitsByPack(id);
-
-    const chosenPackInfo = choosePackForConsumption({
+    return await buildConsumptionDialogPackInfo({
+      db,
+      productId: id,
+      product: productQ.data,
       packs: packsQ.data,
       productIdentifiers: productIdentifiersQ.data,
       sortPreference,
-      activeHolidayPackUnits,
-      holidayReservedByPack,
+      coloredDotsEnabled,
+      hasActiveHoliday,
+      isOnHoliday,
+      activeHolidayId,
     });
-
-    if (!chosenPackInfo) {
-      return null;
-    }
-
-    const chosenPack = chosenPackInfo.pack;
-    let coloredDotIds: string[] | undefined = undefined;
-    if (coloredDotsEnabled && productQ.data && productQ.data.useColoredDots && db) {
-      coloredDotIds = (await coloredDotsRepo(db).getAssignmentByPackId(chosenPack.id))?.dotIds || [];
-    }
-
-    return {
-      expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
-      identifier: chosenPackInfo.identifier,
-      identifierType: chosenPackInfo.identifierType,
-      unitsLeftInPack: chosenPack.unitsRemaining,
-      packId: chosenPack.id,
-      unitsOnHoliday: chosenPackInfo.unitsOnHoliday,
-      coloredDotIds,
-    };
   }, [packsQ.data, productIdentifiersQ.data, coloredDotsEnabled, productQ.data, db, id, hasActiveHoliday, isOnHoliday, activeHolidayId]);
 
   const handlePressConsume = useCallback(async () => {
@@ -546,21 +504,6 @@ export default function ProductPage() {
           ) : null}
         </View>
 
-
-        <SegmentedButtons
-          value={productView}
-          onValueChange={(value) => setProductView(value as ProductView)}
-          style={{ marginBottom: 16 }}
-          buttons={[
-            { value: "overview", label: "Overview", icon: "view-dashboard-outline" },
-            { value: "packs", label: "Packs", icon: "package-variant" },
-            { value: "insights", label: "Insights", icon: "chart-line" },
-            { value: "history", label: "History", icon: "history" },
-          ]}
-        />
-
-        {productView === "overview" ? (
-          <>
         {/* Holiday Packing Card */}
         {holidayPackDetails && (
           <View style={{ marginBottom: 16 }}>
@@ -645,11 +588,6 @@ export default function ProductPage() {
             </View>
           );
         })() : null}
-          </>
-        ) : null}
-
-        {productView === "packs" ? (
-          <>
         <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
           <Text variant="titleLarge">Packs</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -738,10 +676,6 @@ export default function ProductPage() {
             </Card>
           )
         ) : null}
-          </>
-        ) : null}
-
-        {productView === "insights" ? (
         <View style={{marginBottom: 12}}>
           <Text variant="titleLarge">Statistics</Text>
           
@@ -880,10 +814,7 @@ export default function ProductPage() {
             </Card>
           ) : null}
         </View>
-        ) : null}
 
-        {productView === "history" ? (
-          <>
         <Text variant="titleLarge">Product History</Text>
         {productHistoryQ.isPending ? (
           <Card style={{ marginBottom: 12 }}>
@@ -941,8 +872,6 @@ export default function ProductPage() {
             </Card.Content>
           </Card>
         )}
-          </>
-        ) : null}
       </ScrollView>
 
 

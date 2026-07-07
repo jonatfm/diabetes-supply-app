@@ -977,7 +977,6 @@ Updated: 2026-07-07
 - Done: Extracted backup JSON generation from the local export hook so local export and Google Drive upload share the same versioned backup format.
 - Done: Replaced the unsupported `bell-sync` icon with the supported `bell` icon for refreshing notification schedules.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive backup/restore slice.
-- Known follow-up: Google Drive OAuth consent/client configuration is still external to the app. The current implementation is access-token driven so no Google client ID is hardcoded and the feature remains configurable.
 - Done: Cleaned up the product detail page by keeping the product summary/actions visible and splitting secondary detail into Overview, Packs, Insights, and History tabs.
 - Verified: `npm run typecheck` passed after the product detail cleanup.
 - Done: Added full configurable Google Drive OAuth support using AuthSession PKCE authorization-code flow, offline access, locally stored refresh tokens, manual refresh/disconnect controls, and automatic token refresh for Drive list/upload/restore/startup backup operations.
@@ -986,6 +985,12 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the notification deep-link slice.
 - Done: Added holiday deletion. Holidays can now be deleted from the trip list with confirmation, and deletion transactionally removes packed allocations, product needs, and the holiday row.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the holiday deletion slice.
+- Done: Reverted the product detail page tab cleanup after user feedback; the screen now renders the original continuous detail layout again.
+- Done: Improved scan review/recovery. The scan screen now surfaces multiple detected product identifiers for user selection, shows raw detected codes when none can be interpreted as product identifiers, and lets raw codes flow into manual entry.
+- Done: Continued service extraction by moving scan destination resolution into `scanService`, product consume-dialog pack assembly into `productConsumptionService`, and colored-dot combination selection into `coloredDotCombinationService`.
+- Done: Reworked generated colored-dot combinations to avoid one-query-per-pack lookup and full combination materialization. Existing product combinations are fetched in one joined query, and unused combinations are sampled directly while staying random and unique per product.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the scan recovery, service extraction, colored-dot generation, and product detail revert slice.
+- Follow-up: Google Drive OAuth works, but it is too configuration-heavy for a local unsigned APK. A better release direction is to make local export/share and import the primary backup path, then optionally add a simpler user-owned file target later instead of presenting OAuth as the normal setup.
 
 ### Phase 2: Domain Services
 

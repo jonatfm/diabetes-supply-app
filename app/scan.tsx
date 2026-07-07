@@ -1,7 +1,7 @@
 import AppWrapper from '@/components/AppWrapper';
 import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
 import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
-import { getProductIdentifierFromCode, selectProductIdentifierFromBarcodes } from '@/src/domain/scanService';
+import { BarcodeReviewCandidate, getProductIdentifierDetectionsFromBarcodes, getProductIdentifierFromCode, resolveScanDestination } from '@/src/domain/scanService';
 import { useScanFlow } from '@/state/scanFlow';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
@@ -27,6 +27,8 @@ export default function Scan() {
   const [showManualCodeInputModal, setShowManualCodeInputModal] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
+  const [reviewCandidates, setReviewCandidates] = useState<BarcodeReviewCandidate<BarcodeResult>[]>([]);
+  const [rawScanCodes, setRawScanCodes] = useState<string[]>([]);
 
   const updateZoom = (newZoom: number) => {
     setZoom(newZoom);
@@ -34,6 +36,33 @@ export default function Scan() {
 
   const showScanError = (message: string) => {
     setScanError(message);
+  };
+
+  const continueWithCandidate = async (candidate: BarcodeReviewCandidate<BarcodeResult>) => {
+    const { barcode, detection } = candidate;
+    setFlashEnabled(false);
+    setReviewCandidates([]);
+    setRawScanCodes([]);
+
+    setScanResult(barcode);
+    const existing = await findIdentifier.mutateAsync({ value: detection.value, type: detection.type });
+    const destination = resolveScanDestination(existing);
+
+    if (destination.type === "new-or-existing-product") {
+      router.push("/new/choose_existing_product");
+      return;
+    }
+
+    if (destination.type === "add-pack") {
+      router.push({
+        pathname: "/new/add_pack",
+        params: { productId: destination.productId },
+      });
+      return;
+    }
+
+    showScanError("This code matches multiple products. Please choose the product manually.");
+    router.push("/new/choose_existing_product");
   };
 
   const pinchGesture = Gesture.Pinch()
@@ -83,27 +112,17 @@ export default function Scan() {
         console.log('Scan result:', result);
         
         if (result.success && result.barcodes && result.barcodes.length > 0) {
-          const selected = selectProductIdentifierFromBarcodes(result.barcodes);
+          const rawCodes = result.barcodes
+            .map((barcode) => barcode.text)
+            .filter((text): text is string => !!text);
+          const candidates = getProductIdentifierDetectionsFromBarcodes(result.barcodes);
+          setRawScanCodes(rawCodes);
 
-          if (selected) {
-            const { barcode, detection, index } = selected;
-            console.log('Extracted identifier:', detection.value, 'from barcode index:', index);
-            setFlashEnabled(false);
-
-            // Persist the detected barcode in the scanning flow context
-            setScanResult(barcode);
-            const existing = await findIdentifier.mutateAsync({ value: detection.value, type: detection.type });
-            console.log('Existing identifiers with this identifier:', existing);
-            if (existing.length === 0) {
-              router.push("/new/choose_existing_product");
-            } else {
-              const productId = existing[0].productId;
-              
-              router.push({
-                pathname: "/new/add_pack",
-                params: { productId: String(productId) },
-              });
-            }
+          if (candidates.length === 1) {
+            console.log('Extracted identifier:', candidates[0].detection.value, 'from barcode index:', candidates[0].index);
+            await continueWithCandidate(candidates[0]);
+          } else if (candidates.length > 1) {
+            setReviewCandidates(candidates);
           } else {
             showScanError('No valid product identifier found in barcode.');
           }
@@ -120,8 +139,6 @@ export default function Scan() {
     const detection = getProductIdentifierFromCode(manualCode);
 
     if (detection) {
-      setFlashEnabled(false);
-
       const fakedBarcode: BarcodeResult = {
         format: detection.format,
         text: manualCode,
@@ -131,18 +148,7 @@ export default function Scan() {
         position: [],
       }
 
-      setScanResult(fakedBarcode);
-      const existing = await findIdentifier.mutateAsync({value: detection.value, type: detection.type});
-      if (existing.length === 0) {
-        router.push("/new/choose_existing_product");
-      } else {
-        const productId = existing[0].productId;
-
-        router.push({
-          pathname: "/new/add_pack",
-          params: {productId: String(productId)}
-        })
-      }
+      await continueWithCandidate({ barcode: fakedBarcode, detection, index: 0 });
     } else {
       showScanError("No valid product identifier found in code.");
     }
@@ -175,6 +181,51 @@ export default function Scan() {
           Cannot Scan?
         </Button>
       </View>
+
+      {reviewCandidates.length > 0 ? (
+        <Card elevation={1} style={{ marginBottom: 16 }}>
+          <Card.Content style={{ gap: 8 }}>
+            <Text variant="titleMedium">Review detected codes</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Multiple product codes were detected. Choose the one printed on the pack you want to add.
+            </Text>
+            {reviewCandidates.map((candidate) => (
+              <Button
+                key={`${candidate.index}-${candidate.detection.type}-${candidate.detection.value}`}
+                mode="outlined"
+                icon={candidate.detection.format === "GS1" ? "barcode-scan" : "barcode"}
+                onPress={() => continueWithCandidate(candidate)}
+              >
+                {candidate.detection.type}: {candidate.detection.value}
+              </Button>
+            ))}
+          </Card.Content>
+        </Card>
+      ) : null}
+
+      {reviewCandidates.length === 0 && rawScanCodes.length > 0 ? (
+        <Card elevation={1} style={{ marginBottom: 16 }}>
+          <Card.Content style={{ gap: 8 }}>
+            <Text variant="titleMedium">Detected raw codes</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              None could be read as a product identifier. You can retry or use one as manual input.
+            </Text>
+            {rawScanCodes.map((code, index) => (
+              <Button
+                key={`${index}-${code}`}
+                mode="outlined"
+                icon="form-textbox"
+                onPress={() => {
+                  setManualCode(code);
+                  setShowManualCodeInputModal(true);
+                }}
+              >
+                Use code {index + 1}
+              </Button>
+            ))}
+          </Card.Content>
+        </Card>
+      ) : null}
 
       <Portal>
         <Modal visible={showManualCodeInputModal} onDismiss={() => setShowManualCodeInputModal(false)} contentContainerStyle={{ margin: 20, padding: 20, backgroundColor: theme.colors.surface, borderRadius: 8 }}>

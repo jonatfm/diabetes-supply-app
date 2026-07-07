@@ -13,6 +13,17 @@ export type ProductIdentifierDetection = IdentifierCandidate & {
   gs1Data?: GS1Data;
 };
 
+export type BarcodeReviewCandidate<T> = {
+  barcode: T;
+  detection: ProductIdentifierDetection;
+  index: number;
+};
+
+export type ScanDestination =
+  | { type: "new-or-existing-product" }
+  | { type: "add-pack"; productId: string }
+  | { type: "ambiguous-product-match"; productIds: string[] };
+
 function normalizeIdentifierValue(type: ProductIdentifierType, value: string) {
   const trimmed = value.trim();
 
@@ -115,7 +126,15 @@ export function getProductIdentifierFromCode(code: string): ProductIdentifierDet
 
 export function selectProductIdentifierFromBarcodes<T extends { text?: string | null }>(
   barcodes: T[],
-): { barcode: T; detection: ProductIdentifierDetection; index: number } | null {
+): BarcodeReviewCandidate<T> | null {
+  return getProductIdentifierDetectionsFromBarcodes(barcodes)[0] ?? null;
+}
+
+export function getProductIdentifierDetectionsFromBarcodes<T extends { text?: string | null }>(
+  barcodes: T[],
+): BarcodeReviewCandidate<T>[] {
+  const candidates: BarcodeReviewCandidate<T>[] = [];
+
   for (const [index, barcode] of barcodes.entries()) {
     if (!barcode.text) {
       continue;
@@ -123,13 +142,33 @@ export function selectProductIdentifierFromBarcodes<T extends { text?: string | 
 
     const detection = getProductIdentifierFromCode(barcode.text);
     if (detection) {
-      return {
+      candidates.push({
         barcode,
         detection,
         index,
-      };
+      });
     }
   }
 
-  return null;
+  return candidates;
+}
+
+export function resolveScanDestination(matches: { productId: string }[]): ScanDestination {
+  const productIds = [...new Set(matches.map((match) => String(match.productId)))];
+
+  if (productIds.length === 0) {
+    return { type: "new-or-existing-product" };
+  }
+
+  if (productIds.length === 1) {
+    return {
+      type: "add-pack",
+      productId: productIds[0],
+    };
+  }
+
+  return {
+    type: "ambiguous-product-match",
+    productIds,
+  };
 }
