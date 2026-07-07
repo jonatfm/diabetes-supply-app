@@ -1004,6 +1004,8 @@ Updated: 2026-07-07
 - Done: Renamed prominent user-facing Holiday wording to Trip across tabs, settings, product cards/details, trip list, planner, and packing flow while leaving internal route/schema names unchanged.
 - Done: Added clearer colored-dot explanation for physical sticker codes and surfaced the last local backup timestamp in Settings.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the QoL polish pass.
+- Done: Added a Settings toggle for the home-screen "Needs attention" dashboard. The dashboard defaults to visible but can be disabled, and the inventory warning query is skipped while disabled.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the attention-dashboard toggle.
 
 ### Phase 2: Domain Services
 

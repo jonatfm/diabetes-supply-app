@@ -2,6 +2,7 @@ import AppWrapper from "@/components/AppWrapper";
 import ProductCard from "@/components/ProductCard";
 import { useDatabase } from "@/db";
 import { Product } from "@/db/schema";
+import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useProducts } from "@/src/data/hooks/useGetProducts";
 import { usePackListForHoliday } from "@/src/data/hooks/usePackListForHoliday";
@@ -64,6 +65,7 @@ export default function Index() {
   const { db, ready: dbReady } = useDatabase();
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const showAttentionDashboard = useAppSetting<boolean>("showAttentionDashboard").data ?? true;
   const productsQ = useProducts();
   const activeHolidayQ = useActiveHoliday();
   const packListQ = usePackListForHoliday(activeHolidayQ.data?.id);
@@ -72,7 +74,7 @@ export default function Index() {
 
   const inventoryWarningsQ = useQuery({
     queryKey: ["inventoryDashboardWarnings", productsQ.data?.map((product) => product.id).join(",") ?? "none"],
-    enabled: dbReady && !!db && !!productsQ.data,
+    enabled: showAttentionDashboard && dbReady && !!db && !!productsQ.data,
     queryFn: async (): Promise<InventoryWarning[]> => {
       const repo = packsRepo(db!);
       const today = new Date();
@@ -204,7 +206,9 @@ export default function Index() {
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Show archived products</Text>
               <Switch value={showArchived} onValueChange={setShowArchived} />
             </View>
-            <InventoryWarnings warnings={inventoryWarningsQ.data ?? []} onPressProduct={handleProductPress} />
+            {showAttentionDashboard ? (
+              <InventoryWarnings warnings={inventoryWarningsQ.data ?? []} onPressProduct={handleProductPress} />
+            ) : null}
             {filteredProds.length === 0 ? (
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
                 <Icon source="magnify-close" size={48} color={theme.colors.primary} />

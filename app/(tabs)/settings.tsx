@@ -45,6 +45,7 @@ export default function Settings() {
   const refreshNotificationsM = useRefreshNotifications();
   // Notifications / "App Warnings"
   const appWarningsEnabledSetting = useAppSetting<boolean>("appWarningsEnabled").data;
+  const showAttentionDashboardSetting = useAppSetting<boolean>("showAttentionDashboard").data ?? true;
   const expiryApproachingWarningEnabledSetting = useAppSetting<boolean>("expiryApproachingWarningEnabled").data;
   const expiryApproachingDaysSetting = useAppSetting<number|null>("expiryApproachingDays").data;
   const runningOutWarningEnabledSetting = useAppSetting<boolean>("runningOutWarningEnabled").data;
@@ -398,6 +399,21 @@ export default function Settings() {
           <Card.Content style={{gap: 12}}>
             <Text variant="titleMedium">Use notifications</Text>
             <Text>Toggle and manage notifications that notify you about important stock changes, such as when you are running low or when items are about to expire.</Text>
+            <View>
+              <Text variant="titleMedium">Show needs attention on home</Text>
+              <Text variant="bodySmall">Show in-app stock and expiry warnings at the top of the inventory screen.</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ marginRight: 8 }} variant="labelLarge">
+                  {showAttentionDashboardSetting ? "Enabled" : "Disabled"}
+                </Text>
+                <Switch
+                  value={showAttentionDashboardSetting}
+                  onValueChange={(value) => {
+                    upsertAppSetting.mutate({ key: "showAttentionDashboard", value });
+                  }}
+                />
+              </View>
+            </View>
             <SegmentedButtons
               value={appWarningsEnabledSetting ? 'enabled' : 'disabled'}
               onValueChange={(value) => {
