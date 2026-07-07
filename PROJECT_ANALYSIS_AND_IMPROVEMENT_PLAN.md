@@ -984,6 +984,8 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive OAuth refresh-token slice.
 - Done: Added notification deep-link handling. Scheduled inventory notifications now include product route metadata and tapping one opens the related product screen, including cold-start notification responses.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the notification deep-link slice.
+- Done: Added holiday deletion. Holidays can now be deleted from the trip list with confirmation, and deletion transactionally removes packed allocations, product needs, and the holiday row.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the holiday deletion slice.
 
 ### Phase 2: Domain Services
 

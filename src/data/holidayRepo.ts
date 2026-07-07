@@ -251,6 +251,15 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         .where(eq(holidays.id, holidayId));
     },
 
+    async deleteHoliday(holidayId: string) {
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        await txDb.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
+        await txDb.delete(packListForHoliday).where(eq(packListForHoliday.holidayId, holidayId));
+        await txDb.delete(holidays).where(eq(holidays.id, holidayId));
+      });
+    },
+
     async deletePacksForHoliday(holidayId: string) {
       await db.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
     },

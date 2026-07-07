@@ -4,6 +4,7 @@ import { Holiday } from "@/db/schema";
 import { holidayRepo } from "@/src/data/holidayRepo";
 import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
 import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
+import { useDeleteHoliday } from "@/src/data/hooks/useDeleteHoliday";
 import { useEndHoliday } from "@/src/data/hooks/useEndHoliday";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { useMarkHolidayReconciled } from "@/src/data/hooks/useMarkHolidayReconciled";
@@ -17,7 +18,7 @@ import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 import { Button, Card, Dialog, FAB, Icon, Portal, Text, useTheme } from "react-native-paper";
 
-function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holidayId: string) => void }) {
+function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepack: (holidayId: string) => void; onDelete: (holiday: Holiday) => void }) {
     const theme = useTheme();
     const router = useRouter();
     const active = holiday.state === "ACTIVE";
@@ -142,6 +143,9 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                 <View>
                     {holiday.state === "PLANNED" && (
                         <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
+                                Delete
+                            </Button>
                             <Button icon="pencil" mode="outlined" onPress={() => router.push(`/holiday_mode/plan_holiday?holidayId=${holiday.id}`)}>
                                 Edit
                             </Button>
@@ -152,6 +156,9 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                     )}
                     {holiday.state === "PACKED" && (
                         <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
+                                Delete
+                            </Button>
                             <Button icon="refresh" mode="outlined" onPress={() => onRepack(holiday.id)}>
                                 Repack
                             </Button>
@@ -161,15 +168,19 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                         </View>
                     )}
                     {holiday.state === "ACTIVE" && (
-                        <Button
-                            icon="airplane-landing"
-                            mode="contained"
-                            buttonColor={theme.colors.error}
-                            style={{marginTop: 16}}
-                            onPress={() => endHolidayM.mutate(holiday.id)}
-                        >
-                            End Holiday
-                        </Button>
+                        <View style={{ gap: 8, marginTop: 16 }}>
+                            <Button
+                                icon="airplane-landing"
+                                mode="contained"
+                                buttonColor={theme.colors.error}
+                                onPress={() => endHolidayM.mutate(holiday.id)}
+                            >
+                                End Holiday
+                            </Button>
+                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
+                                Delete Holiday
+                            </Button>
+                        </View>
                     )}
                     {holiday.state === "COMPLETE" && (
                         <View style={{ marginTop: 16, gap: 8 }}>
@@ -187,6 +198,9 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                                     Mark return-home check done
                                 </Button>
                             )}
+                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
+                                Delete
+                            </Button>
                         </View>
                     )}
                 </View>
@@ -202,7 +216,9 @@ export default function HolidayScreen() {
     const { db: hookDb } = useDatabase();
     const qc = useQueryClient();
     const [repackHolidayId, setRepackHolidayId] = useState<string | null>(null);
+    const [deleteHoliday, setDeleteHoliday] = useState<Holiday | null>(null);
     const holidaysQ = useHolidays();
+    const deleteHolidayM = useDeleteHoliday();
 
     const handleRepack = async () => {
         if (!hookDb || !repackHolidayId) return;
@@ -211,6 +227,12 @@ export default function HolidayScreen() {
         await qc.invalidateQueries({ queryKey: qk.packsForHoliday(repackHolidayId) });
         await holidaysQ.refetch();
         setRepackHolidayId(null);
+    };
+
+    const handleDeleteHoliday = async () => {
+        if (!deleteHoliday) return;
+        await deleteHolidayM.mutateAsync(deleteHoliday.id);
+        setDeleteHoliday(null);
     };
     
     return (
@@ -232,7 +254,7 @@ export default function HolidayScreen() {
                                         // Then by updatedAt descending
                                         return b.updatedAt - a.updatedAt;
                                     })}
-                                renderItem={({ item }) => <HolidayCard key={item.id} holiday={item} onRepack={setRepackHolidayId} />}
+                                renderItem={({ item }) => <HolidayCard key={item.id} holiday={item} onRepack={setRepackHolidayId} onDelete={setDeleteHoliday} />}
                                 keyExtractor={(item) => item.id}
                                 contentContainerStyle={{ paddingBottom: 100 }}
                                 showsVerticalScrollIndicator={false}
@@ -273,6 +295,30 @@ export default function HolidayScreen() {
                     <Dialog.Actions>
                         <Button onPress={() => setRepackHolidayId(null)}>Cancel</Button>
                         <Button textColor={theme.colors.error} onPress={handleRepack}>Repack</Button>
+                    </Dialog.Actions>
+                </Dialog>
+                <Dialog visible={deleteHoliday !== null} onDismiss={() => setDeleteHoliday(null)}>
+                    <Dialog.Title>Delete holiday?</Dialog.Title>
+                    <Dialog.Content>
+                        <Text>
+                            This will delete {deleteHoliday?.destination ?? "this holiday"} and remove its packed item reservations.
+                        </Text>
+                        {deleteHoliday?.state === "ACTIVE" ? (
+                            <Text style={{ marginTop: 8, fontWeight: "bold", color: theme.colors.error }}>
+                                This holiday is active. Deleting it will immediately stop active-holiday restrictions.
+                            </Text>
+                        ) : null}
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button onPress={() => setDeleteHoliday(null)}>Cancel</Button>
+                        <Button
+                            textColor={theme.colors.error}
+                            onPress={handleDeleteHoliday}
+                            loading={deleteHolidayM.isPending}
+                            disabled={deleteHolidayM.isPending}
+                        >
+                            Delete
+                        </Button>
                     </Dialog.Actions>
                 </Dialog>
             </Portal>
