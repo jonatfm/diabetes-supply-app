@@ -148,6 +148,9 @@ export const holidays = sqliteTable("holidays", {
   id: text("id").primaryKey().$default(() => uuid.v4() as string),
   destination: text("destination").notNull(),
   durationDays: integer("durationDays").$default(() => 0).notNull(),
+  startDate: text("startDate"),
+  endDate: text("endDate"),
+  returnHomeCompletedAt: integer("returnHomeCompletedAt"),
   state: text("state").$type<"PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE">().notNull(),
   updatedAt: integer("updatedAt").$default(() => Date.now()).notNull(),
 });

@@ -5,6 +5,13 @@ import { SQLiteDatabase } from "expo-sqlite";
 
 /** Holiday states where packed units are still physically committed. */
 const ACTIVE_HOLIDAY_STATES = ["PLANNED", "PACKED", "ACTIVE"] as const;
+type HolidayState = "PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE";
+type HolidayProductPlan = {
+  [productId: string]: {
+    amountCalculationType: (typeof HOLIDAY_ITEM_METHODS)[number],
+    amountCalculationAttributes: Record<string, any>
+  }
+};
 
 export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$client: SQLiteDatabase;})) {
   return {
@@ -37,20 +44,21 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
     async createHoliday (
       destination: string,
       durationDays: number,
-      products: {
-        [productId: string]: {
-          amountCalculationType: (typeof HOLIDAY_ITEM_METHODS)[number],
-          amountCalculationAttributes: Record<(typeof HOLIDAY_ITEM_METHODS)[number], any>
-        }
-      },
+      products: HolidayProductPlan,
       /** Pre-computed snapshot amounts keyed by productId. */
       snapshotAmounts: Record<string, number>,
+      options?: {
+        startDate?: string | null;
+        endDate?: string | null;
+      },
     ) {
       return await db.transaction(async (tx) => {
         const txDb = tx as unknown as typeof db;
         const [newHoliday] = await txDb.insert(holidays).values({
           destination,
           durationDays,
+          startDate: options?.startDate ?? null,
+          endDate: options?.endDate ?? null,
           state: "PLANNED",
         }).returning({id: holidays.id});
 
@@ -65,6 +73,53 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         }
 
         return newHoliday;
+      });
+    },
+
+    async updatePlannedHoliday(
+      holidayId: string,
+      params: {
+        destination: string;
+        durationDays: number;
+        startDate?: string | null;
+        endDate?: string | null;
+        products: HolidayProductPlan;
+        snapshotAmounts: Record<string, number>;
+      },
+    ) {
+      return await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [holiday] = await txDb.select().from(holidays).where(eq(holidays.id, holidayId)).limit(1);
+
+        if (!holiday) {
+          throw new Error("Trip not found");
+        }
+
+        if (holiday.state !== "PLANNED") {
+          throw new Error("Only planned trips can be edited. Repack this trip first if you need to change it.");
+        }
+
+        await txDb.update(holidays)
+          .set({
+            destination: params.destination,
+            durationDays: params.durationDays,
+            startDate: params.startDate ?? null,
+            endDate: params.endDate ?? null,
+            updatedAt: Date.now(),
+          })
+          .where(eq(holidays.id, holidayId));
+
+        await txDb.delete(packListForHoliday).where(eq(packListForHoliday.holidayId, holidayId));
+
+        for (const [productId, { amountCalculationType, amountCalculationAttributes }] of Object.entries(params.products)) {
+          await txDb.insert(packListForHoliday).values({
+            holidayId,
+            productId,
+            amountCalculationType,
+            amountCalculationAttributes,
+            calculatedAmount: params.snapshotAmounts[productId] ?? 0,
+          });
+        }
       });
     },
 
@@ -163,7 +218,7 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       }, {} as Record<string, number>);
     },
 
-    async updateHolidayState(holidayId: string, state: "PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE") {
+    async updateHolidayState(holidayId: string, state: HolidayState) {
       await db.update(holidays).set({ state, updatedAt: Date.now() }).where(eq(holidays.id, holidayId));
     },
 
@@ -187,6 +242,12 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
     async endHoliday(holidayId: string) {
       await db.update(holidays)
         .set({ state: "COMPLETE", updatedAt: Date.now() })
+        .where(eq(holidays.id, holidayId));
+    },
+
+    async markReturnHomeReconciled(holidayId: string) {
+      await db.update(holidays)
+        .set({ returnHomeCompletedAt: Date.now(), updatedAt: Date.now() })
         .where(eq(holidays.id, holidayId));
     },
 

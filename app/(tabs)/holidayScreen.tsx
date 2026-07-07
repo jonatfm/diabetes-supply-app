@@ -6,6 +6,7 @@ import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
 import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useEndHoliday } from "@/src/data/hooks/useEndHoliday";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
+import { useMarkHolidayReconciled } from "@/src/data/hooks/useMarkHolidayReconciled";
 import { packsRepo } from "@/src/data/packsRepo";
 import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
@@ -24,6 +25,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     const activateHolidayM = useActivateHoliday();
     const activeHolidayQ = useActiveHoliday();
     const endHolidayM = useEndHoliday();
+    const markReconciledM = useMarkHolidayReconciled();
 
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
@@ -51,6 +53,9 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     const borderColor = active ? theme.colors.primary : theme.colors.surfaceVariant;
     const borderWidth = active ? 3 : 0;
     const accentColor = active ? theme.colors.onPrimaryContainer : theme.colors.primary;
+    const tripDateText = holiday.startDate && holiday.endDate
+        ? `${holiday.startDate} to ${holiday.endDate}`
+        : `${holiday.durationDays} days`;
 
     return (
         <Card elevation={3} style={{marginBottom: 16, borderColor: borderColor, borderWidth: borderWidth}}>
@@ -66,7 +71,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <Icon source="calendar" size={22} color={accentColor} />
-                    <Text variant="titleMedium" style={{ color: accentColor }}>{holiday.durationDays} days</Text>
+                    <Text variant="titleMedium" style={{ color: accentColor }}>{tripDateText}</Text>
                 </View>
                 {holidayNeeds.map((need) => {
                     const totalUnits = totalUnitsByProduct[need.product.id];
@@ -82,9 +87,14 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
 
                 <View>
                     {holiday.state === "PLANNED" && (
-                        <Button icon="briefcase" mode="contained" style={{marginTop: 16}} onPress={() => router.push(`/holiday_mode/pack/${holiday.id}`)}>
-                            Start packing
-                        </Button>
+                        <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                            <Button icon="pencil" mode="outlined" onPress={() => router.push(`/holiday_mode/plan_holiday?holidayId=${holiday.id}`)}>
+                                Edit
+                            </Button>
+                            <Button icon="briefcase" mode="contained" style={{flex: 1}} onPress={() => router.push(`/holiday_mode/pack/${holiday.id}`)}>
+                                Start packing
+                            </Button>
+                        </View>
                     )}
                     {holiday.state === "PACKED" && (
                         <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
@@ -106,6 +116,24 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                         >
                             End Holiday
                         </Button>
+                    )}
+                    {holiday.state === "COMPLETE" && (
+                        <View style={{ marginTop: 16, gap: 8 }}>
+                            {holiday.returnHomeCompletedAt ? (
+                                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                                    Return-home reconciliation complete.
+                                </Text>
+                            ) : (
+                                <Button
+                                    icon="home-check"
+                                    mode="contained-tonal"
+                                    onPress={() => markReconciledM.mutate(holiday.id)}
+                                    loading={markReconciledM.isPending}
+                                >
+                                    Mark return-home check done
+                                </Button>
+                            )}
+                        </View>
                     )}
                 </View>
             </Card.Content>

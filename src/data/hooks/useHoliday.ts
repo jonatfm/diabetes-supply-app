@@ -10,7 +10,7 @@ export function useHoliday(id: string) {
 
     return useQuery({
         queryKey: qk.holiday(id),
-        enabled: ready && !!db,
+        enabled: ready && !!db && !!id,
         queryFn: () => repo!.getHoliday(id),
     })
 }

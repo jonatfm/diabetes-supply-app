@@ -44,6 +44,7 @@ import m0040 from './0040_heavy_patriot.sql';
 import m0041 from './0041_add_units_to_packs_for_holiday.sql';
 import m0042 from './0042_snapshot_calculated_amount.sql';
 import m0043 from './0043_holiday_original_units.sql';
+import m0044 from './0044_trip_dates_reconciliation.sql';
 import journal from './meta/_journal.json';
 
   export default {
@@ -92,7 +93,7 @@ m0039,
 m0040,
 m0041,
 m0042,
-m0043
+m0043,
+m0044
     }
   }
-  

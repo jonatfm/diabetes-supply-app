@@ -957,6 +957,10 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the scan extraction and multi-barcode selection change.
 - Done: Replaced raw scan failure alerts on the scan screen with a React Native Paper snackbar for consistent, dismissible error feedback.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the scan snackbar cleanup.
+- Done: Added trip dates and return-home reconciliation fields to holidays, including migration `0044_trip_dates_reconciliation.sql`.
+- Done: Made planned trips editable from the trip list. The planner now supports create/edit mode, optional start/return dates, automatic duration calculation from dates, active-product filtering, and transactional planned-trip updates that recalculate snapshot amounts.
+- Done: Added a return-home reconciliation action for completed trips so the user can mark the post-trip check as complete.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the trip dates, planned-trip editing, and return-home reconciliation slice.
 
 ### Phase 2: Domain Services
 
@@ -1070,7 +1074,7 @@ Before release, test:
 - Add storage locations.
 - Add min/target stock and reorder lead time.
 - Add expiring-soon and low-stock dashboards.
-- Add trip dates, expiry-during-trip warnings, and return-home reconciliation.
+- Add trip dates, expiry-during-trip warnings, and return-home reconciliation. Trip dates, planned-trip editing, and return-home reconciliation are implemented; expiry-during-trip warnings are still in progress.
 - Add household/care-recipient model.
 
 ### P3
