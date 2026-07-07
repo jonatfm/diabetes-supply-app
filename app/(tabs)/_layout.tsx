@@ -20,7 +20,7 @@ export default function TabLayout() {
             <MaterialBottomTabs.Protected guard={holidayFunctionEnabled === true}>
                 <MaterialBottomTabs.Screen
                 name="holidayScreen"
-                options={{ title: "Plan Holiday", tabBarIcon: "beach" }}
+                options={{ title: "Trips", tabBarIcon: "bag-suitcase" }}
                 />
             </MaterialBottomTabs.Protected>
             <MaterialBottomTabs.Screen

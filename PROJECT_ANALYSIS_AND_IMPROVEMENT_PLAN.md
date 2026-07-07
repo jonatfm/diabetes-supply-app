@@ -1000,6 +1000,10 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the repeated-dot and backup-location fixes.
 - Done: Fixed local backup file creation in user-selected directories by using the directory file-creation API and retrying with suffixed backup filenames if a same-name entry already exists.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the local backup creation fix.
+- Done: Added a home-screen "Needs attention" dashboard for no-stock, expired, expiring-soon, and low-stock items; improved empty states for inventory, filtered inventory, trip planning, and choose-existing-product flows.
+- Done: Renamed prominent user-facing Holiday wording to Trip across tabs, settings, product cards/details, trip list, planner, and packing flow while leaving internal route/schema names unchanged.
+- Done: Added clearer colored-dot explanation for physical sticker codes and surfaced the last local backup timestamp in Settings.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the QoL polish pass.
 
 ### Phase 2: Domain Services
 

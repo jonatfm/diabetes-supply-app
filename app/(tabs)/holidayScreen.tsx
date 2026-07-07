@@ -175,10 +175,10 @@ function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepa
                                 buttonColor={theme.colors.error}
                                 onPress={() => endHolidayM.mutate(holiday.id)}
                             >
-                                End Holiday
+                                End Trip
                             </Button>
                             <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
-                                Delete Holiday
+                                Delete Trip
                             </Button>
                         </View>
                     )}
@@ -239,7 +239,7 @@ export default function HolidayScreen() {
         <AppWrapper bottomEdge={false}>
             <View style={{flex: 1}}>
                 <Text variant="headlineLarge" style={{ marginBottom: 24 }}>
-                    Your Holidays
+                    Your Trips
                 </Text>
 
                 {holidaysQ.data && holidaysQ.data.length > 0 ? (
@@ -267,16 +267,16 @@ export default function HolidayScreen() {
                     </View>
                 ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 100 }}>
-                        <Icon source="ghost" size={64} color={theme.colors.primary} />
-                        <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No holidays here yet</Text>
-                        <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Add a holiday to get started</Text>
+                        <Icon source="bag-suitcase" size={64} color={theme.colors.primary} />
+                        <Text variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No trips planned yet</Text>
+                        <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>Plan a trip to calculate what to pack and reserve concrete units from your inventory.</Text>
                     </View>
                 )}
             </View>
 
             <FAB
                 icon="plus"
-                label="Plan Holiday"
+                label="Plan Trip"
                 onPress={() => router.push("/holiday_mode/plan_holiday")}
                 style={{
                     position: "absolute",
@@ -287,9 +287,9 @@ export default function HolidayScreen() {
 
             <Portal>
                 <Dialog visible={repackHolidayId !== null} onDismiss={() => setRepackHolidayId(null)}>
-                    <Dialog.Title>Repack holiday?</Dialog.Title>
+                    <Dialog.Title>Repack trip?</Dialog.Title>
                     <Dialog.Content>
-                        <Text>This will remove all currently packed items for this holiday and reset it to the planning state.</Text>
+                        <Text>This will remove all currently packed items for this trip and reset it to the planning state.</Text>
                         <Text style={{ marginTop: 8, fontWeight: 'bold' }}>You will need to pack everything again from scratch.</Text>
                     </Dialog.Content>
                     <Dialog.Actions>
@@ -298,14 +298,14 @@ export default function HolidayScreen() {
                     </Dialog.Actions>
                 </Dialog>
                 <Dialog visible={deleteHoliday !== null} onDismiss={() => setDeleteHoliday(null)}>
-                    <Dialog.Title>Delete holiday?</Dialog.Title>
+                    <Dialog.Title>Delete trip?</Dialog.Title>
                     <Dialog.Content>
                         <Text>
-                            This will delete {deleteHoliday?.destination ?? "this holiday"} and remove its packed item reservations.
+                            This will delete {deleteHoliday?.destination ?? "this trip"} and remove its packed item reservations.
                         </Text>
                         {deleteHoliday?.state === "ACTIVE" ? (
                             <Text style={{ marginTop: 8, fontWeight: "bold", color: theme.colors.error }}>
-                                This holiday is active. Deleting it will immediately stop active-holiday restrictions.
+                                This trip is active. Deleting it will immediately stop active-trip restrictions.
                             </Text>
                         ) : null}
                     </Dialog.Content>

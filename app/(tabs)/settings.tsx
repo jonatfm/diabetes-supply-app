@@ -52,6 +52,7 @@ export default function Settings() {
   const localBackupFrequencySetting = useAppSetting<BackupFrequency>("localBackupFrequency").data ?? "manual";
   const localBackupRetentionCountSetting = useAppSetting<number>("localBackupRetentionCount").data ?? 5;
   const localBackupDirectoryUriSetting = useAppSetting<string>("localBackupDirectoryUri").data;
+  const localBackupLastBackupAtSetting = useAppSetting<number>("localBackupLastBackupAt").data;
   const localBackupsQ = useLocalBackups(localBackupDirectoryUriSetting);
   const createLocalBackupM = useCreateLocalBackup(localBackupRetentionCountSetting, localBackupDirectoryUriSetting);
   const restoreLatestLocalBackupM = useRestoreLatestLocalBackup(localBackupDirectoryUriSetting);
@@ -323,6 +324,10 @@ export default function Settings() {
   const handleCreateLocalBackup = useCallback(async () => {
     try {
       const result = await createLocalBackupM.mutateAsync();
+      await upsertAppSetting.mutateAsync({
+        key: "localBackupLastBackupAt",
+        value: Date.now(),
+      });
       await localBackupsQ.refetch();
       setSnackbarError(false);
       setSnackbarMessage(`Created ${result.backup.name}. Pruned ${result.pruned.length} old backups.`);
@@ -330,7 +335,7 @@ export default function Settings() {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : "Local backup failed");
     }
-  }, [createLocalBackupM, localBackupsQ]);
+  }, [createLocalBackupM, localBackupsQ, upsertAppSetting]);
 
   const handleShareLatestLocalBackup = useCallback(async () => {
     try {
@@ -493,7 +498,7 @@ export default function Settings() {
         <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content style={{ gap: 12 }}>
             <Text variant="titleMedium">Use colored dots</Text>
-            <Text>You can use colored dot stickers to physically mark your items and easily identify them at a glance.</Text>
+            <Text>You can use physical colored dot stickers to label packs for quick visual identification. Codes may use one or more stickers, such as one black dot, then two black dots, when only one sticker color is available.</Text>
             <SegmentedButtons
               value={coloredDotsEnabledSetting ? 'enabled' : 'disabled'}
               onValueChange={(value) => {
@@ -528,7 +533,7 @@ export default function Settings() {
                   <Dialog visible={isCreateNewColorDialogVisible} onDismiss={() => setIsCreateNewColorDialogVisible(false)}>
                     <Dialog.Title>Add new color</Dialog.Title>
                     <Dialog.Content>
-                      <Text>Add a new colored dot you have present physically to mark your items.</Text>
+                      <Text>Add a sticker color you physically have available for marking packs.</Text>
                       <TextInput
                         label="Color (name or hex code)"
                         value={newDotColor}
@@ -546,12 +551,12 @@ export default function Settings() {
           </Card.Content>
         </Card>
 
-        {/* Toggle holiday mode, manage holiday items */}
-        <Text variant="titleLarge" style={{marginBottom: 12}}>Holiday Function</Text>
+        {/* Toggle trip mode, manage trip items */}
+        <Text variant="titleLarge" style={{marginBottom: 12}}>Trip Planning</Text>
         <Card elevation={1} style={{marginBottom: 24}}>
           <Card.Content style={{gap: 12}}>
-            <Text variant="titleMedium">Use holiday function</Text>
-            <Text>Set up the holiday mode to get a list of items you need to take with you on your trip.</Text>
+            <Text variant="titleMedium">Enable trip planning</Text>
+            <Text>Plan trips, calculate what to pack, and reserve concrete units from your inventory.</Text>
             <SegmentedButtons
               value={holidayFunctionEnabledSetting ? "enabled": "disabled"}
               onValueChange={(value) => {
@@ -652,6 +657,9 @@ export default function Settings() {
             />
             <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
               Stored in: {getLocalBackupDirectoryUri(localBackupDirectoryUriSetting)}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              Last automatic/local backup: {localBackupLastBackupAtSetting ? new Date(localBackupLastBackupAtSetting).toLocaleString() : "not run yet"}
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               <Button

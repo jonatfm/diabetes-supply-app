@@ -170,7 +170,7 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Icon source="bag-suitcase" size={16} color={theme.colors.primary} />
                   <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
-                    Holiday: {holidayPackingInfo.unitsRemaining}/{holidayPackingInfo.totalPacked} units left
+                    Trip: {holidayPackingInfo.unitsRemaining}/{holidayPackingInfo.totalPacked} units left
                   </Text>
                 </View>
                 <ProgressBar
@@ -180,7 +180,7 @@ function ProductCard({product, onPress}: {product: Product, onPress?: () => void
                 />
                 {holidayPackingInfo.estimatedDaysLeft !== null && (
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    ~{holidayPackingInfo.estimatedDaysLeft.toFixed(1)} days of holiday supply left
+                    ~{holidayPackingInfo.estimatedDaysLeft.toFixed(1)} days of trip supply left
                   </Text>
                 )}
               </View>

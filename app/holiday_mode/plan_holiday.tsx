@@ -278,7 +278,7 @@ export default function PlanHoliday() {
                     {isEditing ? "Edit trip" : "Plan trip"}
                 </Text>
                 <Text variant="titleLarge" style={{marginBottom: 12}}>
-                    Enter holiday details
+                    Enter trip details
                 </Text>
 
                 <Card elevation={1} style={{marginBottom: 24}}>

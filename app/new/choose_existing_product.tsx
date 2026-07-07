@@ -95,7 +95,10 @@ export default function ChooseExistingProduct() {
       ) : (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
           <Icon source="package-variant-closed-remove" size={64} color={theme.colors.primary} />
-          <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No products here yet</Text>
+          <Text variant="bodyLarge" style={{ marginTop: 8, color: theme.colors.secondary }}>No existing products yet</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.secondary, textAlign: "center" }}>
+            Create a new product for this scanned code.
+          </Text>
         </View>
       )}
       <Button icon="plus" mode="contained" onPress={() => {router.push('/new/new_product')}}>

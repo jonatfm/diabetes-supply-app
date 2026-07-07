@@ -461,7 +461,7 @@ export default function ProductPage() {
                   onPress={handlePressConsume}
                   disabled={consumeDisabledByHoliday}
                 >
-                  {consumeDisabledByHoliday ? 'Not on current holiday' : 'Consume item'}
+                  {consumeDisabledByHoliday ? 'Not on current trip' : 'Consume item'}
                 </Button>
               ) : null}
               {!!product.isSessionBased && getActiveSessionQ.data ? (
@@ -509,7 +509,7 @@ export default function ProductPage() {
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Icon source="bag-suitcase" size={24} color={theme.colors.primary} />
-              <Text variant="titleLarge">Holiday Packing</Text>
+              <Text variant="titleLarge">Trip Packing</Text>
             </View>
             <Card mode="elevated" elevation={2}>
               <Card.Content>
@@ -538,7 +538,7 @@ export default function ProductPage() {
                 />
                 {holidayPackDetails.estimatedDaysLeft !== null && (
                   <Text variant="bodyMedium" style={{ color: holidayPackDetails.estimatedDaysLeft < 2 ? theme.colors.error : theme.colors.onSurface, marginBottom: 12 }}>
-                    ~{holidayPackDetails.estimatedDaysLeft.toFixed(1)} days of holiday supply remaining
+                    ~{holidayPackDetails.estimatedDaysLeft.toFixed(1)} days of trip supply remaining
                   </Text>
                 )}
 
@@ -913,7 +913,7 @@ export default function ProductPage() {
                 <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{consumtionDialogInfo.unitsLeftInPack}</Text></Text>
                 
                 {consumtionDialogInfo.unitsOnHoliday ? (
-                  <Text>Units on holiday: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{consumtionDialogInfo.unitsOnHoliday}</Text></Text>
+                  <Text>Units on trip: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{consumtionDialogInfo.unitsOnHoliday}</Text></Text>
                 ) : null}
                 
                 {consumtionDialogInfo.coloredDotIds && consumtionDialogInfo.coloredDotIds.length > 0 ? (

@@ -211,7 +211,7 @@ export default function PackForHoliday() {
                     </Button>
                 )}
                 {holiday.data?.state === "PACKED" && (
-                    <Text variant="titleLarge" style={{ color: theme.colors.primary, textAlign: "center" }}>Holiday is packed!</Text>
+                    <Text variant="titleLarge" style={{ color: theme.colors.primary, textAlign: "center" }}>Trip is packed!</Text>
                 )}
             </View>
 
@@ -236,7 +236,7 @@ export default function PackForHoliday() {
                                 </Text>
                             );
                         })}
-                        <Text style={{ marginTop: 12 }}>Are you sure you want to mark this holiday as packed anyway? You may run out of supplies.</Text>
+                        <Text style={{ marginTop: 12 }}>Are you sure you want to mark this trip as packed anyway? You may run out of supplies.</Text>
                     </Dialog.Content>
                     <Dialog.Actions>
                         <Button onPress={() => setIsMarkPackedDialogVisible(false)}>Cancel</Button>
@@ -351,7 +351,7 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
                             ) : null}
                             <Text>Units Left in Pack: <Text style={{ fontWeight: 'bold', color: theme.colors.primary }}>{currentSelectedPack.unitsRemaining}</Text></Text>
                             {reservedByOtherHolidays > 0 ? (
-                                <Text>Reserved for other holidays: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{reservedByOtherHolidays}</Text></Text>
+                                <Text>Reserved for other trips: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{reservedByOtherHolidays}</Text></Text>
                             ) : null}
                             {coloredDotIds.length > 0 ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
