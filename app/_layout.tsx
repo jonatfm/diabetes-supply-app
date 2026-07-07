@@ -2,6 +2,7 @@ import AppWrapper from '@/components/AppWrapper';
 import { ensureDbReady, useDatabase } from '@/db';
 import { appSettingsRepo } from '@/src/data/appSettingsRepo';
 import { GoogleDriveBackupFrequency, performGoogleDriveBackup, shouldRunGoogleDriveBackup } from '@/src/data/hooks/useGoogleDriveBackup';
+import { BackupFrequency, performLocalBackup, shouldRunBackup } from '@/src/data/hooks/useLocalBackup';
 import { refreshScheduledInventoryNotifications } from '@/src/services/notificationService';
 import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
@@ -58,6 +59,7 @@ export default function RootLayout() {
             {Platform.OS !== 'web' && <DrizzleStudioConnector rawDb={rawDb} />}
             <NotificationScheduler />
             <NotificationDeepLinkHandler />
+            <LocalAutoBackup />
             <GoogleDriveAutoBackup />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
@@ -122,6 +124,40 @@ function NotificationDeepLinkHandler() {
   return null;
 }
 
+function LocalAutoBackup() {
+  const { db, ready } = useDatabase();
+  const attemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (!db || !ready || attemptedRef.current) return;
+    attemptedRef.current = true;
+    const activeDb = db;
+
+    async function runBackupIfDue() {
+      const settings = appSettingsRepo(activeDb);
+      const frequency = await settings.getByKey<BackupFrequency>("localBackupFrequency");
+      const lastBackupAt = await settings.getByKey<number>("localBackupLastBackupAt");
+
+      if (!shouldRunBackup({ frequency, lastBackupAt })) {
+        return;
+      }
+
+      const retentionCount = await settings.getByKey<number>("localBackupRetentionCount");
+      await performLocalBackup({
+        db: activeDb,
+        retentionCount: retentionCount ?? 5,
+      });
+      await settings.upsert("localBackupLastBackupAt", Date.now());
+    }
+
+    runBackupIfDue().catch((error) => {
+      console.warn("Failed to run local auto-backup", error);
+    });
+  }, [db, ready]);
+
+  return null;
+}
+
 function GoogleDriveAutoBackup() {
   const { db, ready } = useDatabase();
   const attemptedRef = useRef(false);
@@ -133,6 +169,11 @@ function GoogleDriveAutoBackup() {
 
     async function runBackupIfDue() {
       const settings = appSettingsRepo(activeDb);
+      const advancedDriveEnabled = await settings.getByKey<boolean>("googleDriveBackupAdvancedEnabled");
+      if (!advancedDriveEnabled) {
+        return;
+      }
+
       const accessToken = await settings.getByKey<string>("googleDriveAccessToken");
       const refreshToken = await settings.getByKey<string>("googleDriveRefreshToken");
       const frequency = await settings.getByKey<GoogleDriveBackupFrequency>("googleDriveBackupFrequency");

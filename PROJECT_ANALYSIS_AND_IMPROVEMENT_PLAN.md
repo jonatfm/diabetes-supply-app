@@ -991,6 +991,10 @@ Updated: 2026-07-07
 - Done: Reworked generated colored-dot combinations to avoid one-query-per-pack lookup and full combination materialization. Existing product combinations are fetched in one joined query, and unused combinations are sampled directly while staying random and unique per product.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the scan recovery, service extraction, colored-dot generation, and product detail revert slice.
 - Follow-up: Google Drive OAuth works, but it is too configuration-heavy for a local unsigned APK. A better release direction is to make local export/share and import the primary backup path, then optionally add a simpler user-owned file target later instead of presenting OAuth as the normal setup.
+- Done: Hid the untested Google Drive backup integration behind an Advanced Google Drive Backup toggle. Drive auto-backup now also respects that toggle before doing any OAuth/token work.
+- Done: Added automatic local backups using the same JSON backup format as export/Drive. Settings now supports manual/daily/weekly/monthly local backup frequency, retention count, create/check/share latest/restore latest controls, and app-start automatic backup when due.
+- Done: Corrected colored-dot generation to always prefer the shortest available per-product code first. It randomizes among unused combinations at the current shortest length and only grows to longer color codes after shorter combinations are exhausted.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the local backup, Drive toggle, and colored-dot shortest-code fix.
 
 ### Phase 2: Domain Services
 

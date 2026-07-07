@@ -11,15 +11,32 @@ function shuffleInPlace<T>(items: T[]) {
   return items;
 }
 
-function combinationFromMask(dotIds: string[], mask: number) {
-  const result: string[] = [];
-  for (let index = 0; index < dotIds.length; index++) {
-    if (mask & (1 << index)) {
-      result.push(dotIds[index]);
-    }
-  }
+function randomCombinationOfSize(dotIds: string[], size: number) {
+  return shuffleInPlace([...dotIds]).slice(0, size).sort();
+}
 
-  return result;
+function forEachCombinationOfSize(
+  dotIds: string[],
+  size: number,
+  visit: (combination: string[]) => boolean,
+) {
+  const walk = (start: number, path: string[]): boolean => {
+    if (path.length === size) {
+      return visit([...path]);
+    }
+
+    for (let index = start; index <= dotIds.length - (size - path.length); index++) {
+      path.push(dotIds[index]);
+      if (walk(index + 1, path)) {
+        return true;
+      }
+      path.pop();
+    }
+
+    return false;
+  };
+
+  return walk(0, []);
 }
 
 export function generateUniqueDotCombination(params: {
@@ -31,39 +48,27 @@ export function generateUniqueDotCombination(params: {
     return [];
   }
 
-  if (dotIds.length < 31) {
-    const totalCombinations = (1 << dotIds.length) - 1;
-    const availableCount = totalCombinations - params.usedKeys.size;
-    if (availableCount <= 0) {
-      return null;
-    }
-
-    const maxRandomAttempts = Math.min(availableCount * 2, 128);
+  for (let size = 1; size <= dotIds.length; size++) {
+    const maxRandomAttempts = Math.min(dotIds.length * dotIds.length, 128);
     for (let attempt = 0; attempt < maxRandomAttempts; attempt++) {
-      const mask = 1 + Math.floor(Math.random() * totalCombinations);
-      const combination = combinationFromMask(dotIds, mask);
+      const combination = randomCombinationOfSize(dotIds, size);
       if (!params.usedKeys.has(canonicalDotCombinationKey(combination))) {
         return shuffleInPlace(combination);
       }
     }
 
-    const offset = Math.floor(Math.random() * totalCombinations);
-    for (let step = 0; step < totalCombinations; step++) {
-      const mask = 1 + ((offset + step) % totalCombinations);
-      const combination = combinationFromMask(dotIds, mask);
+    let found: string[] | null = null;
+    forEachCombinationOfSize(dotIds, size, (combination) => {
       if (!params.usedKeys.has(canonicalDotCombinationKey(combination))) {
-        return shuffleInPlace(combination);
+        found = combination;
+        return true;
       }
-    }
 
-    return null;
-  }
+      return false;
+    });
 
-  const shuffledDots = shuffleInPlace([...dotIds]);
-  for (let size = 1; size <= shuffledDots.length; size++) {
-    const combination = shuffledDots.slice(0, size);
-    if (!params.usedKeys.has(canonicalDotCombinationKey(combination))) {
-      return shuffleInPlace(combination);
+    if (found) {
+      return shuffleInPlace(found);
     }
   }
 

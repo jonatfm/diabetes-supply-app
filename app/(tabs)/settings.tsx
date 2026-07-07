@@ -7,6 +7,7 @@ import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { GoogleDriveBackupFrequency, useGoogleDriveBackups, useRestoreLatestGoogleDriveBackup, useUploadGoogleDriveBackup } from '@/src/data/hooks/useGoogleDriveBackup';
 import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
+import { BackupFrequency, getLocalBackupDirectoryUri, useCreateLocalBackup, useLocalBackups, useRestoreLatestLocalBackup, useShareLatestLocalBackup } from '@/src/data/hooks/useLocalBackup';
 import { useRefreshNotifications } from '@/src/data/hooks/useRefreshNotifications';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { qk } from '@/src/data/queryKeys';
@@ -28,6 +29,7 @@ export default function Settings() {
   const [isImportConfirmDialogVisible, setIsImportConfirmDialogVisible] = useState(false);
   const [isExportDialogVisible, setIsExportDialogVisible] = useState(false);
   const [isDriveRestoreDialogVisible, setIsDriveRestoreDialogVisible] = useState(false);
+  const [isLocalRestoreDialogVisible, setIsLocalRestoreDialogVisible] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
@@ -36,6 +38,7 @@ export default function Settings() {
   const [googleDriveAccessTokenInput, setGoogleDriveAccessTokenInput] = useState('');
   const [googleDriveFolderIdInput, setGoogleDriveFolderIdInput] = useState('');
   const [googleDriveRetentionInput, setGoogleDriveRetentionInput] = useState<number | null>(5);
+  const [localBackupRetentionInput, setLocalBackupRetentionInput] = useState<number | null>(5);
 
   // App settings
   const upsertAppSetting = useUpsertAppSetting();
@@ -46,6 +49,13 @@ export default function Settings() {
   const expiryApproachingDaysSetting = useAppSetting<number|null>("expiryApproachingDays").data;
   const runningOutWarningEnabledSetting = useAppSetting<boolean>("runningOutWarningEnabled").data;
   const runningOutDaysSetting = useAppSetting<number|null>("runningOutDays").data;
+  const localBackupFrequencySetting = useAppSetting<BackupFrequency>("localBackupFrequency").data ?? "manual";
+  const localBackupRetentionCountSetting = useAppSetting<number>("localBackupRetentionCount").data ?? 5;
+  const localBackupsQ = useLocalBackups();
+  const createLocalBackupM = useCreateLocalBackup(localBackupRetentionCountSetting);
+  const restoreLatestLocalBackupM = useRestoreLatestLocalBackup();
+  const shareLatestLocalBackupM = useShareLatestLocalBackup();
+  const googleDriveAdvancedEnabledSetting = useAppSetting<boolean>("googleDriveBackupAdvancedEnabled").data ?? false;
   const googleDriveAccessTokenSetting = useAppSetting<string>("googleDriveAccessToken").data;
   const googleDriveRefreshTokenSetting = useAppSetting<string>("googleDriveRefreshToken").data;
   const googleDriveAccessTokenExpiresAtSetting = useAppSetting<number | null>("googleDriveAccessTokenExpiresAt").data;
@@ -77,7 +87,8 @@ export default function Settings() {
     setGoogleDriveAccessTokenInput(googleDriveAccessTokenSetting ?? '');
     setGoogleDriveFolderIdInput(googleDriveFolderIdSetting ?? '');
     setGoogleDriveRetentionInput(googleDriveBackupRetentionCountSetting);
-  }, [googleDriveAccessTokenSetting, googleDriveBackupRetentionCountSetting, googleDriveFolderIdSetting, googleDriveOAuthClientIdSetting, googleDriveOAuthRedirectUriSetting]);
+    setLocalBackupRetentionInput(localBackupRetentionCountSetting);
+  }, [googleDriveAccessTokenSetting, googleDriveBackupRetentionCountSetting, googleDriveFolderIdSetting, googleDriveOAuthClientIdSetting, googleDriveOAuthRedirectUriSetting, localBackupRetentionCountSetting]);
 
   const refreshGoogleDriveSettingsQueries = useCallback(async () => {
     await Promise.all([
@@ -262,6 +273,55 @@ export default function Settings() {
       setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive disconnect failed');
     }
   }, [db, dbReady, refreshGoogleDriveSettingsQueries]);
+
+  const handleSaveLocalBackupSettings = useCallback(async () => {
+    try {
+      await upsertAppSetting.mutateAsync({
+        key: "localBackupRetentionCount",
+        value: localBackupRetentionInput ?? 5,
+      });
+      setSnackbarError(false);
+      setSnackbarMessage("Local backup settings saved.");
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Failed to save local backup settings");
+    }
+  }, [localBackupRetentionInput, upsertAppSetting]);
+
+  const handleCreateLocalBackup = useCallback(async () => {
+    try {
+      const result = await createLocalBackupM.mutateAsync();
+      await localBackupsQ.refetch();
+      setSnackbarError(false);
+      setSnackbarMessage(`Created ${result.backup.name}. Pruned ${result.pruned.length} old backups.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Local backup failed");
+    }
+  }, [createLocalBackupM, localBackupsQ]);
+
+  const handleShareLatestLocalBackup = useCallback(async () => {
+    try {
+      const latest = await shareLatestLocalBackupM.mutateAsync();
+      setSnackbarError(false);
+      setSnackbarMessage(`Shared ${latest.name}.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Failed to share local backup");
+    }
+  }, [shareLatestLocalBackupM]);
+
+  const handleRestoreLatestLocalBackup = useCallback(async () => {
+    setIsLocalRestoreDialogVisible(false);
+    try {
+      const result = await restoreLatestLocalBackupM.mutateAsync();
+      setSnackbarError(false);
+      setSnackbarMessage(`Restored local backup with ${result.stats.products} products and ${result.stats.packs} packs.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Local backup restore failed");
+    }
+  }, [restoreLatestLocalBackupM]);
 
   const handleUploadGoogleDriveBackup = useCallback(async () => {
     try {
@@ -526,6 +586,149 @@ export default function Settings() {
                   marginRight: 16,
                 }}
               >
+                <Icon source="folder-clock" size={24} color={theme.colors.onPrimaryContainer} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="titleMedium">Automatic Local Backups</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginTop: 2 }}>
+                  App-private JSON backups using the same export format. No account or network required.
+                </Text>
+              </View>
+            </View>
+
+            <SegmentedButtons
+              value={localBackupFrequencySetting}
+              onValueChange={(value) => {
+                upsertAppSetting.mutate({
+                  key: "localBackupFrequency",
+                  value: value as BackupFrequency,
+                });
+              }}
+              buttons={[
+                { value: "manual", label: "Manual" },
+                { value: "daily", label: "Daily" },
+                { value: "weekly", label: "Weekly" },
+                { value: "monthly", label: "Monthly" },
+              ]}
+            />
+            <NumberInput
+              label="Backups to keep"
+              value={localBackupRetentionInput}
+              onChangeText={setLocalBackupRetentionInput}
+              minValue={1}
+              style={{ width: 200 }}
+            />
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              Stored in app data: {getLocalBackupDirectoryUri()}
+            </Text>
+            <Button
+              mode="outlined"
+              icon="content-save"
+              onPress={handleSaveLocalBackupSettings}
+              disabled={upsertAppSetting.isPending}
+              loading={upsertAppSetting.isPending}
+            >
+              Save Local Backup Settings
+            </Button>
+
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="contained"
+                icon="database-plus"
+                onPress={handleCreateLocalBackup}
+                disabled={createLocalBackupM.isPending}
+                loading={createLocalBackupM.isPending}
+              >
+                Create Backup
+              </Button>
+              <Button
+                mode="outlined"
+                icon="refresh"
+                onPress={() => localBackupsQ.refetch()}
+                disabled={localBackupsQ.isFetching}
+                loading={localBackupsQ.isFetching}
+              >
+                Check Local
+              </Button>
+              <Button
+                mode="outlined"
+                icon="share-variant"
+                onPress={handleShareLatestLocalBackup}
+                disabled={!localBackupsQ.data?.length || shareLatestLocalBackupM.isPending}
+                loading={shareLatestLocalBackupM.isPending}
+              >
+                Share Latest
+              </Button>
+              <Button
+                mode="outlined"
+                icon="database-import"
+                textColor={theme.colors.error}
+                onPress={() => setIsLocalRestoreDialogVisible(true)}
+                disabled={!localBackupsQ.data?.length || restoreLatestLocalBackupM.isPending}
+                loading={restoreLatestLocalBackupM.isPending}
+              >
+                Restore Latest
+              </Button>
+            </View>
+
+            {localBackupsQ.data && localBackupsQ.data.length > 0 ? (
+              <View style={{ gap: 4 }}>
+                <Text variant="labelLarge">Latest local backup</Text>
+                <Text>{localBackupsQ.data[0].name}</Text>
+                {localBackupsQ.data[0].modifiedTime ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                    Modified {new Date(localBackupsQ.data[0].modifiedTime).toLocaleString()}
+                  </Text>
+                ) : null}
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                  {localBackupsQ.data.length} backup{localBackupsQ.data.length === 1 ? "" : "s"} stored locally.
+                </Text>
+              </View>
+            ) : (
+              <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                No local backups have been created yet.
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
+
+        <Card elevation={1} style={{ marginBottom: 24 }}>
+          <Card.Content style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text variant="titleMedium">Advanced Google Drive Backup</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginTop: 2 }}>
+                  Untested cloud backup for custom OAuth setups. Keep disabled unless you are actively testing it.
+                </Text>
+              </View>
+              <Switch
+                value={googleDriveAdvancedEnabledSetting}
+                onValueChange={(value) => {
+                  upsertAppSetting.mutate({
+                    key: "googleDriveBackupAdvancedEnabled",
+                    value,
+                  });
+                }}
+              />
+            </View>
+          </Card.Content>
+        </Card>
+
+        {googleDriveAdvancedEnabledSetting ? (
+        <Card elevation={1} style={{ marginBottom: 24 }}>
+          <Card.Content style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: theme.colors.primaryContainer,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16,
+                }}
+              >
                 <Icon source="google-drive" size={24} color={theme.colors.onPrimaryContainer} />
               </View>
               <View style={{ flex: 1 }}>
@@ -689,6 +892,7 @@ export default function Settings() {
             )}
           </Card.Content>
         </Card>
+        ) : null}
 
         <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content>
@@ -882,6 +1086,39 @@ export default function Settings() {
               disabled={importConfirmMutation.isPending || !importPreview}
             >
               Import Now
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={isLocalRestoreDialogVisible} onDismiss={() => setIsLocalRestoreDialogVisible(false)}>
+          <Dialog.Icon icon="folder-alert" color={theme.colors.error} />
+          <Dialog.Title style={{ textAlign: 'center', color: theme.colors.error }}>
+            Restore Latest Local Backup?
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+              This will restore the latest automatic local backup and replace all current local data.
+            </Text>
+            {localBackupsQ.data?.[0] && (
+              <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 12, color: theme.colors.secondary }}>
+                Latest: {localBackupsQ.data[0].name}
+              </Text>
+            )}
+            <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', color: theme.colors.error }}>
+              This action cannot be undone.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setIsLocalRestoreDialogVisible(false)}>Cancel</Button>
+            <Button
+              mode="contained"
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+              onPress={handleRestoreLatestLocalBackup}
+              loading={restoreLatestLocalBackupM.isPending}
+              disabled={restoreLatestLocalBackupM.isPending}
+            >
+              Restore
             </Button>
           </Dialog.Actions>
         </Dialog>
