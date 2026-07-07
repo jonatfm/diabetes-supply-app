@@ -953,6 +953,8 @@ Updated: 2026-07-07
 - Done: Added `src/domain/scanService.ts` for barcode identifier normalization and lookup aliases. GTIN/EAN13 scans now strip formatting characters and match compatible leading-zero variants, so a GS1 GTIN such as a 14-digit leading-zero code can resolve an existing EAN13 product identifier and vice versa.
 - Done: Updated scan lookup, scanned-product creation checks, and identifier creation conflict checks to use normalized matching while preserving the existing configurable product and identifier model.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the identifier normalization change.
+- Done: Moved scan product-identifier extraction into `scanService` and updated the camera scan flow to inspect all detected barcodes, selecting the first barcode that yields a valid GS1/EAN product identifier instead of relying only on the first detected barcode.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the scan extraction and multi-barcode selection change.
 
 ### Phase 2: Domain Services
 
@@ -960,7 +962,7 @@ Move business logic out of screens into testable services:
 
 - `inventoryService`: add pack, consume, adjust, discard, undo.
 - `holidayPlanningService`: calculate needs, reserve packs, activate/end trip.
-- `scanService`: normalize identifiers and parser results. Identifier normalization is now started in `src/domain/scanService.ts`; parser result orchestration can continue moving out of screens later.
+- `scanService`: normalize identifiers and parser results. Identifier normalization and product-identifier extraction are now started in `src/domain/scanService.ts`; full scan review and recovery UX can continue later.
 - `statisticsService`: estimate usage and run-out dates.
 
 Keep repositories focused on persistence. Keep screens focused on rendering and user interaction.
@@ -1056,7 +1058,7 @@ Before release, test:
 - Complete notification scheduling and warning generation.
 - Add manual pack creation.
 - Add editable product defaults.
-- Normalize barcode identifiers. Basic GTIN/EAN13 matching and duplicate-prevention normalization is implemented; scan review and parser-service extraction remain separate follow-up work.
+- Normalize barcode identifiers. Basic GTIN/EAN13 matching, duplicate-prevention normalization, shared identifier extraction, and first-valid multi-barcode selection are implemented; richer scan review remains follow-up work.
 - Improve scan review and multi-barcode handling.
 - Add import transaction/rollback safety.
 - Add encrypted backup option or at least explicit unencrypted warning.

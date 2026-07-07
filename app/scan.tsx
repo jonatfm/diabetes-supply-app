@@ -1,7 +1,7 @@
 import AppWrapper from '@/components/AppWrapper';
 import { BarcodeResult, processImage } from '@/modules/frame-processor-v2/src';
-import { detectBarcodeFormat, getConvenienceFields, parseGS1Unified } from '@/scripts/gs1';
 import { useFindIdentifierByValue } from '@/src/data/hooks/useFindIdentifierByValue';
+import { getProductIdentifierFromCode, selectProductIdentifierFromBarcodes } from '@/src/domain/scanService';
 import { useScanFlow } from '@/state/scanFlow';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
@@ -77,32 +77,17 @@ export default function Scan() {
         const result = await processImage(photo.uri);
         console.log('Scan result:', result);
         
-        if (result.success && result.barcodes && result.barcodes.length > 0 && result.barcodes[0].text) {
-          const barcode = result.barcodes[0];
-          const detected = detectBarcodeFormat(barcode.text);
-          
-          let identifier = '';
-          let identifierType: 'GTIN' | 'EAN13' | null = null;
-          
-          if (detected.format === 'GS1') {
-            const parsed = parseGS1Unified(barcode.text);
-            const conv = getConvenienceFields(parsed);
-            identifier = conv.identifier;
-            identifierType = conv.identifierType;
-          } else if (detected.format === 'EAN13') {
-            const conv = getConvenienceFields(barcode.text);
-            identifier = conv.identifier;
-            identifierType = conv.identifierType;
-          }
-          
-          console.log('Extracted identifier:', identifier);
-          
-          if (identifier && identifierType) {
+        if (result.success && result.barcodes && result.barcodes.length > 0) {
+          const selected = selectProductIdentifierFromBarcodes(result.barcodes);
+
+          if (selected) {
+            const { barcode, detection, index } = selected;
+            console.log('Extracted identifier:', detection.value, 'from barcode index:', index);
             setFlashEnabled(false);
 
             // Persist the detected barcode in the scanning flow context
             setScanResult(barcode);
-            const existing = await findIdentifier.mutateAsync({ value: identifier, type: identifierType });
+            const existing = await findIdentifier.mutateAsync({ value: detection.value, type: detection.type });
             console.log('Existing identifiers with this identifier:', existing);
             if (existing.length === 0) {
               router.push("/new/choose_existing_product");
@@ -127,38 +112,22 @@ export default function Scan() {
 
   const handleManualCodeSubmit = async() => {
     if (!manualCode) return;
-    const detected = detectBarcodeFormat(manualCode);
-    
-    let identifier = "";
-    let identifierType: 'GTIN' | 'EAN13' | null = null;
-    let fakedGs1Data: any | undefined = undefined;
-    if (detected.format === "GS1") {
-      const parsed = parseGS1Unified(manualCode);
-      const conv = getConvenienceFields(parsed);
-      fakedGs1Data = parsed;
-      identifier = conv.identifier;
-      identifierType = conv.identifierType;
-    } else if (detected.format === "EAN13") {
-      const conv = getConvenienceFields(manualCode);
-      identifier = conv.identifier;
-      identifierType = conv.identifierType;
-    }
+    const detection = getProductIdentifierFromCode(manualCode);
 
-    if (identifier && identifierType) {
+    if (detection) {
       setFlashEnabled(false);
 
       const fakedBarcode: BarcodeResult = {
-        format: detected.format,
+        format: detection.format,
         text: manualCode,
         confidence: 1,
         orientation: 0,
         boundingBox: { x: 0, y: 0, width: 0, height: 0 },
         position: [],
-        gs1Data: fakedGs1Data,
       }
 
       setScanResult(fakedBarcode);
-      const existing = await findIdentifier.mutateAsync({value: identifier, type: identifierType});
+      const existing = await findIdentifier.mutateAsync({value: detection.value, type: detection.type});
       if (existing.length === 0) {
         router.push("/new/choose_existing_product");
       } else {
