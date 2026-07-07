@@ -87,6 +87,7 @@ export default function ProductPage() {
   const [consumtionDialogInfo, setConsumtionDialogInfo] = useState<ConsumtionDialogInfo | null>(null);
   const [now, setNow] = useState<number>(Date.now());
   const [isSnackbarVisible, setIsSnackbarVisible] = useState<boolean>(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [isDiscardDialogVisible, setIsDiscardDialogVisible] = useState<boolean>(false);
   const [lastConsumedPackId, setLastConsumedPackId] = useState<string | null>(null);
   const packsQ = usePacks(id);
@@ -303,7 +304,7 @@ export default function ProductPage() {
     const chosenPackInfo = await calculateChosenPack(consumeSortPreference);
     
     if (!chosenPackInfo) {
-      alert("No valid packs available to consume from.");
+      setFeedbackMessage("No valid packs available to consume from.");
       return;
     }
 
@@ -1022,6 +1023,13 @@ export default function ProductPage() {
           }}
           style={{backgroundColor: theme.colors.secondaryContainer}}
         ><Text>Took one unit of {product.name}</Text></Snackbar>
+        <Snackbar
+          visible={feedbackMessage !== null}
+          onDismiss={() => setFeedbackMessage(null)}
+          duration={4000}
+        >
+          {feedbackMessage}
+        </Snackbar>
       </Portal>
     </AppWrapper>
   );

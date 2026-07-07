@@ -12,7 +12,7 @@ import { useScanFlow } from "@/state/scanFlow";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
+import { Button, Card, HelperText, Snackbar, Text, TextInput } from "react-native-paper";
 import { DatePickerInput } from 'react-native-paper-dates';
 
 export default function AddPack() {
@@ -31,6 +31,11 @@ export default function AddPack() {
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
   const coloredDots = useColoredDots({includeInactive: true}).data;
   const [displayedDots, setDisplayedDots] = useState<string[] | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const showFeedback = (message: string) => {
+    setFeedbackMessage(message);
+  };
 
   // Key that changes only when the *enabled* set changes
   const enabledDotIdsKey = useMemo(() => {
@@ -76,17 +81,17 @@ export default function AddPack() {
 
     // Check unitsInPack validity
     if (unitsInPack && !/^\d+$/.test(unitsInPack)) {
-      alert("Error: Units in pack must be a valid number.");
+      showFeedback("Units in pack must be a valid number.");
       return;
     }
 
     if (product && unitsInPack && Number(unitsInPack) > product.unitsPerPackDefault) {
-      alert(`Error: Cannot add more than ${product.unitsPerPackDefault} units. You entered ${unitsInPack}.`);
+      showFeedback(`Cannot add more than ${product.unitsPerPackDefault} units. You entered ${unitsInPack}.`);
       return;
     }
 
     if (canHaveExpiry && !convenience?.expiry && !manualExpiryDate) {
-      alert("Expiry date is required for this product.");
+      showFeedback("Expiry date is required for this product.");
       return;
     }
 
@@ -106,7 +111,6 @@ export default function AddPack() {
       rawCode: lastBarcodeResult?.text,
     });
 
-    alert('New pack added successfully');
     router.push('/');
   }
 
@@ -187,6 +191,13 @@ export default function AddPack() {
         
         <Button mode="contained" icon="plus" disabled={!product || (canHaveExpiry && !convenience?.expiry && !manualExpiryDate)} onPress={handleAddNewPack}>Add Pack</Button>
       </View>
+      <Snackbar
+        visible={feedbackMessage !== null}
+        onDismiss={() => setFeedbackMessage(null)}
+        duration={4000}
+      >
+        {feedbackMessage}
+      </Snackbar>
     </AppWrapper>
   )
 }

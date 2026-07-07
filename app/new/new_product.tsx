@@ -7,7 +7,7 @@ import { useScanFlow } from "@/state/scanFlow";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
-import { Button, Icon, SegmentedButtons, Text, TextInput } from "react-native-paper";
+import { Button, Dialog, Icon, Portal, SegmentedButtons, Snackbar, Text, TextInput } from "react-native-paper";
 
 export default function AddNewProduct() {
   const router = useRouter();
@@ -25,6 +25,8 @@ export default function AddNewProduct() {
 
   const [isSessionBased, setIsSessionBased] = useState(false);
   const [nominalSessionTimeDays, setNominalSessionTimeDays] = useState<number | undefined>(undefined);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [infoDialog, setInfoDialog] = useState<{ title: string; body: string } | null>(null);
 
   useEffect(() => {
     if (params.photoUri) {
@@ -67,7 +69,7 @@ export default function AddNewProduct() {
     console.log(unitsPerPack);
     console.log(imageUri);
     if (!lastBarcodeResult || !name || !unitsPerPack || (isSessionBased && !nominalSessionTimeDays)) {
-      alert('Please fill in all required fields');
+      setFeedbackMessage('Please fill in all required fields.');
       return;
     }
     const text = lastBarcodeResult.text ?? '';
@@ -88,7 +90,7 @@ export default function AddNewProduct() {
     }
 
     if (!identifier || !identifierType) {
-      alert('No valid product identifier found in barcode');
+      setFeedbackMessage('No valid product identifier found in barcode.');
       return;
     }
 
@@ -114,11 +116,11 @@ export default function AddNewProduct() {
     } catch (error) {
       const message = (error as Error).message;
       if (message === 'identifier-exists') {
-        alert('Product with this identifier already exists.');
+        setFeedbackMessage('Product with this identifier already exists.');
       } else if (message === 'name-exists') {
-        alert('Product name already in use. Please choose a different name.');
+        setFeedbackMessage('Product name already in use. Please choose a different name.');
       } else {
-        alert('Failed to save product. Please try again.');
+        setFeedbackMessage('Failed to save product. Please try again.');
       }
     }
   };
@@ -156,7 +158,10 @@ export default function AddNewProduct() {
         <View style={{gap: 8}}>
           <View style={{flexDirection: "row", alignItems: "center", gap: 4}}>
             <Text variant="labelLarge">Is this product session-based?</Text>
-            <Pressable onPress={() => alert("Session based products are used in specific time intervals or sessions. These products are typically CGM sensors or other devices that operate in defined sessions. Activating this means more upkeep, although with a lot more detail tracking and management.")}>
+            <Pressable onPress={() => setInfoDialog({
+              title: "Session-based products",
+              body: "Session-based products are used in specific time intervals or sessions. These products are typically CGM sensors or other devices that operate in defined sessions.",
+            })}>
               <Icon source="information" size={16} />
             </Pressable>
           </View>
@@ -185,7 +190,10 @@ export default function AddNewProduct() {
           <View style={{gap: 8}}>
             <View style={{flexDirection: "row", alignItems: "center", gap: 4}}>
               <Text variant="labelLarge">Use colored dots for this product?</Text>
-              <Pressable onPress={() => alert("You can use physical colored dot stickers to help identify packs of this product. This setting enables tracking of colored dot assignments for packs of this product. You have enabled colored dots in settings to see this option.")}>
+              <Pressable onPress={() => setInfoDialog({
+                title: "Colored dots",
+                body: "Use physical colored dot stickers to help identify packs of this product. This setting enables colored-dot assignments for future packs.",
+              })}>
                 <Icon source="information" size={16} />
               </Pressable>
             </View>
@@ -215,6 +223,24 @@ export default function AddNewProduct() {
           <Button disabled={!name || !unitsPerPack || (isSessionBased && !nominalSessionTimeDays)} mode="contained" icon="content-save" onPress={handleSaveProduct}>Save Product</Button>
         </View>
       </View>
+      <Portal>
+        <Dialog visible={infoDialog !== null} onDismiss={() => setInfoDialog(null)}>
+          <Dialog.Title>{infoDialog?.title}</Dialog.Title>
+          <Dialog.Content>
+            <Text>{infoDialog?.body}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setInfoDialog(null)}>OK</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Snackbar
+        visible={feedbackMessage !== null}
+        onDismiss={() => setFeedbackMessage(null)}
+        duration={4000}
+      >
+        {feedbackMessage}
+      </Snackbar>
     </AppWrapper>
   )
 }

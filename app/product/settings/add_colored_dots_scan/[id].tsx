@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { ActivityIndicator, Button, Card, Chip, Divider, Modal, Portal, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Button, Card, Chip, Divider, Modal, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 import { runOnJS } from "react-native-reanimated";
 
 // Types for scan result handling
@@ -64,6 +64,7 @@ export default function AddColoredDotsByScanning() {
   const [scanResult, setScanResult] = useState<ScanResultState>({ type: 'idle' });
   const [isSaving, setIsSaving] = useState(false);
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // Colored dots settings
   const coloredDotsEnabled = useAppSetting("coloredDotsEnabled").data ?? false;
@@ -220,7 +221,7 @@ export default function AddColoredDotsByScanning() {
             detected.format === 'GS1' ? parseGS1Unified(barcode.text) : undefined
           );
         } else {
-          alert("No valid barcode detected. Please try again.");
+          setFeedbackMessage("No valid barcode detected. Please try again.");
         }
       }
 
@@ -235,11 +236,11 @@ export default function AddColoredDotsByScanning() {
     try {
       const repo = coloredDotsRepo(db);
       await repo.setAssignmentForPack(packId, dotIds);
-      alert("Color code saved successfully!");
+      setFeedbackMessage("Color code saved successfully.");
       setScanResult({ type: 'idle' });
       setSelectedPackId(null);
     } catch {
-      alert("Failed to save color code. Please try again.");
+      setFeedbackMessage("Failed to save color code. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -569,6 +570,13 @@ export default function AddColoredDotsByScanning() {
           </ScrollView>
         </Modal>
       </Portal>
+      <Snackbar
+        visible={feedbackMessage !== null}
+        onDismiss={() => setFeedbackMessage(null)}
+        duration={4000}
+      >
+        {feedbackMessage}
+      </Snackbar>
     </AppWrapper>
   )
 }

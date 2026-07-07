@@ -968,6 +968,10 @@ Updated: 2026-07-07
 - Done: Added Expo notification scheduling support with `expo-notifications`. Inventory warnings are generated from current stock: expiry-approaching warnings for active expiring packs and run-out-soon warnings from usage statistics. The app refreshes schedules on startup and Settings includes a manual refresh action.
 - Done: Started `statisticsService` by extracting days-until-out-of-stock estimation into `src/domain/statisticsService.ts` for reuse by hooks and notification generation.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the notification scheduling and warning generation slice.
+- Done: Replaced remaining raw `alert()` calls with React Native Paper snackbars or dialogs across add-pack, new-product, choose-existing-product, product consumption, and colored-dot scanning flows.
+- Verified: `rg` found no remaining `alert()` or `Alert.alert` usages under app/source folders. Full `npm run lint` and `npm run typecheck` passed after the alert cleanup.
+- Done: Fixed the Android Metro bundling failure by adding `babel-preset-expo` as an explicit SDK 54-compatible dev dependency, matching the preset referenced by `babel.config.js`.
+- Verified: `require('babel-preset-expo/package.json').version` resolves to `54.0.11`; full `npm run lint` and `npm run typecheck` passed after the bundler dependency fix.
 
 ### Phase 2: Domain Services
 
@@ -982,7 +986,7 @@ Keep repositories focused on persistence. Keep screens focused on rendering and 
 
 ### Phase 3: UX Cleanup
 
-1. Replace alerts with consistent dialogs/snackbars. Started on the scan screen; other screens still need the same treatment.
+1. Replace alerts with consistent dialogs/snackbars. Implemented across current app/source screens.
 2. Split product page into clearer sections.
 3. Add manual pack creation.
 4. Add editable product defaults.

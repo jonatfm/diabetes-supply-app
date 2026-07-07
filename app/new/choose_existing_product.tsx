@@ -6,7 +6,7 @@ import { useScanFlow } from "@/state/scanFlow";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
-import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native-paper";
+import { Button, Card, Dialog, Icon, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 
 export default function ChooseExistingProduct() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function ChooseExistingProduct() {
   const [prods, setProds] = useState<Product[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedProductName, setSelectedProductName] = useState<string>('');
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const productsQ = useProducts();
   const linkIdentifier = useLinkIdentifierToProduct();
   const theme = useTheme();
@@ -37,7 +38,7 @@ export default function ChooseExistingProduct() {
         console.log(`Linked identifier ${convenience.identifier} to product ${productId}`);
       } catch (error) {
         console.error('Failed to create product identifier:', error);
-        alert('Failed to link product identifier. Please try again.');
+        setFeedbackMessage('Failed to link product identifier. Please try again.');
         return;
       }
     }
@@ -113,6 +114,13 @@ export default function ChooseExistingProduct() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <Snackbar
+        visible={feedbackMessage !== null}
+        onDismiss={() => setFeedbackMessage(null)}
+        duration={4000}
+      >
+        {feedbackMessage}
+      </Snackbar>
     </AppWrapper>
   )
 }
