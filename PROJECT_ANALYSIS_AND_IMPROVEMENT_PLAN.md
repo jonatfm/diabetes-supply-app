@@ -963,6 +963,8 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the trip dates, planned-trip editing, and return-home reconciliation slice.
 - Done: Started `holidayPlanningService` with trip expiry warning generation. Planned trips warn about recommended packs that expire before/during the trip, while packed/active trips warn about the concrete packed allocations.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the trip expiry warning slice.
+- Done: Added backup import preview. Import now picks and validates the backup first, shows version/export time and row counts, and only performs the destructive restore after a final confirmation against that selected file.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the import preview slice.
 
 ### Phase 2: Domain Services
 
@@ -996,7 +998,7 @@ Keep repositories focused on persistence. Keep screens focused on rendering and 
 
 1. Complete notifications.
 2. Add encrypted backups.
-3. Add import transaction and restore preview.
+3. Add import transaction and restore preview. Transactional restore and preview-before-import are implemented.
 4. Add accessibility pass.
 5. Add fresh-install and migration tests.
 6. Document limitations and non-medical-device disclaimer if distributing.

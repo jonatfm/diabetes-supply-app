@@ -4,7 +4,7 @@ import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
-import { useImportDatabase } from '@/src/data/hooks/useImportDatabase';
+import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -14,11 +14,12 @@ import ColoredDot from '../../components/ColoredDot';
 export default function Settings() {
   const theme = useTheme();
   const exportMutation = useExportDatabase();
-  const importMutation = useImportDatabase();
+  const importPreviewMutation = usePreviewImportDatabase();
+  const importConfirmMutation = useConfirmImportDatabase();
   
-  const [isImportDialogVisible, setIsImportDialogVisible] = useState(false);
   const [isImportConfirmDialogVisible, setIsImportConfirmDialogVisible] = useState(false);
   const [isExportDialogVisible, setIsExportDialogVisible] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
 
@@ -69,19 +70,23 @@ export default function Settings() {
     }
   }, [exportMutation]);
 
-  const handleImportPress = useCallback(() => {
-    setIsImportDialogVisible(true);
-  }, []);
-
-  const handleImportConfirm = useCallback(() => {
-    setIsImportDialogVisible(false);
-    setIsImportConfirmDialogVisible(true);
-  }, []);
+  const handleImportPress = useCallback(async () => {
+    try {
+      const preview = await importPreviewMutation.mutateAsync();
+      setImportPreview(preview);
+      setIsImportConfirmDialogVisible(true);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Import preview failed');
+    }
+  }, [importPreviewMutation]);
 
   const handleImportFinal = useCallback(async () => {
+    if (!importPreview) return;
     setIsImportConfirmDialogVisible(false);
     try {
-      const result = await importMutation.mutateAsync();
+      const result = await importConfirmMutation.mutateAsync(importPreview);
+      setImportPreview(null);
       setSnackbarError(false);
       const stats = result.stats;
       const parts = [
@@ -102,7 +107,7 @@ export default function Settings() {
       setSnackbarError(true);
       setSnackbarMessage(err instanceof Error ? err.message : 'Import failed');
     }
-  }, [importMutation]);
+  }, [importConfirmMutation, importPreview]);
 
   return (
     <AppWrapper bottomEdge={false}>
@@ -404,8 +409,8 @@ export default function Settings() {
               mode="outlined" 
               icon="import"
               onPress={handleImportPress}
-              loading={importMutation.isPending}
-              disabled={importMutation.isPending}
+              loading={importPreviewMutation.isPending || importConfirmMutation.isPending}
+              disabled={importPreviewMutation.isPending || importConfirmMutation.isPending}
               textColor={theme.colors.error}
               style={{ borderColor: theme.colors.error }}
             >
@@ -470,79 +475,45 @@ export default function Settings() {
           </Dialog.Actions>
         </Dialog>
 
-        {/* First Import Warning Dialog */}
-        <Dialog visible={isImportDialogVisible} onDismiss={() => setIsImportDialogVisible(false)}>
-          <Dialog.Icon icon="alert-circle" color={theme.colors.error} />
-          <Dialog.Title style={{ textAlign: 'center' }}>Import Database?</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ textAlign: 'center', marginBottom: 16 }}>
-              You are about to import a database backup. This will:
-            </Text>
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon source="close-circle" size={20} color={theme.colors.error} />
-                <Text variant="bodyMedium" style={{ marginLeft: 8, color: theme.colors.error }}>
-                  Delete ALL your current products
-                </Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon source="close-circle" size={20} color={theme.colors.error} />
-                <Text variant="bodyMedium" style={{ marginLeft: 8, color: theme.colors.error }}>
-                  Delete ALL your inventory and packs
-                </Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon source="close-circle" size={20} color={theme.colors.error} />
-                <Text variant="bodyMedium" style={{ marginLeft: 8, color: theme.colors.error }}>
-                  Delete ALL your history and sessions
-                </Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon source="close-circle" size={20} color={theme.colors.error} />
-                <Text variant="bodyMedium" style={{ marginLeft: 8, color: theme.colors.error }}>
-                  Delete ALL your saved images
-                </Text>
-              </View>
-            </View>
-            <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 16, fontWeight: 'bold' }}>
-              This action cannot be undone!
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setIsImportDialogVisible(false)}>Cancel</Button>
-            <Button 
-              onPress={handleImportConfirm} 
-              textColor={theme.colors.error}
-            >
-              I Understand, Continue
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-
-        {/* Second Import Confirmation Dialog */}
+        {/* Import Preview and Confirmation Dialog */}
         <Dialog visible={isImportConfirmDialogVisible} onDismiss={() => setIsImportConfirmDialogVisible(false)}>
           <Dialog.Icon icon="alert-octagon" color={theme.colors.error} />
           <Dialog.Title style={{ textAlign: 'center', color: theme.colors.error }}>
-            Final Confirmation
+            Import Preview
           </Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
-              Are you absolutely sure you want to proceed?
-            </Text>
-            <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', color: theme.colors.error }}>
-              All your current data will be permanently lost.
-            </Text>
-            <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 16, color: theme.colors.secondary }}>
-              After clicking Import Now, you will be prompted to select your backup file.
-            </Text>
+            {importPreview && (
+              <View style={{ gap: 8 }}>
+                <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+                  {importPreview.fileName}
+                </Text>
+                <Text variant="bodySmall" style={{ textAlign: 'center', color: theme.colors.secondary }}>
+                  Version {importPreview.version}{importPreview.exportedAt ? `, exported ${new Date(importPreview.exportedAt).toLocaleString()}` : ""}
+                </Text>
+                <View style={{ gap: 4, marginTop: 8 }}>
+                  <Text>{importPreview.stats.products} products</Text>
+                  <Text>{importPreview.stats.packs} packs</Text>
+                  <Text>{importPreview.stats.stockEvents} history events</Text>
+                  <Text>{importPreview.stats.sessions} sessions</Text>
+                  <Text>{importPreview.stats.holidays} trips</Text>
+                  <Text>{importPreview.stats.images} images</Text>
+                  <Text>{importPreview.stats.appSettings} settings</Text>
+                </View>
+                <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', color: theme.colors.error }}>
+                  Importing this backup will permanently replace all current local data.
+                </Text>
+              </View>
+            )}
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setIsImportConfirmDialogVisible(false)}>Go Back</Button>
+            <Button onPress={() => setIsImportConfirmDialogVisible(false)}>Cancel</Button>
             <Button 
               onPress={handleImportFinal} 
               mode="contained"
               buttonColor={theme.colors.error}
               textColor={theme.colors.onError}
+              loading={importConfirmMutation.isPending}
+              disabled={importConfirmMutation.isPending || !importPreview}
             >
               Import Now
             </Button>
