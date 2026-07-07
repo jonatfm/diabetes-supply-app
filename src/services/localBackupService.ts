@@ -39,6 +39,23 @@ function isBackupFile(file: File) {
   return file.name.startsWith(BACKUP_PREFIX) && file.name.endsWith(BACKUP_EXTENSION);
 }
 
+function backupFileName(baseTimestamp: number, attempt: number) {
+  const suffix = attempt === 0 ? "" : `-${attempt}`;
+  return `${BACKUP_PREFIX}${baseTimestamp}${suffix}${BACKUP_EXTENSION}`;
+}
+
+function createBackupFile(directory: Directory, fileName: string) {
+  try {
+    return directory.createFile(fileName, "application/json");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("same name already exists")) {
+      throw error;
+    }
+
+    throw error;
+  }
+}
+
 export function listLocalBackups(directoryUri?: string | null): LocalBackupFile[] {
   const directory = ensureLocalBackupDirectory(directoryUri);
 
@@ -56,12 +73,30 @@ export function listLocalBackups(directoryUri?: string | null): LocalBackupFile[
 
 export function writeLocalBackup(
   data: DatabaseExportData,
-  fileName = `${BACKUP_PREFIX}${Date.now()}${BACKUP_EXTENSION}`,
+  fileName = backupFileName(Date.now(), 0),
   directoryUri?: string | null,
 ) {
   const directory = ensureLocalBackupDirectory(directoryUri);
-  const file = new File(directory, fileName);
-  file.create({ overwrite: true });
+  let file: File | null = null;
+  const timestamp = Date.now();
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      file = createBackupFile(directory, attempt === 0 ? fileName : backupFileName(timestamp, attempt));
+      break;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("same name already exists")) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (!file) {
+    throw new Error("Could not create a local backup file. Try another backup location.");
+  }
+
   file.write(JSON.stringify(data, null, 2));
 
   return {

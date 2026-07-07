@@ -998,6 +998,8 @@ Updated: 2026-07-07
 - Done: Fixed colored-dot generation for repeated physical stickers. Codes are now shortest unique multisets, so a product with only one available color can use one black dot, then two black dots, then three black dots, etc.
 - Done: Added selectable local backup locations. Automatic/manual local backup listing, writing, pruning, sharing, restoring, and app-start backup now use the chosen directory URI, with a reset action to return to app-private storage.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the repeated-dot and backup-location fixes.
+- Done: Fixed local backup file creation in user-selected directories by using the directory file-creation API and retrying with suffixed backup filenames if a same-name entry already exists.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the local backup creation fix.
 
 ### Phase 2: Domain Services
 
