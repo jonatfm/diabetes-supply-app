@@ -1,4 +1,5 @@
 import { useDatabase } from "@/db";
+import { ProductIdentifier } from "@/db/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { productIdentifiersRepo } from "../productIdentifiersRepo";
@@ -9,6 +10,12 @@ export function useFindIdentifierByValue() {
 
   return useMutation({
     mutationKey: ["identifierLookup"],
-    mutationFn: ({ value }: { value: string }) => repo!.findByValue(value),
+    mutationFn: ({ value, type }: { value: string; type?: ProductIdentifier["type"] | null }) => {
+      if (type) {
+        return repo!.findMatchingIdentifier(type, value);
+      }
+
+      return repo!.findByValue(value);
+    },
   });
 }

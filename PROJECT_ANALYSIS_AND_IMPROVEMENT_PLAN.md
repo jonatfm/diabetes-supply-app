@@ -910,7 +910,7 @@ Possible future integrations:
 
 ### Implementation Status
 
-Updated: 2026-07-06
+Updated: 2026-07-07
 
 - Done: Fixed expired-pack discard behavior in `packsRepo.discardExpiredByProduct`. Expired active packs are now deactivated, their remaining units are zeroed, and `DISCARD` stock events are written with before/after metadata.
 - Done: Added transactions around core multi-table inventory writes: adding packs, consuming one unit, discarding expired packs, and undoing a take action.
@@ -950,6 +950,9 @@ Updated: 2026-07-06
 - Verified: Focused ESLint passed for the settings screen. Full `npm run lint` and full `npx tsc --noEmit` passed after the export warning change.
 - Done: Added an npm `typecheck` script so TypeScript verification can be run consistently with `npm run typecheck`.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after adding the script.
+- Done: Added `src/domain/scanService.ts` for barcode identifier normalization and lookup aliases. GTIN/EAN13 scans now strip formatting characters and match compatible leading-zero variants, so a GS1 GTIN such as a 14-digit leading-zero code can resolve an existing EAN13 product identifier and vice versa.
+- Done: Updated scan lookup, scanned-product creation checks, and identifier creation conflict checks to use normalized matching while preserving the existing configurable product and identifier model.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the identifier normalization change.
 
 ### Phase 2: Domain Services
 
@@ -957,7 +960,7 @@ Move business logic out of screens into testable services:
 
 - `inventoryService`: add pack, consume, adjust, discard, undo.
 - `holidayPlanningService`: calculate needs, reserve packs, activate/end trip.
-- `scanService`: normalize identifiers and parser results.
+- `scanService`: normalize identifiers and parser results. Identifier normalization is now started in `src/domain/scanService.ts`; parser result orchestration can continue moving out of screens later.
 - `statisticsService`: estimate usage and run-out dates.
 
 Keep repositories focused on persistence. Keep screens focused on rendering and user interaction.
@@ -995,7 +998,7 @@ Keep repositories focused on persistence. Keep screens focused on rendering and 
 Add tests for:
 
 - GS1 parser with real and synthetic examples.
-- GTIN/EAN normalization.
+- GTIN/EAN normalization. Basic lookup and duplicate-prevention normalization is implemented; dedicated unit tests are still needed.
 - Expiry date normalization.
 - Average usage calculations.
 - Days until out of stock.
@@ -1053,7 +1056,7 @@ Before release, test:
 - Complete notification scheduling and warning generation.
 - Add manual pack creation.
 - Add editable product defaults.
-- Normalize barcode identifiers.
+- Normalize barcode identifiers. Basic GTIN/EAN13 matching and duplicate-prevention normalization is implemented; scan review and parser-service extraction remain separate follow-up work.
 - Improve scan review and multi-barcode handling.
 - Add import transaction/rollback safety.
 - Add encrypted backup option or at least explicit unencrypted warning.
@@ -1078,7 +1081,7 @@ Before release, test:
 2. Fix expired discard and cover it with tests.
 3. Implement transaction helper and apply it to critical writes.
 4. Rework undo to insert `UNDO` events.
-5. Add product identifier uniqueness and normalization.
+5. Add product identifier uniqueness and normalization. Repository-level duplicate prevention and GTIN/EAN13 alias matching are implemented; tests should still be added.
 6. Move holiday and inventory business rules into services.
 7. Add manual add-pack flow, because it reduces dependence on perfect barcode scanning.
 

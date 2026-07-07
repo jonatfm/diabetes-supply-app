@@ -82,24 +82,27 @@ export default function Scan() {
           const detected = detectBarcodeFormat(barcode.text);
           
           let identifier = '';
+          let identifierType: 'GTIN' | 'EAN13' | null = null;
           
           if (detected.format === 'GS1') {
             const parsed = parseGS1Unified(barcode.text);
             const conv = getConvenienceFields(parsed);
             identifier = conv.identifier;
+            identifierType = conv.identifierType;
           } else if (detected.format === 'EAN13') {
             const conv = getConvenienceFields(barcode.text);
             identifier = conv.identifier;
+            identifierType = conv.identifierType;
           }
           
           console.log('Extracted identifier:', identifier);
           
-          if (identifier) {
+          if (identifier && identifierType) {
             setFlashEnabled(false);
 
             // Persist the detected barcode in the scanning flow context
             setScanResult(barcode);
-            const existing = await findIdentifier.mutateAsync({ value: identifier });
+            const existing = await findIdentifier.mutateAsync({ value: identifier, type: identifierType });
             console.log('Existing identifiers with this identifier:', existing);
             if (existing.length === 0) {
               router.push("/new/choose_existing_product");
@@ -127,18 +130,21 @@ export default function Scan() {
     const detected = detectBarcodeFormat(manualCode);
     
     let identifier = "";
+    let identifierType: 'GTIN' | 'EAN13' | null = null;
     let fakedGs1Data: any | undefined = undefined;
     if (detected.format === "GS1") {
       const parsed = parseGS1Unified(manualCode);
       const conv = getConvenienceFields(parsed);
       fakedGs1Data = parsed;
       identifier = conv.identifier;
+      identifierType = conv.identifierType;
     } else if (detected.format === "EAN13") {
       const conv = getConvenienceFields(manualCode);
       identifier = conv.identifier;
+      identifierType = conv.identifierType;
     }
 
-    if (identifier) {
+    if (identifier && identifierType) {
       setFlashEnabled(false);
 
       const fakedBarcode: BarcodeResult = {
@@ -152,7 +158,7 @@ export default function Scan() {
       }
 
       setScanResult(fakedBarcode);
-      const existing = await findIdentifier.mutateAsync({value: identifier});
+      const existing = await findIdentifier.mutateAsync({value: identifier, type: identifierType});
       if (existing.length === 0) {
         router.push("/new/choose_existing_product");
       } else {

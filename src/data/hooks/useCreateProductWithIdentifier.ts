@@ -26,7 +26,7 @@ export function useCreateProductWithIdentifier() {
     }) => {
       if (!db || !repo || !identifiers) throw new Error("Database not ready");
 
-      const existingIdentifier = await identifiers.findByTypeAndValue(params.identifierType, params.identifier);
+      const existingIdentifier = await identifiers.findMatchingIdentifier(params.identifierType, params.identifier);
       if (existingIdentifier.length > 0) {
         throw new Error("identifier-exists");
       }
