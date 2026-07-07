@@ -978,6 +978,8 @@ Updated: 2026-07-07
 - Done: Replaced the unsupported `bell-sync` icon with the supported `bell` icon for refreshing notification schedules.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive backup/restore slice.
 - Known follow-up: Google Drive OAuth consent/client configuration is still external to the app. The current implementation is access-token driven so no Google client ID is hardcoded and the feature remains configurable.
+- Done: Cleaned up the product detail page by keeping the product summary/actions visible and splitting secondary detail into Overview, Packs, Insights, and History tabs.
+- Verified: `npm run typecheck` passed after the product detail cleanup.
 
 ### Phase 2: Domain Services
 

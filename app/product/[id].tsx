@@ -63,6 +63,7 @@ type ConsumtionDialogInfo = {
   unitsOnHoliday?: number;
 }
 
+type ProductView = "overview" | "packs" | "insights" | "history";
 
 const sessionStatusColors: Record<string, string> = {
   completed: "#81C784",      // green
@@ -90,6 +91,7 @@ export default function ProductPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [isDiscardDialogVisible, setIsDiscardDialogVisible] = useState<boolean>(false);
   const [lastConsumedPackId, setLastConsumedPackId] = useState<string | null>(null);
+  const [productView, setProductView] = useState<ProductView>("overview");
   const packsQ = usePacks(id);
   const productQ = useProduct(id);
   const productIdentifiersQ = useProductIdentifiers(id);
@@ -545,6 +547,20 @@ export default function ProductPage() {
         </View>
 
 
+        <SegmentedButtons
+          value={productView}
+          onValueChange={(value) => setProductView(value as ProductView)}
+          style={{ marginBottom: 16 }}
+          buttons={[
+            { value: "overview", label: "Overview", icon: "view-dashboard-outline" },
+            { value: "packs", label: "Packs", icon: "package-variant" },
+            { value: "insights", label: "Insights", icon: "chart-line" },
+            { value: "history", label: "History", icon: "history" },
+          ]}
+        />
+
+        {productView === "overview" ? (
+          <>
         {/* Holiday Packing Card */}
         {holidayPackDetails && (
           <View style={{ marginBottom: 16 }}>
@@ -629,7 +645,11 @@ export default function ProductPage() {
             </View>
           );
         })() : null}
+          </>
+        ) : null}
 
+        {productView === "packs" ? (
+          <>
         <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}}>
           <Text variant="titleLarge">Packs</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -718,7 +738,10 @@ export default function ProductPage() {
             </Card>
           )
         ) : null}
+          </>
+        ) : null}
 
+        {productView === "insights" ? (
         <View style={{marginBottom: 12}}>
           <Text variant="titleLarge">Statistics</Text>
           
@@ -857,7 +880,10 @@ export default function ProductPage() {
             </Card>
           ) : null}
         </View>
+        ) : null}
 
+        {productView === "history" ? (
+          <>
         <Text variant="titleLarge">Product History</Text>
         {productHistoryQ.isPending ? (
           <Card style={{ marginBottom: 12 }}>
@@ -915,6 +941,8 @@ export default function ProductPage() {
             </Card.Content>
           </Card>
         )}
+          </>
+        ) : null}
       </ScrollView>
 
 
