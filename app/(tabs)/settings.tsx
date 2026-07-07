@@ -5,6 +5,7 @@ import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
+import { useRefreshNotifications } from '@/src/data/hooks/useRefreshNotifications';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -25,6 +26,7 @@ export default function Settings() {
 
   // App settings
   const upsertAppSetting = useUpsertAppSetting();
+  const refreshNotificationsM = useRefreshNotifications();
   // Notifications / "App Warnings"
   const appWarningsEnabledSetting = useAppSetting<boolean>("appWarningsEnabled").data;
   const expiryApproachingWarningEnabledSetting = useAppSetting<boolean>("expiryApproachingWarningEnabled").data;
@@ -53,6 +55,17 @@ export default function Settings() {
       }
     );
   }, [newDotColor, createColoredDotM]);
+
+  const handleRefreshNotifications = useCallback(async () => {
+    try {
+      const result = await refreshNotificationsM.mutateAsync();
+      setSnackbarError(false);
+      setSnackbarMessage(`Scheduled ${result.scheduled} inventory notifications.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Notification scheduling failed');
+    }
+  }, [refreshNotificationsM]);
 
   const handleExportPress = useCallback(() => {
     setIsExportDialogVisible(true);
@@ -202,6 +215,16 @@ export default function Settings() {
                     />
                   )}
                 </View>
+
+                <Button
+                  mode="contained-tonal"
+                  icon="bell-sync"
+                  onPress={handleRefreshNotifications}
+                  loading={refreshNotificationsM.isPending}
+                  disabled={refreshNotificationsM.isPending}
+                >
+                  Refresh notification schedule
+                </Button>
               </>
             )}
           </Card.Content>

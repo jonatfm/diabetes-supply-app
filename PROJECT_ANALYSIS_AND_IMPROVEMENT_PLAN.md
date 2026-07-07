@@ -965,6 +965,9 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the trip expiry warning slice.
 - Done: Added backup import preview. Import now picks and validates the backup first, shows version/export time and row counts, and only performs the destructive restore after a final confirmation against that selected file.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the import preview slice.
+- Done: Added Expo notification scheduling support with `expo-notifications`. Inventory warnings are generated from current stock: expiry-approaching warnings for active expiring packs and run-out-soon warnings from usage statistics. The app refreshes schedules on startup and Settings includes a manual refresh action.
+- Done: Started `statisticsService` by extracting days-until-out-of-stock estimation into `src/domain/statisticsService.ts` for reuse by hooks and notification generation.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the notification scheduling and warning generation slice.
 
 ### Phase 2: Domain Services
 
@@ -973,7 +976,7 @@ Move business logic out of screens into testable services:
 - `inventoryService`: add pack, consume, adjust, discard, undo.
 - `holidayPlanningService`: calculate needs, reserve packs, activate/end trip. Trip expiry warning generation has started in `src/domain/holidayPlanningService.ts`; more calculation and reservation logic still needs to move out of screens/utils.
 - `scanService`: normalize identifiers and parser results. Identifier normalization and product-identifier extraction are now started in `src/domain/scanService.ts`; full scan review and recovery UX can continue later.
-- `statisticsService`: estimate usage and run-out dates.
+- `statisticsService`: estimate usage and run-out dates. Days-until-out-of-stock estimation has started in `src/domain/statisticsService.ts`; more statistics logic can still move out of hooks/repos later.
 
 Keep repositories focused on persistence. Keep screens focused on rendering and user interaction.
 
@@ -996,7 +999,7 @@ Keep repositories focused on persistence. Keep screens focused on rendering and 
 
 ### Phase 5: Safety, Privacy, And Release Readiness
 
-1. Complete notifications.
+1. Complete notifications. Local inventory notification generation and scheduling are implemented; real-device permission/channel QA is still needed.
 2. Add encrypted backups.
 3. Add import transaction and restore preview. Transactional restore and preview-before-import are implemented.
 4. Add accessibility pass.
@@ -1065,7 +1068,7 @@ Before release, test:
 
 ### P1
 
-- Complete notification scheduling and warning generation.
+- Complete notification scheduling and warning generation. Local scheduling for expiry and run-out warnings is implemented.
 - Add manual pack creation.
 - Add editable product defaults.
 - Normalize barcode identifiers. Basic GTIN/EAN13 matching, duplicate-prevention normalization, shared identifier extraction, first-valid multi-barcode selection, and snackbar-based scan errors are implemented; richer scan review remains follow-up work.

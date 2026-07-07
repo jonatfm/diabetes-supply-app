@@ -1,10 +1,12 @@
 import AppWrapper from '@/components/AppWrapper';
 import { ensureDbReady, useDatabase } from '@/db';
+import { refreshScheduledInventoryNotifications } from '@/src/services/notificationService';
 import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, Text } from 'react-native-paper';
@@ -51,6 +53,7 @@ export default function RootLayout() {
         <PaperProvider theme={paperTheme}>
           <ScanFlowProvider>
             {Platform.OS !== 'web' && <DrizzleStudioConnector rawDb={rawDb} />}
+            <NotificationScheduler />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="holiday_mode/plan_holiday" />
@@ -70,6 +73,20 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+function NotificationScheduler() {
+  const { db, ready } = useDatabase();
+
+  useEffect(() => {
+    if (!db || !ready || Platform.OS === 'web') return;
+
+    refreshScheduledInventoryNotifications(db).catch((error) => {
+      console.warn("Failed to refresh inventory notifications", error);
+    });
+  }, [db, ready]);
+
+  return null;
 }
 
 function DrizzleStudioConnector({ rawDb }: { rawDb: any }) {
