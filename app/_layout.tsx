@@ -7,7 +7,8 @@ import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
-import { Stack } from 'expo-router';
+import * as Notifications from "expo-notifications";
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -56,6 +57,7 @@ export default function RootLayout() {
           <ScanFlowProvider>
             {Platform.OS !== 'web' && <DrizzleStudioConnector rawDb={rawDb} />}
             <NotificationScheduler />
+            <NotificationDeepLinkHandler />
             <GoogleDriveAutoBackup />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
@@ -76,6 +78,48 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+function NotificationDeepLinkHandler() {
+  const router = useRouter();
+  const handledNotificationRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const request = response.notification.request;
+      if (handledNotificationRef.current === request.identifier) {
+        return;
+      }
+
+      const productId = request.content.data?.productId;
+      if (typeof productId !== "string" || !productId) {
+        return;
+      }
+
+      handledNotificationRef.current = request.identifier;
+      router.push({
+        pathname: "/product/[id]",
+        params: { id: productId },
+      });
+    };
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          handleResponse(response);
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to read last notification response", error);
+      });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    return () => subscription.remove();
+  }, [router]);
+
+  return null;
 }
 
 function GoogleDriveAutoBackup() {

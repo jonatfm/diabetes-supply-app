@@ -982,6 +982,8 @@ Updated: 2026-07-07
 - Verified: `npm run typecheck` passed after the product detail cleanup.
 - Done: Added full configurable Google Drive OAuth support using AuthSession PKCE authorization-code flow, offline access, locally stored refresh tokens, manual refresh/disconnect controls, and automatic token refresh for Drive list/upload/restore/startup backup operations.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive OAuth refresh-token slice.
+- Done: Added notification deep-link handling. Scheduled inventory notifications now include product route metadata and tapping one opens the related product screen, including cold-start notification responses.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the notification deep-link slice.
 
 ### Phase 2: Domain Services
 

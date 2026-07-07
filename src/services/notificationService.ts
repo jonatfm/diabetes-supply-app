@@ -11,6 +11,7 @@ type Db = Parameters<typeof appSettingsRepo>[0];
 export type GeneratedWarning = {
   id: string;
   productId: string;
+  packId?: string;
   type: "EXPIRY_APPROACHING" | "RUN_OUT_SOON";
   title: string;
   body: string;
@@ -109,6 +110,7 @@ export async function generateInventoryWarnings(db: Db): Promise<GeneratedWarnin
         warnings.push({
           id: `expiry:${pack.id}`,
           productId: product.id,
+          packId: pack.id,
           type: "EXPIRY_APPROACHING",
           title: `${product.name} expires soon`,
           body: `A pack expires on ${pack.expiry}.`,
@@ -170,7 +172,9 @@ export async function refreshScheduledInventoryNotifications(db: Db) {
         data: {
           warningId: warning.id,
           productId: warning.productId,
+          packId: warning.packId,
           type: warning.type,
+          route: `/product/${warning.productId}`,
         },
       },
       trigger: {
