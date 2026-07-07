@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Button, Card, Modal, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Modal, Portal, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
 import { runOnJS } from 'react-native-reanimated';
 
 
@@ -26,9 +26,14 @@ export default function Scan() {
   const [zoom, setZoom] = useState(0);
   const [showManualCodeInputModal, setShowManualCodeInputModal] = useState(false);
   const [manualCode, setManualCode] = useState('');
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const updateZoom = (newZoom: number) => {
     setZoom(newZoom);
+  };
+
+  const showScanError = (message: string) => {
+    setScanError(message);
   };
 
   const pinchGesture = Gesture.Pinch()
@@ -100,10 +105,10 @@ export default function Scan() {
               });
             }
           } else {
-            alert('No valid product identifier found in barcode');
+            showScanError('No valid product identifier found in barcode.');
           }
         } else {
-          alert('No barcodes detected. Please try again.');
+          showScanError('No barcodes detected. Please try again.');
         }
       }
       setIsScanning(false);
@@ -139,7 +144,7 @@ export default function Scan() {
         })
       }
     } else {
-      alert("No valid product identifier found in code");
+      showScanError("No valid product identifier found in code.");
     }
   }
 
@@ -180,6 +185,17 @@ export default function Scan() {
           </Button>
         </Modal>
       </Portal>
+      <Snackbar
+        visible={scanError !== null}
+        onDismiss={() => setScanError(null)}
+        duration={4000}
+        action={{
+          label: 'Dismiss',
+          onPress: () => setScanError(null),
+        }}
+      >
+        {scanError}
+      </Snackbar>
     </AppWrapper>
   );
 }

@@ -955,6 +955,8 @@ Updated: 2026-07-07
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the identifier normalization change.
 - Done: Moved scan product-identifier extraction into `scanService` and updated the camera scan flow to inspect all detected barcodes, selecting the first barcode that yields a valid GS1/EAN product identifier instead of relying only on the first detected barcode.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the scan extraction and multi-barcode selection change.
+- Done: Replaced raw scan failure alerts on the scan screen with a React Native Paper snackbar for consistent, dismissible error feedback.
+- Verified: Full `npm run lint` and `npm run typecheck` passed after the scan snackbar cleanup.
 
 ### Phase 2: Domain Services
 
@@ -969,7 +971,7 @@ Keep repositories focused on persistence. Keep screens focused on rendering and 
 
 ### Phase 3: UX Cleanup
 
-1. Replace alerts with consistent dialogs/snackbars.
+1. Replace alerts with consistent dialogs/snackbars. Started on the scan screen; other screens still need the same treatment.
 2. Split product page into clearer sections.
 3. Add manual pack creation.
 4. Add editable product defaults.
@@ -1058,7 +1060,7 @@ Before release, test:
 - Complete notification scheduling and warning generation.
 - Add manual pack creation.
 - Add editable product defaults.
-- Normalize barcode identifiers. Basic GTIN/EAN13 matching, duplicate-prevention normalization, shared identifier extraction, and first-valid multi-barcode selection are implemented; richer scan review remains follow-up work.
+- Normalize barcode identifiers. Basic GTIN/EAN13 matching, duplicate-prevention normalization, shared identifier extraction, first-valid multi-barcode selection, and snackbar-based scan errors are implemented; richer scan review remains follow-up work.
 - Improve scan review and multi-barcode handling.
 - Add import transaction/rollback safety.
 - Add encrypted backup option or at least explicit unencrypted warning.
