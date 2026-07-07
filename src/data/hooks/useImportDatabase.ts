@@ -152,7 +152,7 @@ function buildImportPreview(fileUri: string, fileName: string, data: ValidatedIm
   };
 }
 
-async function restoreImportFromFile(
+export async function restoreImportFromFile(
   db: NonNullable<ReturnType<typeof useDatabase>["db"]>,
   queryClient: QueryClient,
   fileUri: string,

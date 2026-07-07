@@ -972,6 +972,12 @@ Updated: 2026-07-07
 - Verified: `rg` found no remaining `alert()` or `Alert.alert` usages under app/source folders. Full `npm run lint` and `npm run typecheck` passed after the alert cleanup.
 - Done: Fixed the Android Metro bundling failure by adding `babel-preset-expo` as an explicit SDK 54-compatible dev dependency, matching the preset referenced by `babel.config.js`.
 - Verified: `require('babel-preset-expo/package.json').version` resolves to `54.0.11`; full `npm run lint` and `npm run typecheck` passed after the bundler dependency fix.
+- Done: Added optional Google Drive backup/restore foundation. Settings now accepts a configurable Google Drive access token, can upload the current unencrypted JSON backup to Drive, can list the latest app-created Drive backup, and can restore the latest backup through the same validated transactional import path as local imports.
+- Done: Extended Google Drive backup settings with an optional Drive folder ID, manual/daily/weekly/monthly backup frequency, retention count, old-backup pruning, and app-start automatic backup when the configured interval is due.
+- Done: Extracted backup JSON generation from the local export hook so local export and Google Drive upload share the same versioned backup format.
+- Done: Replaced the unsupported `bell-sync` icon with the supported `bell` icon for refreshing notification schedules.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the Google Drive backup/restore slice.
+- Known follow-up: Google Drive OAuth consent/client configuration is still external to the app. The current implementation is access-token driven so no Google client ID is hardcoded and the feature remains configurable.
 
 ### Phase 2: Domain Services
 
@@ -1092,7 +1098,7 @@ Before release, test:
 
 - Generalize naming and data model for non-diabetes medical inventory.
 - Add reporting exports.
-- Add cloud backup/sync only after privacy and conflict handling are designed.
+- Add cloud backup/sync only after privacy and conflict handling are designed. Initial configurable Google Drive upload/latest-restore foundation is implemented without encryption; full OAuth and conflict-aware sync remain follow-up work.
 
 ## Recommended Next Implementation Steps
 

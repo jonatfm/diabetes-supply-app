@@ -4,10 +4,11 @@ import { useAppSetting } from '@/src/data/hooks/useAppSetting';
 import { useColoredDots } from '@/src/data/hooks/useColoredDots';
 import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
+import { GoogleDriveBackupFrequency, useGoogleDriveBackups, useRestoreLatestGoogleDriveBackup, useUploadGoogleDriveBackup } from '@/src/data/hooks/useGoogleDriveBackup';
 import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
 import { useRefreshNotifications } from '@/src/data/hooks/useRefreshNotifications';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Card, Dialog, Divider, Icon, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import ColoredDot from '../../components/ColoredDot';
@@ -20,9 +21,13 @@ export default function Settings() {
   
   const [isImportConfirmDialogVisible, setIsImportConfirmDialogVisible] = useState(false);
   const [isExportDialogVisible, setIsExportDialogVisible] = useState(false);
+  const [isDriveRestoreDialogVisible, setIsDriveRestoreDialogVisible] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [snackbarError, setSnackbarError] = useState(false);
+  const [googleDriveAccessTokenInput, setGoogleDriveAccessTokenInput] = useState('');
+  const [googleDriveFolderIdInput, setGoogleDriveFolderIdInput] = useState('');
+  const [googleDriveRetentionInput, setGoogleDriveRetentionInput] = useState<number | null>(5);
 
   // App settings
   const upsertAppSetting = useUpsertAppSetting();
@@ -33,6 +38,17 @@ export default function Settings() {
   const expiryApproachingDaysSetting = useAppSetting<number|null>("expiryApproachingDays").data;
   const runningOutWarningEnabledSetting = useAppSetting<boolean>("runningOutWarningEnabled").data;
   const runningOutDaysSetting = useAppSetting<number|null>("runningOutDays").data;
+  const googleDriveAccessTokenSetting = useAppSetting<string>("googleDriveAccessToken").data;
+  const googleDriveFolderIdSetting = useAppSetting<string>("googleDriveFolderId").data;
+  const googleDriveBackupFrequencySetting = useAppSetting<GoogleDriveBackupFrequency>("googleDriveBackupFrequency").data ?? "manual";
+  const googleDriveBackupRetentionCountSetting = useAppSetting<number>("googleDriveBackupRetentionCount").data ?? 5;
+  const googleDriveBackupsQ = useGoogleDriveBackups(googleDriveAccessTokenSetting, googleDriveFolderIdSetting);
+  const uploadGoogleDriveBackupM = useUploadGoogleDriveBackup(
+    googleDriveAccessTokenSetting,
+    googleDriveFolderIdSetting,
+    googleDriveBackupRetentionCountSetting,
+  );
+  const restoreLatestGoogleDriveBackupM = useRestoreLatestGoogleDriveBackup(googleDriveAccessTokenSetting, googleDriveFolderIdSetting);
   // Colored dots
   const coloredDotsEnabledSetting = useAppSetting<boolean>('coloredDotsEnabled').data;
   const coloredDots = useColoredDots({includeInactive: true}).data;
@@ -42,6 +58,11 @@ export default function Settings() {
   // Holiday function
   const holidayFunctionEnabledSetting = useAppSetting<boolean>('holidayFunctionEnabled').data;
 
+  useEffect(() => {
+    setGoogleDriveAccessTokenInput(googleDriveAccessTokenSetting ?? '');
+    setGoogleDriveFolderIdInput(googleDriveFolderIdSetting ?? '');
+    setGoogleDriveRetentionInput(googleDriveBackupRetentionCountSetting);
+  }, [googleDriveAccessTokenSetting, googleDriveBackupRetentionCountSetting, googleDriveFolderIdSetting]);
 
   const saveNewColoredDot = useCallback(() => {
     if (!newDotColor) return;
@@ -121,6 +142,54 @@ export default function Settings() {
       setSnackbarMessage(err instanceof Error ? err.message : 'Import failed');
     }
   }, [importConfirmMutation, importPreview]);
+
+  const handleSaveGoogleDriveSettings = useCallback(async () => {
+    try {
+      await Promise.all([
+        upsertAppSetting.mutateAsync({
+          key: "googleDriveAccessToken",
+          value: googleDriveAccessTokenInput.trim(),
+        }),
+        upsertAppSetting.mutateAsync({
+          key: "googleDriveFolderId",
+          value: googleDriveFolderIdInput.trim(),
+        }),
+        upsertAppSetting.mutateAsync({
+          key: "googleDriveBackupRetentionCount",
+          value: googleDriveRetentionInput ?? 5,
+        }),
+      ]);
+      setSnackbarError(false);
+      setSnackbarMessage('Google Drive backup settings saved.');
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Failed to save Google Drive settings');
+    }
+  }, [googleDriveAccessTokenInput, googleDriveFolderIdInput, googleDriveRetentionInput, upsertAppSetting]);
+
+  const handleUploadGoogleDriveBackup = useCallback(async () => {
+    try {
+      const uploaded = await uploadGoogleDriveBackupM.mutateAsync();
+      await googleDriveBackupsQ.refetch();
+      setSnackbarError(false);
+      setSnackbarMessage(`Uploaded ${uploaded.uploaded.name} to Google Drive. Pruned ${uploaded.pruned.length} old backups.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive upload failed');
+    }
+  }, [googleDriveBackupsQ, uploadGoogleDriveBackupM]);
+
+  const handleRestoreLatestDriveBackup = useCallback(async () => {
+    setIsDriveRestoreDialogVisible(false);
+    try {
+      const result = await restoreLatestGoogleDriveBackupM.mutateAsync();
+      setSnackbarError(false);
+      setSnackbarMessage(`Restored Google Drive backup with ${result.stats.products} products and ${result.stats.packs} packs.`);
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : 'Google Drive restore failed');
+    }
+  }, [restoreLatestGoogleDriveBackupM]);
 
   return (
     <AppWrapper bottomEdge={false}>
@@ -218,7 +287,7 @@ export default function Settings() {
 
                 <Button
                   mode="contained-tonal"
-                  icon="bell-sync"
+                  icon="bell"
                   onPress={handleRefreshNotifications}
                   loading={refreshNotificationsM.isPending}
                   disabled={refreshNotificationsM.isPending}
@@ -347,6 +416,129 @@ export default function Settings() {
 
         {/* Data Management Section */}
         <Text variant="titleLarge" style={{ marginBottom: 12 }}>Data Management</Text>        
+        <Card elevation={1} style={{ marginBottom: 24 }}>
+          <Card.Content style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: theme.colors.primaryContainer,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16,
+                }}
+              >
+                <Icon source="google-drive" size={24} color={theme.colors.onPrimaryContainer} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text variant="titleMedium">Google Drive Backup</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginTop: 2 }}>
+                  Optional unencrypted cloud backup using the same JSON backup format.
+                </Text>
+              </View>
+            </View>
+
+            <TextInput
+              label="Google Drive access token"
+              value={googleDriveAccessTokenInput}
+              onChangeText={setGoogleDriveAccessTokenInput}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              Use a token with Google Drive file access. It is stored locally in app settings and backups uploaded to Drive are not encrypted yet.
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              Temporary setup: create an OAuth access token for the `https://www.googleapis.com/auth/drive.file` scope, then paste it here. Access tokens expire; full Google sign-in with refresh tokens is still a follow-up.
+            </Text>
+            <TextInput
+              label="Google Drive folder ID"
+              value={googleDriveFolderIdInput}
+              onChangeText={setGoogleDriveFolderIdInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Optional, leave blank for Drive root"
+            />
+            <SegmentedButtons
+              value={googleDriveBackupFrequencySetting}
+              onValueChange={(value) => {
+                upsertAppSetting.mutate({
+                  key: "googleDriveBackupFrequency",
+                  value: value as GoogleDriveBackupFrequency,
+                });
+              }}
+              buttons={[
+                { value: "manual", label: "Manual" },
+                { value: "daily", label: "Daily" },
+                { value: "weekly", label: "Weekly" },
+                { value: "monthly", label: "Monthly" },
+              ]}
+            />
+            <NumberInput
+              label="Backups to keep"
+              value={googleDriveRetentionInput}
+              onChangeText={setGoogleDriveRetentionInput}
+              minValue={1}
+              style={{ width: 200 }}
+            />
+            <Button
+              mode="outlined"
+              icon="content-save"
+              onPress={handleSaveGoogleDriveSettings}
+              disabled={upsertAppSetting.isPending}
+              loading={upsertAppSetting.isPending}
+            >
+              Save Drive Settings
+            </Button>
+
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="contained"
+                icon="cloud-upload"
+                onPress={handleUploadGoogleDriveBackup}
+                disabled={!googleDriveAccessTokenSetting || uploadGoogleDriveBackupM.isPending}
+                loading={uploadGoogleDriveBackupM.isPending}
+              >
+                Upload Backup
+              </Button>
+              <Button
+                mode="outlined"
+                icon="refresh"
+                onPress={() => googleDriveBackupsQ.refetch()}
+                disabled={!googleDriveAccessTokenSetting || googleDriveBackupsQ.isFetching}
+                loading={googleDriveBackupsQ.isFetching}
+              >
+                Check Drive
+              </Button>
+              <Button
+                mode="outlined"
+                icon="cloud-download"
+                textColor={theme.colors.error}
+                onPress={() => setIsDriveRestoreDialogVisible(true)}
+                disabled={!googleDriveAccessTokenSetting || restoreLatestGoogleDriveBackupM.isPending}
+                loading={restoreLatestGoogleDriveBackupM.isPending}
+              >
+                Restore Latest
+              </Button>
+            </View>
+
+            {googleDriveBackupsQ.data && googleDriveBackupsQ.data.length > 0 && (
+              <View style={{ gap: 4 }}>
+                <Text variant="labelLarge">Latest Drive backup</Text>
+                <Text>{googleDriveBackupsQ.data[0].name}</Text>
+                {googleDriveBackupsQ.data[0].modifiedTime && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                    Modified {new Date(googleDriveBackupsQ.data[0].modifiedTime).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+
         <Card elevation={1} style={{ marginBottom: 24 }}>
           <Card.Content>
             {/* Export Section */}
@@ -539,6 +731,39 @@ export default function Settings() {
               disabled={importConfirmMutation.isPending || !importPreview}
             >
               Import Now
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={isDriveRestoreDialogVisible} onDismiss={() => setIsDriveRestoreDialogVisible(false)}>
+          <Dialog.Icon icon="cloud-alert" color={theme.colors.error} />
+          <Dialog.Title style={{ textAlign: 'center', color: theme.colors.error }}>
+            Restore Latest Drive Backup?
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+              This will download the latest app backup found in Google Drive and replace all current local data.
+            </Text>
+            {googleDriveBackupsQ.data?.[0] && (
+              <Text variant="bodySmall" style={{ textAlign: 'center', marginTop: 12, color: theme.colors.secondary }}>
+                Latest: {googleDriveBackupsQ.data[0].name}
+              </Text>
+            )}
+            <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', color: theme.colors.error }}>
+              This action cannot be undone.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setIsDriveRestoreDialogVisible(false)}>Cancel</Button>
+            <Button
+              mode="contained"
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+              onPress={handleRestoreLatestDriveBackup}
+              loading={restoreLatestGoogleDriveBackupM.isPending}
+              disabled={restoreLatestGoogleDriveBackupM.isPending}
+            >
+              Restore
             </Button>
           </Dialog.Actions>
         </Dialog>

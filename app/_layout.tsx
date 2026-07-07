@@ -1,12 +1,14 @@
 import AppWrapper from '@/components/AppWrapper';
 import { ensureDbReady, useDatabase } from '@/db';
+import { appSettingsRepo } from '@/src/data/appSettingsRepo';
+import { GoogleDriveBackupFrequency, performGoogleDriveBackup, shouldRunGoogleDriveBackup } from '@/src/data/hooks/useGoogleDriveBackup';
 import { refreshScheduledInventoryNotifications } from '@/src/services/notificationService';
 import { ScanFlowProvider } from '@/state/scanFlow';
 import { useMaterial3Theme } from '@pchmn/expo-material3-theme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, Text } from 'react-native-paper';
@@ -54,6 +56,7 @@ export default function RootLayout() {
           <ScanFlowProvider>
             {Platform.OS !== 'web' && <DrizzleStudioConnector rawDb={rawDb} />}
             <NotificationScheduler />
+            <GoogleDriveAutoBackup />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="holiday_mode/plan_holiday" />
@@ -73,6 +76,45 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+function GoogleDriveAutoBackup() {
+  const { db, ready } = useDatabase();
+  const attemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (!db || !ready || attemptedRef.current) return;
+    attemptedRef.current = true;
+    const activeDb = db;
+
+    async function runBackupIfDue() {
+      const settings = appSettingsRepo(activeDb);
+      const accessToken = await settings.getByKey<string>("googleDriveAccessToken");
+      const frequency = await settings.getByKey<GoogleDriveBackupFrequency>("googleDriveBackupFrequency");
+      const lastBackupAt = await settings.getByKey<number>("googleDriveLastBackupAt");
+
+      if (!accessToken?.trim() || !shouldRunGoogleDriveBackup({ frequency, lastBackupAt })) {
+        return;
+      }
+
+      const folderId = await settings.getByKey<string>("googleDriveFolderId");
+      const retentionCount = await settings.getByKey<number>("googleDriveBackupRetentionCount");
+
+      await performGoogleDriveBackup({
+        db: activeDb,
+        accessToken,
+        folderId,
+        retentionCount: retentionCount ?? 5,
+      });
+      await settings.upsert("googleDriveLastBackupAt", Date.now());
+    }
+
+    runBackupIfDue().catch((error) => {
+      console.warn("Failed to run Google Drive auto-backup", error);
+    });
+  }, [db, ready]);
+
+  return null;
 }
 
 function NotificationScheduler() {
