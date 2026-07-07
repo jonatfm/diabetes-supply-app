@@ -12,10 +12,15 @@ function shuffleInPlace<T>(items: T[]) {
 }
 
 function randomCombinationOfSize(dotIds: string[], size: number) {
-  return shuffleInPlace([...dotIds]).slice(0, size).sort();
+  const result: string[] = [];
+  for (let index = 0; index < size; index++) {
+    result.push(dotIds[Math.floor(Math.random() * dotIds.length)]);
+  }
+
+  return result.sort();
 }
 
-function forEachCombinationOfSize(
+function forEachMultisetOfSize(
   dotIds: string[],
   size: number,
   visit: (combination: string[]) => boolean,
@@ -25,9 +30,9 @@ function forEachCombinationOfSize(
       return visit([...path]);
     }
 
-    for (let index = start; index <= dotIds.length - (size - path.length); index++) {
+    for (let index = start; index < dotIds.length; index++) {
       path.push(dotIds[index]);
-      if (walk(index + 1, path)) {
+      if (walk(index, path)) {
         return true;
       }
       path.pop();
@@ -48,7 +53,9 @@ export function generateUniqueDotCombination(params: {
     return [];
   }
 
-  for (let size = 1; size <= dotIds.length; size++) {
+  const maxSizeToTry = Math.max(dotIds.length, params.usedKeys.size + 1);
+
+  for (let size = 1; size <= maxSizeToTry; size++) {
     const maxRandomAttempts = Math.min(dotIds.length * dotIds.length, 128);
     for (let attempt = 0; attempt < maxRandomAttempts; attempt++) {
       const combination = randomCombinationOfSize(dotIds, size);
@@ -58,7 +65,7 @@ export function generateUniqueDotCombination(params: {
     }
 
     let found: string[] | null = null;
-    forEachCombinationOfSize(dotIds, size, (combination) => {
+    forEachMultisetOfSize(dotIds, size, (combination) => {
       if (!params.usedKeys.has(canonicalDotCombinationKey(combination))) {
         found = combination;
         return true;

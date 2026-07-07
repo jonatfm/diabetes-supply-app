@@ -995,6 +995,9 @@ Updated: 2026-07-07
 - Done: Added automatic local backups using the same JSON backup format as export/Drive. Settings now supports manual/daily/weekly/monthly local backup frequency, retention count, create/check/share latest/restore latest controls, and app-start automatic backup when due.
 - Done: Corrected colored-dot generation to always prefer the shortest available per-product code first. It randomizes among unused combinations at the current shortest length and only grows to longer color codes after shorter combinations are exhausted.
 - Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the local backup, Drive toggle, and colored-dot shortest-code fix.
+- Done: Fixed colored-dot generation for repeated physical stickers. Codes are now shortest unique multisets, so a product with only one available color can use one black dot, then two black dots, then three black dots, etc.
+- Done: Added selectable local backup locations. Automatic/manual local backup listing, writing, pruning, sharing, restoring, and app-start backup now use the chosen directory URI, with a reset action to return to app-private storage.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the repeated-dot and backup-location fixes.
 
 ### Phase 2: Domain Services
 

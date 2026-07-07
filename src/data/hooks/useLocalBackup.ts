@@ -1,5 +1,5 @@
 import { useDatabase } from "@/db";
-import { getLatestLocalBackup, getLocalBackupDirectoryUri, listLocalBackups, pruneLocalBackups, writeLocalBackup } from "@/src/services/localBackupService";
+import { getLatestLocalBackup, getLocalBackupDirectoryUri, listLocalBackups, pickLocalBackupDirectory, pruneLocalBackups, writeLocalBackup } from "@/src/services/localBackupService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Sharing from "expo-sharing";
 import { buildDatabaseExportData } from "./useExportDatabase";
@@ -30,24 +30,25 @@ export function shouldRunBackup(params: {
 export async function performLocalBackup(params: {
   db: NonNullable<ReturnType<typeof useDatabase>["db"]>;
   retentionCount?: number | null;
+  directoryUri?: string | null;
 }) {
   const data = await buildDatabaseExportData(params.db);
-  const backup = writeLocalBackup(data);
+  const backup = writeLocalBackup(data, undefined, params.directoryUri);
   const pruned = params.retentionCount
-    ? pruneLocalBackups(params.retentionCount)
+    ? pruneLocalBackups(params.retentionCount, params.directoryUri)
     : [];
 
   return { backup, pruned };
 }
 
-export function useLocalBackups() {
+export function useLocalBackups(directoryUri?: string | null) {
   return useQuery({
-    queryKey: ["localBackups"],
-    queryFn: () => listLocalBackups(),
+    queryKey: ["localBackups", directoryUri ?? "default"],
+    queryFn: () => listLocalBackups(directoryUri),
   });
 }
 
-export function useCreateLocalBackup(retentionCount?: number | null) {
+export function useCreateLocalBackup(retentionCount?: number | null, directoryUri?: string | null) {
   const { db, ready } = useDatabase();
   const queryClient = useQueryClient();
 
@@ -57,7 +58,7 @@ export function useCreateLocalBackup(retentionCount?: number | null) {
         throw new Error("Database not ready");
       }
 
-      return performLocalBackup({ db, retentionCount });
+      return performLocalBackup({ db, retentionCount, directoryUri });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["localBackups"] });
@@ -65,7 +66,7 @@ export function useCreateLocalBackup(retentionCount?: number | null) {
   });
 }
 
-export function useRestoreLatestLocalBackup() {
+export function useRestoreLatestLocalBackup(directoryUri?: string | null) {
   const { db, ready } = useDatabase();
   const queryClient = useQueryClient();
 
@@ -75,7 +76,7 @@ export function useRestoreLatestLocalBackup() {
         throw new Error("Database not ready");
       }
 
-      const latest = getLatestLocalBackup();
+      const latest = getLatestLocalBackup(directoryUri);
       if (!latest) {
         throw new Error("No local backups found.");
       }
@@ -85,10 +86,10 @@ export function useRestoreLatestLocalBackup() {
   });
 }
 
-export function useShareLatestLocalBackup() {
+export function useShareLatestLocalBackup(directoryUri?: string | null) {
   return useMutation({
     mutationFn: async () => {
-      const latest = getLatestLocalBackup();
+      const latest = getLatestLocalBackup(directoryUri);
       if (!latest) {
         throw new Error("No local backups found.");
       }
@@ -110,3 +111,4 @@ export function useShareLatestLocalBackup() {
 }
 
 export { getLocalBackupDirectoryUri };
+export { pickLocalBackupDirectory };

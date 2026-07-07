@@ -143,9 +143,11 @@ function LocalAutoBackup() {
       }
 
       const retentionCount = await settings.getByKey<number>("localBackupRetentionCount");
+      const directoryUri = await settings.getByKey<string>("localBackupDirectoryUri");
       await performLocalBackup({
         db: activeDb,
         retentionCount: retentionCount ?? 5,
+        directoryUri,
       });
       await settings.upsert("localBackupLastBackupAt", Date.now());
     }

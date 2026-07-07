@@ -7,7 +7,7 @@ import { useCreateColoredDot } from '@/src/data/hooks/useCreateColoredDot';
 import { useExportDatabase } from '@/src/data/hooks/useExportDatabase';
 import { GoogleDriveBackupFrequency, useGoogleDriveBackups, useRestoreLatestGoogleDriveBackup, useUploadGoogleDriveBackup } from '@/src/data/hooks/useGoogleDriveBackup';
 import { ImportPreview, useConfirmImportDatabase, usePreviewImportDatabase } from '@/src/data/hooks/useImportDatabase';
-import { BackupFrequency, getLocalBackupDirectoryUri, useCreateLocalBackup, useLocalBackups, useRestoreLatestLocalBackup, useShareLatestLocalBackup } from '@/src/data/hooks/useLocalBackup';
+import { BackupFrequency, getLocalBackupDirectoryUri, pickLocalBackupDirectory, useCreateLocalBackup, useLocalBackups, useRestoreLatestLocalBackup, useShareLatestLocalBackup } from '@/src/data/hooks/useLocalBackup';
 import { useRefreshNotifications } from '@/src/data/hooks/useRefreshNotifications';
 import { useUpsertAppSetting } from '@/src/data/hooks/useUpsertAppSetting';
 import { qk } from '@/src/data/queryKeys';
@@ -51,10 +51,11 @@ export default function Settings() {
   const runningOutDaysSetting = useAppSetting<number|null>("runningOutDays").data;
   const localBackupFrequencySetting = useAppSetting<BackupFrequency>("localBackupFrequency").data ?? "manual";
   const localBackupRetentionCountSetting = useAppSetting<number>("localBackupRetentionCount").data ?? 5;
-  const localBackupsQ = useLocalBackups();
-  const createLocalBackupM = useCreateLocalBackup(localBackupRetentionCountSetting);
-  const restoreLatestLocalBackupM = useRestoreLatestLocalBackup();
-  const shareLatestLocalBackupM = useShareLatestLocalBackup();
+  const localBackupDirectoryUriSetting = useAppSetting<string>("localBackupDirectoryUri").data;
+  const localBackupsQ = useLocalBackups(localBackupDirectoryUriSetting);
+  const createLocalBackupM = useCreateLocalBackup(localBackupRetentionCountSetting, localBackupDirectoryUriSetting);
+  const restoreLatestLocalBackupM = useRestoreLatestLocalBackup(localBackupDirectoryUriSetting);
+  const shareLatestLocalBackupM = useShareLatestLocalBackup(localBackupDirectoryUriSetting);
   const googleDriveAdvancedEnabledSetting = useAppSetting<boolean>("googleDriveBackupAdvancedEnabled").data ?? false;
   const googleDriveAccessTokenSetting = useAppSetting<string>("googleDriveAccessToken").data;
   const googleDriveRefreshTokenSetting = useAppSetting<string>("googleDriveRefreshToken").data;
@@ -287,6 +288,37 @@ export default function Settings() {
       setSnackbarMessage(err instanceof Error ? err.message : "Failed to save local backup settings");
     }
   }, [localBackupRetentionInput, upsertAppSetting]);
+
+  const handleChooseLocalBackupLocation = useCallback(async () => {
+    try {
+      const directoryUri = await pickLocalBackupDirectory();
+      await upsertAppSetting.mutateAsync({
+        key: "localBackupDirectoryUri",
+        value: directoryUri,
+      });
+      await localBackupsQ.refetch();
+      setSnackbarError(false);
+      setSnackbarMessage("Local backup location updated.");
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Failed to choose local backup location");
+    }
+  }, [localBackupsQ, upsertAppSetting]);
+
+  const handleResetLocalBackupLocation = useCallback(async () => {
+    try {
+      await upsertAppSetting.mutateAsync({
+        key: "localBackupDirectoryUri",
+        value: "",
+      });
+      await localBackupsQ.refetch();
+      setSnackbarError(false);
+      setSnackbarMessage("Local backup location reset to app storage.");
+    } catch (err) {
+      setSnackbarError(true);
+      setSnackbarMessage(err instanceof Error ? err.message : "Failed to reset local backup location");
+    }
+  }, [localBackupsQ, upsertAppSetting]);
 
   const handleCreateLocalBackup = useCallback(async () => {
     try {
@@ -619,8 +651,26 @@ export default function Settings() {
               style={{ width: 200 }}
             />
             <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
-              Stored in app data: {getLocalBackupDirectoryUri()}
+              Stored in: {getLocalBackupDirectoryUri(localBackupDirectoryUriSetting)}
             </Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button
+                mode="outlined"
+                icon="folder"
+                onPress={handleChooseLocalBackupLocation}
+                disabled={upsertAppSetting.isPending}
+              >
+                Choose Location
+              </Button>
+              <Button
+                mode="outlined"
+                icon="folder-home"
+                onPress={handleResetLocalBackupLocation}
+                disabled={!localBackupDirectoryUriSetting || upsertAppSetting.isPending}
+              >
+                Use App Storage
+              </Button>
+            </View>
             <Button
               mode="outlined"
               icon="content-save"

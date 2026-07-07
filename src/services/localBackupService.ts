@@ -12,17 +12,26 @@ const BACKUP_DIR_NAME = "automatic-backups";
 const BACKUP_PREFIX = "diabetes-supply-backup-";
 const BACKUP_EXTENSION = ".json";
 
-export function getLocalBackupDirectory() {
-  return new Directory(Paths.document, BACKUP_DIR_NAME);
+export function getLocalBackupDirectory(directoryUri?: string | null) {
+  return directoryUri?.trim()
+    ? new Directory(directoryUri)
+    : new Directory(Paths.document, BACKUP_DIR_NAME);
 }
 
-export function getLocalBackupDirectoryUri() {
-  return getLocalBackupDirectory().uri;
+export function getLocalBackupDirectoryUri(directoryUri?: string | null) {
+  return getLocalBackupDirectory(directoryUri).uri;
 }
 
-function ensureLocalBackupDirectory() {
-  const directory = getLocalBackupDirectory();
-  directory.create({ intermediates: true, idempotent: true });
+export async function pickLocalBackupDirectory() {
+  const directory = await Directory.pickDirectoryAsync();
+  return directory.uri;
+}
+
+function ensureLocalBackupDirectory(directoryUri?: string | null) {
+  const directory = getLocalBackupDirectory(directoryUri);
+  if (!directory.exists) {
+    directory.create({ intermediates: true, idempotent: true });
+  }
   return directory;
 }
 
@@ -30,8 +39,8 @@ function isBackupFile(file: File) {
   return file.name.startsWith(BACKUP_PREFIX) && file.name.endsWith(BACKUP_EXTENSION);
 }
 
-export function listLocalBackups(): LocalBackupFile[] {
-  const directory = ensureLocalBackupDirectory();
+export function listLocalBackups(directoryUri?: string | null): LocalBackupFile[] {
+  const directory = ensureLocalBackupDirectory(directoryUri);
 
   return directory
     .list()
@@ -45,8 +54,12 @@ export function listLocalBackups(): LocalBackupFile[] {
     .sort((a, b) => (b.modifiedTime ?? 0) - (a.modifiedTime ?? 0));
 }
 
-export function writeLocalBackup(data: DatabaseExportData, fileName = `${BACKUP_PREFIX}${Date.now()}${BACKUP_EXTENSION}`) {
-  const directory = ensureLocalBackupDirectory();
+export function writeLocalBackup(
+  data: DatabaseExportData,
+  fileName = `${BACKUP_PREFIX}${Date.now()}${BACKUP_EXTENSION}`,
+  directoryUri?: string | null,
+) {
+  const directory = ensureLocalBackupDirectory(directoryUri);
   const file = new File(directory, fileName);
   file.create({ overwrite: true });
   file.write(JSON.stringify(data, null, 2));
@@ -59,12 +72,12 @@ export function writeLocalBackup(data: DatabaseExportData, fileName = `${BACKUP_
   };
 }
 
-export function pruneLocalBackups(keepCount: number): LocalBackupFile[] {
+export function pruneLocalBackups(keepCount: number, directoryUri?: string | null): LocalBackupFile[] {
   if (keepCount <= 0) {
     return [];
   }
 
-  const backups = listLocalBackups();
+  const backups = listLocalBackups(directoryUri);
   const toDelete = backups.slice(keepCount);
   for (const backup of toDelete) {
     try {
@@ -77,6 +90,6 @@ export function pruneLocalBackups(keepCount: number): LocalBackupFile[] {
   return toDelete;
 }
 
-export function getLatestLocalBackup() {
-  return listLocalBackups()[0] ?? null;
+export function getLatestLocalBackup(directoryUri?: string | null) {
+  return listLocalBackups(directoryUri)[0] ?? null;
 }
