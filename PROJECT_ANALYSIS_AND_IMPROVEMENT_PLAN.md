@@ -961,13 +961,15 @@ Updated: 2026-07-07
 - Done: Made planned trips editable from the trip list. The planner now supports create/edit mode, optional start/return dates, automatic duration calculation from dates, active-product filtering, and transactional planned-trip updates that recalculate snapshot amounts.
 - Done: Added a return-home reconciliation action for completed trips so the user can mark the post-trip check as complete.
 - Verified: Full `npm run lint` and `npm run typecheck` passed after the trip dates, planned-trip editing, and return-home reconciliation slice.
+- Done: Started `holidayPlanningService` with trip expiry warning generation. Planned trips warn about recommended packs that expire before/during the trip, while packed/active trips warn about the concrete packed allocations.
+- Verified: Full `npm run lint`, `npm run typecheck`, and `git diff --check` passed after the trip expiry warning slice.
 
 ### Phase 2: Domain Services
 
 Move business logic out of screens into testable services:
 
 - `inventoryService`: add pack, consume, adjust, discard, undo.
-- `holidayPlanningService`: calculate needs, reserve packs, activate/end trip.
+- `holidayPlanningService`: calculate needs, reserve packs, activate/end trip. Trip expiry warning generation has started in `src/domain/holidayPlanningService.ts`; more calculation and reservation logic still needs to move out of screens/utils.
 - `scanService`: normalize identifiers and parser results. Identifier normalization and product-identifier extraction are now started in `src/domain/scanService.ts`; full scan review and recovery UX can continue later.
 - `statisticsService`: estimate usage and run-out dates.
 
@@ -1074,7 +1076,7 @@ Before release, test:
 - Add storage locations.
 - Add min/target stock and reorder lead time.
 - Add expiring-soon and low-stock dashboards.
-- Add trip dates, expiry-during-trip warnings, and return-home reconciliation. Trip dates, planned-trip editing, and return-home reconciliation are implemented; expiry-during-trip warnings are still in progress.
+- Add trip dates, expiry-during-trip warnings, and return-home reconciliation. Trip dates, planned-trip editing, return-home reconciliation, and expiry-during-trip warnings are implemented.
 - Add household/care-recipient model.
 
 ### P3

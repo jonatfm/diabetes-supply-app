@@ -9,7 +9,8 @@ import { useHolidays } from "@/src/data/hooks/useHolidays";
 import { useMarkHolidayReconciled } from "@/src/data/hooks/useMarkHolidayReconciled";
 import { packsRepo } from "@/src/data/packsRepo";
 import { qk } from "@/src/data/queryKeys";
-import { calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
+import { buildTripExpiryWarnings, TripExpiryWarning } from "@/src/domain/holidayPlanningService";
+import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -22,6 +23,7 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     const active = holiday.state === "ACTIVE";
     const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsSimpleResult[]>([]);
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
+    const [expiryWarnings, setExpiryWarnings] = useState<TripExpiryWarning[]>([]);
     const activateHolidayM = useActivateHoliday();
     const activeHolidayQ = useActiveHoliday();
     const endHolidayM = useEndHoliday();
@@ -30,6 +32,43 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
     }, [holiday]);
+
+    useEffect(() => {
+        async function fetchWarnings() {
+            if (!holiday.startDate || !holiday.endDate) {
+                setExpiryWarnings([]);
+                return;
+            }
+
+            if (holiday.state === "PLANNED") {
+                const needs = await calculateHolidayNeeds(holiday);
+                const candidates = [];
+                for (const need of needs) {
+                    for (const packEntry of need.packs) {
+                        const pack = await packsRepo(db).fetchPackById(packEntry.packId);
+                        if (pack) {
+                            candidates.push({ pack, productName: need.product.name });
+                        }
+                    }
+                }
+                setExpiryWarnings(buildTripExpiryWarnings(holiday, candidates));
+                return;
+            }
+
+            const packed = await holidayRepo(db).getPacksForHoliday(holiday.id);
+            const candidates = [];
+            for (const allocation of packed) {
+                const pack = await packsRepo(db).fetchPackById(allocation.packId);
+                const need = holidayNeeds.find((item) => item.product.id === allocation.productId);
+                if (pack) {
+                    candidates.push({ pack, productName: need?.product.name ?? "Packed item" });
+                }
+            }
+            setExpiryWarnings(buildTripExpiryWarnings(holiday, candidates));
+        }
+
+        fetchWarnings();
+    }, [holiday, holidayNeeds]);
 
     useEffect(() => {
         async function fetchTotalUnits() {
@@ -84,6 +123,21 @@ function HolidayCard({ holiday, onRepack }: { holiday: Holiday; onRepack: (holid
                         </View>
                     );
                 })}
+
+                {expiryWarnings.length > 0 && (
+                    <Card mode="contained" style={{ marginTop: 12, backgroundColor: theme.colors.errorContainer }}>
+                        <Card.Content style={{ gap: 4 }}>
+                            <Text variant="titleSmall" style={{ color: theme.colors.onErrorContainer }}>
+                                Expiry warnings for this trip
+                            </Text>
+                            {expiryWarnings.map((warning) => (
+                                <Text key={`${warning.packId}-${warning.kind}`} variant="bodyMedium" style={{ color: theme.colors.onErrorContainer }}>
+                                    {warning.productName}: expires {warning.expiry} {warning.kind === "EXPIRES_BEFORE_TRIP" ? "before departure" : "during the trip"}
+                                </Text>
+                            ))}
+                        </Card.Content>
+                    </Card>
+                )}
 
                 <View>
                     {holiday.state === "PLANNED" && (
