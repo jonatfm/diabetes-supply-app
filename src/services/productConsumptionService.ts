@@ -13,6 +13,7 @@ export type ConsumptionDialogPackInfo = {
   packId: string;
   coloredDotIds?: string[];
   unitsOnHoliday?: number;
+  previousTrips: { destination: string; endDate: string | null; allocatedUnits: number }[];
 };
 
 export async function buildConsumptionDialogPackInfo(params: {
@@ -57,6 +58,7 @@ export async function buildConsumptionDialogPackInfo(params: {
   const coloredDotIds = params.coloredDotsEnabled && params.product?.useColoredDots
     ? (await coloredDotsRepo(params.db).getAssignmentByPackId(chosenPack.id))?.dotIds || []
     : undefined;
+  const previousTrips = await holidayRepo(params.db).getCompletedHolidayAllocationsForPack(chosenPack.id);
 
   return {
     expiryDate: chosenPack.expiry ? new Date(chosenPack.expiry) : null,
@@ -66,5 +68,10 @@ export async function buildConsumptionDialogPackInfo(params: {
     packId: chosenPack.id,
     unitsOnHoliday: chosenPackInfo.unitsOnHoliday,
     coloredDotIds,
+    previousTrips: previousTrips.map((trip) => ({
+      destination: trip.destination,
+      endDate: trip.endDate,
+      allocatedUnits: trip.originalUnits,
+    })),
   };
 }

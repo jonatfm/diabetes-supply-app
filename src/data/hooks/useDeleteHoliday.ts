@@ -23,6 +23,7 @@ export function useDeleteHoliday() {
         qc.invalidateQueries({ queryKey: qk.packListForHoliday(holidayId) }),
         qc.invalidateQueries({ queryKey: qk.packsForHoliday(holidayId) }),
         qc.invalidateQueries({ queryKey: qk.packsForHolidayRoot() }),
+        qc.invalidateQueries({ queryKey: qk.upcomingHolidayAllocationsRoot() }),
       ]);
     },
   });

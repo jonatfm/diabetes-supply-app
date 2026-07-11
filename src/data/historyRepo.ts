@@ -2,7 +2,6 @@ import { PacksForHoliday, Session, packs, packsForHoliday, sessions, stock_event
 import { and, desc, eq, gte } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
-import { holidayRepo } from "./holidayRepo";
 
 function getUndoneEventIds(events: { type: string; relatedEventId: string | null }[]) {
   return new Set(
@@ -97,15 +96,15 @@ export function historyRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         let holidayAllocationBefore: PacksForHoliday | null = null;
         let holidayAllocationAfter: PacksForHoliday | null = null;
 
-        // If there is an active holiday with this pack allocated, re-increment
-        // the holiday allocation to reverse the decrement done during consume.
-        const active = await holidayRepo(txDb).getActiveHoliday();
-        if (active) {
+        // Restore the allocation belonging to the original TAKE event. Using
+        // whichever trip happens to be active now could corrupt a later trip.
+        const originalTripId = (eventToUndo.meta as { trip?: { id?: unknown } } | null)?.trip?.id;
+        if (typeof originalTripId === "string") {
           const rows = await txDb.select()
             .from(packsForHoliday)
             .where(
               and(
-                eq(packsForHoliday.holidayId, active.id),
+                eq(packsForHoliday.holidayId, originalTripId),
                 eq(packsForHoliday.packId, eventToUndo.packId),
               )
             );

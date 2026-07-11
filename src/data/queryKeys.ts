@@ -31,4 +31,6 @@ export const qk = {
   packListForHoliday: (holidayId: string) => ["packListForHoliday", holidayId] as const,
   packsForHoliday: (holidayId: string) => ["packsForHoliday", holidayId] as const,
   packsForHolidayRoot: () => ["packsForHoliday"] as const,
+  upcomingHolidayAllocationsRoot: () => ["upcomingHolidayAllocations"] as const,
+  upcomingHolidayAllocations: (productId: string) => ["upcomingHolidayAllocations", productId] as const,
 };

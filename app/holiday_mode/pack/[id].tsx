@@ -5,6 +5,8 @@ import { Holiday, Pack } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
 import { holidayRepo } from "@/src/data/holidayRepo";
 import { useAddPackToHoliday } from "@/src/data/hooks/useAddPackToHoliday";
+import { useActivateHoliday } from "@/src/data/hooks/useActivateHoliday";
+import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useAppSetting } from "@/src/data/hooks/useAppSetting";
 import { useGetPacksForHoliday } from "@/src/data/hooks/useGetPacksForHoliday";
 import { useHoliday } from "@/src/data/hooks/useHoliday";
@@ -15,9 +17,9 @@ import { qk } from "@/src/data/queryKeys";
 import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsResult, HolidayNeedsSimpleResult } from "@/src/utils/calculateHolidayNeeds";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageBackground, Pressable, useWindowDimensions, View } from "react-native";
-import { Button, Card, Dialog, Icon, Portal, Text, useTheme } from "react-native-paper";
+import { Button, Card, Dialog, Icon, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 
 export default function PackForHoliday() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,10 +30,14 @@ export default function PackForHoliday() {
     const qc = useQueryClient();
     const holiday = useHoliday(id);
     const packsForHoliday = useGetPacksForHoliday(id);
+    const activeHolidayQ = useActiveHoliday();
+    const activateHolidayM = useActivateHoliday();
     const [holidayNeedsSimple, setHolidayNeedsSimple] = useState<HolidayNeedsSimpleResult[]>([]);
     const [isPackItemDialogVisible, setIsPackItemDialogVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
     const [isMarkPackedDialogVisible, setIsMarkPackedDialogVisible] = useState(false);
+    const [screenError, setScreenError] = useState<string | null>(null);
+    const isAutoFinishingRef = useRef(false);
 
     // Calculate responsive grid layout
     // Account for AppWrapper padding (typically 16px on each side) and Card.Content padding (16px on each side)
@@ -68,38 +74,54 @@ export default function PackForHoliday() {
         const packed = packedUnitsByProduct[item.product.id] || 0;
         return packed < item.calculatedAmount;
     });
+    const totalPackedUnits = Object.values(packedUnitsByProduct).reduce((sum, units) => sum + units, 0);
+    const isEverythingPacked = holidayNeedsSimple.length > 0 && underPackedItems.length === 0 && totalPackedUnits > 0;
 
     const handleMarkAsPacked = async () => {
         if (!hookDb || !holiday.data) return;
-        await holidayRepo(hookDb).updateHolidayState(holiday.data.id, "PACKED");
-        await qc.invalidateQueries({ queryKey: qk.holidays() });
-        holiday.refetch();
-        setIsMarkPackedDialogVisible(false);
-        router.back();
+        try {
+            await holidayRepo(hookDb).markHolidayPacked(holiday.data.id);
+            await qc.invalidateQueries({ queryKey: qk.holidays() });
+            await qc.invalidateQueries({ queryKey: qk.holiday(holiday.data.id) });
+            setIsMarkPackedDialogVisible(false);
+            router.back();
+        } catch (error) {
+            setScreenError(error instanceof Error ? error.message : "The trip could not be marked as packed.");
+        }
     };
 
-    // Auto-mark holiday as PACKED when every product meets its target
     useEffect(() => {
-        if (
-            !hookDb ||
-            !holiday.data ||
-            holiday.data.state !== "PLANNED" ||
-            holidayNeedsSimple.length === 0 ||
-            !packsForHoliday.data
-        ) return;
+        if (!hookDb || !holiday.data || holiday.data.state !== "PLANNED" || !isEverythingPacked || isAutoFinishingRef.current) return;
 
-        const allPacked = holidayNeedsSimple.every(item => {
-            const packed = packedUnitsByProduct[item.product.id] || 0;
-            return packed >= item.calculatedAmount;
-        });
-
-        if (allPacked) {
-            holidayRepo(hookDb).updateHolidayState(holiday.data.id, "PACKED").then(() => {
-                qc.invalidateQueries({ queryKey: qk.holidays() });
-                holiday.refetch();
+        isAutoFinishingRef.current = true;
+        holidayRepo(hookDb).markHolidayPacked(holiday.data.id)
+            .then(async () => {
+                await Promise.all([
+                    qc.invalidateQueries({ queryKey: qk.holidays() }),
+                    qc.invalidateQueries({ queryKey: qk.holiday(holiday.data!.id) }),
+                ]);
+            })
+            .catch((error) => {
+                setScreenError(error instanceof Error ? error.message : "The trip could not be marked as packed.");
+            })
+            .finally(() => {
+                isAutoFinishingRef.current = false;
             });
+    }, [hookDb, holiday.data, isEverythingPacked, qc]);
+
+    const handleStartTrip = async () => {
+        if (!holiday.data) return;
+        if (activeHolidayQ.data && activeHolidayQ.data.id !== holiday.data.id) {
+            setScreenError(`End the ongoing trip to ${activeHolidayQ.data.destination} before starting another trip.`);
+            return;
         }
-    }, [packsForHoliday.data, holidayNeedsSimple, holiday.data, hookDb, packedUnitsByProduct, qc, holiday]);
+        try {
+            await activateHolidayM.mutateAsync(holiday.data.id);
+            router.back();
+        } catch (error) {
+            setScreenError(error instanceof Error ? error.message : "The trip could not be started.");
+        }
+    };
 
     return (
         <AppWrapper>
@@ -194,24 +216,35 @@ export default function PackForHoliday() {
                     </Card.Content>
                 </Card>
 
-                {holiday.data?.state === "PLANNED" && (
+                {holiday.data?.state === "PLANNED" && !isEverythingPacked && (
                     <Button
                         mode="contained"
                         icon="check-all"
                         style={{ marginBottom: 16 }}
-                        onPress={() => {
-                            if (underPackedItems.length > 0) {
-                                setIsMarkPackedDialogVisible(true);
-                            } else {
-                                handleMarkAsPacked();
-                            }
-                        }}
+                        onPress={() => setIsMarkPackedDialogVisible(true)}
                     >
-                        Mark as packed
+                        Confirm packed & ready
                     </Button>
                 )}
                 {holiday.data?.state === "PACKED" && (
-                    <Text variant="titleLarge" style={{ color: theme.colors.primary, textAlign: "center" }}>Trip is packed!</Text>
+                    <Card mode="contained" style={{ marginBottom: 16 }}>
+                        <Card.Content>
+                            <Text variant="titleMedium" style={{ color: theme.colors.primary }}>Trip confirmed as packed</Text>
+                            <Text variant="bodyMedium" style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}>
+                                Everything is ready. Start the trip when you leave.
+                            </Text>
+                            <Button
+                                icon="airplane-takeoff"
+                                mode="contained"
+                                style={{ marginTop: 16 }}
+                                onPress={handleStartTrip}
+                                loading={activateHolidayM.isPending}
+                                disabled={activateHolidayM.isPending}
+                            >
+                                Start trip
+                            </Button>
+                        </Card.Content>
+                    </Card>
                 )}
             </View>
 
@@ -225,9 +258,12 @@ export default function PackForHoliday() {
                     />
                 )}
                 <Dialog visible={isMarkPackedDialogVisible} onDismiss={() => setIsMarkPackedDialogVisible(false)}>
-                    <Dialog.Title>Not fully packed</Dialog.Title>
+                    <Dialog.Title>Finish packing?</Dialog.Title>
                     <Dialog.Content>
-                        <Text style={{ marginBottom: 12 }}>The following items have not been packed adequately:</Text>
+                        <Text style={{ marginBottom: 12 }}>
+                            This keeps the selected units reserved and enables Start trip on the Trips screen.
+                        </Text>
+                        {underPackedItems.length > 0 && <Text style={{ marginBottom: 12 }}>These items are still below their planned amount:</Text>}
                         {underPackedItems.map(item => {
                             const packed = packedUnitsByProduct[item.product.id] || 0;
                             return (
@@ -236,14 +272,17 @@ export default function PackForHoliday() {
                                 </Text>
                             );
                         })}
-                        <Text style={{ marginTop: 12 }}>Are you sure you want to mark this trip as packed anyway? You may run out of supplies.</Text>
+                        {underPackedItems.length > 0 && <Text style={{ marginTop: 12 }}>You can still confirm, but you may run out of supplies. Repack later to change allocations.</Text>}
                     </Dialog.Content>
                     <Dialog.Actions>
                         <Button onPress={() => setIsMarkPackedDialogVisible(false)}>Cancel</Button>
-                        <Button textColor={theme.colors.error} onPress={handleMarkAsPacked}>Mark as packed</Button>
+                        <Button onPress={handleMarkAsPacked} disabled={!hookDb}>Finish packing</Button>
                     </Dialog.Actions>
                 </Dialog>
             </Portal>
+            <Snackbar visible={screenError !== null} onDismiss={() => setScreenError(null)} duration={5000}>
+                {screenError}
+            </Snackbar>
         </AppWrapper>
     )
 }
@@ -260,6 +299,7 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
     const [unitsToTake, setUnitsToTake] = useState<number>(0);
     const [coloredDotIds, setColoredDotIds] = useState<string[]>([]);
     const [reservedByOtherHolidays, setReservedByOtherHolidays] = useState<number>(0);
+    const [packError, setPackError] = useState<string | null>(null);
     const addPackToHolidayM = useAddPackToHoliday();
     
     useEffect(() => {
@@ -323,12 +363,16 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
 
     const pack = async () => {
         if (!currentSelectedPack) return;
-        await addPackToHolidayM.mutateAsync({
-            holidayId: holiday.id,
-            packId: currentSelectedPack.id,
-            units: unitsToTake,
-        });
-        onDismiss();
+        try {
+            await addPackToHolidayM.mutateAsync({
+                holidayId: holiday.id,
+                packId: currentSelectedPack.id,
+                units: unitsToTake,
+            });
+            onDismiss();
+        } catch (error) {
+            setPackError(error instanceof Error ? error.message : "The units could not be packed.");
+        }
     }
 
     // Derive identifier info from the pack
@@ -366,12 +410,13 @@ function PackItemsDialog({ visible, onDismiss, productId, holiday }: { visible: 
                         </View>
                     </View>
                 ) : (
-                    <Text>Loading pack information...</Text>
+                    <Text>No available units remain for this product.</Text>
                 )}
+                {packError && <Text style={{ marginTop: 12, color: theme.colors.error }}>{packError}</Text>}
             </Dialog.Content>
             <Dialog.Actions>
                 <Button onPress={onDismiss}>Close</Button>
-                <Button onPress={pack}>Pack and Continue</Button>
+                <Button onPress={pack} disabled={!currentSelectedPack || addPackToHolidayM.isPending} loading={addPackToHolidayM.isPending}>Pack and Continue</Button>
             </Dialog.Actions>
         </Dialog>
     )

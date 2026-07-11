@@ -19,7 +19,14 @@ function getUndoneEventIds(events: { type: string; relatedEventId: string | null
   );
 }
 
-export default function LastConsumedItemCard({ productId, packId }: { productId: string; packId: string }) {
+type TakeEvent = {
+  id: string;
+  packId: string | null;
+  occurredAt: number;
+  meta: unknown;
+};
+
+export default function LastConsumedItemCard({ productId, packId, takeEvent }: { productId: string; packId: string; takeEvent?: TakeEvent }) {
   const theme = useTheme();
   const packQ = useFetchPack(packId);
   const productQ = useProduct(productId);
@@ -29,6 +36,7 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
   const [lastConsumedAt, setLastConsumedAt] = useState<Date | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string | null>(null);
   const [daysCompleted, setDaysCompleted] = useState<number | null>(null);
+  const [consumedTrip, setConsumedTrip] = useState<{ destination: string } | null>(null);
 
   const sessionStatusColors: Record<string, string> = {
     "Completed": "green",
@@ -42,16 +50,19 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
   useEffect(() => {
     if (productHistoryQ.data && productHistoryQ.data.length > 0) {
       const undoneEventIds = getUndoneEventIds(productHistoryQ.data);
-      const takeEventForPack = productHistoryQ.data.find(
+      const takeEventForPack = takeEvent ?? productHistoryQ.data.find(
         event => event.type === "TAKE" && event.packId === packId && !undoneEventIds.has(event.id)
       );
       if (takeEventForPack) {
         setLastConsumedAt(new Date(takeEventForPack.occurredAt));
+        const trip = (takeEventForPack.meta as { trip?: { destination?: string } } | null)?.trip;
+        setConsumedTrip(trip?.destination ? { destination: trip.destination } : null);
       } else {
         setLastConsumedAt(null);
+        setConsumedTrip(null);
       }
     }
-  }, [productHistoryQ.data, packId]);
+  }, [productHistoryQ.data, packId, takeEvent]);
 
   useEffect(() => {
     if (!sessionForPackQ.data || !sessionForPackQ.data.startedAt) return;
@@ -84,6 +95,11 @@ export default function LastConsumedItemCard({ productId, packId }: { productId:
             {lastConsumedAt && !productQ.data?.isSessionBased && (
               <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
                 Consumed {lastConsumedAt.toLocaleString()}
+              </Text>
+            )}
+            {consumedTrip && (
+              <Text variant="bodyMedium" style={{ color: theme.colors.tertiary }}>
+                Consumed during trip: {consumedTrip.destination}
               </Text>
             )}
             {productQ.data && productQ.data.nominalSessionTimeDays && !!productQ.data.isSessionBased && (

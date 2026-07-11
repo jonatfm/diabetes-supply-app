@@ -13,7 +13,10 @@ export function useAddPackToHoliday() {
     mutationFn: (params: { holidayId: string; packId: string; units: number }) => 
       repo!.addPackToHoliday(params.holidayId, params.packId, params.units),
     onSuccess: async (_, variables) => {
-      await qc.invalidateQueries({ queryKey: qk.packsForHoliday(variables.holidayId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: qk.packsForHoliday(variables.holidayId) }),
+        qc.invalidateQueries({ queryKey: qk.upcomingHolidayAllocationsRoot() }),
+      ]);
     },
   });
 }

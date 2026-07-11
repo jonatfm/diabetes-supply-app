@@ -106,7 +106,7 @@ export default function LastConsumedItemPage() {
           </Button>
         </View>
 
-        <LastConsumedItemCard productId={productId} packId={currentEvent.packId!} />
+        <LastConsumedItemCard productId={productId} packId={currentEvent.packId!} takeEvent={currentEvent} />
       </View>
     </AppWrapper>
   );

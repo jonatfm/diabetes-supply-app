@@ -1,11 +1,11 @@
-import { HOLIDAY_ITEM_METHODS, holidays, packListForHoliday, packs, packsForHoliday } from "@/db/schema";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { HOLIDAY_ITEM_METHODS, holidays, packListForHoliday, packs, packsForHoliday, products } from "@/db/schema";
+import { and, eq, gt, inArray, ne } from "drizzle-orm";
 import { ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { SQLiteDatabase } from "expo-sqlite";
+import { canDeleteTrip, canTransitionTrip, isValidPackedUnitCount } from "../domain/tripLifecycle";
 
 /** Holiday states where packed units are still physically committed. */
 const ACTIVE_HOLIDAY_STATES = ["PLANNED", "PACKED", "ACTIVE"] as const;
-type HolidayState = "PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE";
 type HolidayProductPlan = {
   [productId: string]: {
     amountCalculationType: (typeof HOLIDAY_ITEM_METHODS)[number],
@@ -31,8 +31,12 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
         units: packsForHoliday.units,
         originalUnits: packsForHoliday.originalUnits,
         productId: packs.productId,
+        productName: products.name,
+        expiry: packs.expiry,
+        ais: packs.ais,
       }).from(packsForHoliday)
         .leftJoin(packs, eq(packsForHoliday.packId, packs.id))
+        .leftJoin(products, eq(packs.productId, products.id))
         .where(eq(packsForHoliday.holidayId, holidayId));
     },
 
@@ -130,10 +134,31 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
      * units before inserting. Throws if it would over-commit.
      */
     async addPackToHoliday(holidayId: string, packId: string, units: number) {
+      if (!isValidPackedUnitCount(units)) {
+        throw new Error("Packed units must be a positive whole number.");
+      }
+
       await db.transaction(async (tx) => {
         const txDb = tx as unknown as typeof db;
+        const [holiday] = await txDb.select().from(holidays).where(eq(holidays.id, holidayId)).limit(1);
+        if (!holiday) throw new Error("Trip not found");
+        if (holiday.state !== "PLANNED" || holiday.startedAt !== null) {
+          throw new Error("Items can only be packed for a planned trip that has not started.");
+        }
+
         const [pack] = await txDb.select().from(packs).where(eq(packs.id, packId));
         if (!pack) throw new Error("Pack not found");
+
+        const [plannedProduct] = await txDb.select({ id: packListForHoliday.id })
+          .from(packListForHoliday)
+          .where(and(
+            eq(packListForHoliday.holidayId, holidayId),
+            eq(packListForHoliday.productId, pack.productId),
+          ))
+          .limit(1);
+        if (!plannedProduct) {
+          throw new Error("This pack's product is not part of the trip plan.");
+        }
 
         const existingReservations = await txDb.select({
           units: packsForHoliday.units,
@@ -218,8 +243,40 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       }, {} as Record<string, number>);
     },
 
-    async updateHolidayState(holidayId: string, state: HolidayState) {
-      await db.update(holidays).set({ state, updatedAt: Date.now() }).where(eq(holidays.id, holidayId));
+    async markHolidayPacked(holidayId: string) {
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [allocation] = await txDb.select({ id: packsForHoliday.id })
+          .from(packsForHoliday)
+          .where(and(eq(packsForHoliday.holidayId, holidayId), gt(packsForHoliday.units, 0)))
+          .limit(1);
+        if (!allocation) throw new Error("Pack at least one unit before confirming the trip is ready.");
+
+        const now = Date.now();
+        const updated = await txDb.update(holidays)
+          .set({ state: "PACKED", packedAt: now, updatedAt: now })
+          .where(and(
+            eq(holidays.id, holidayId),
+            eq(holidays.state, "PLANNED"),
+          ))
+          .returning({ id: holidays.id });
+        if (updated.length === 0) throw new Error("Only a planned trip can be marked as packed.");
+      });
+    },
+
+    async repackHoliday(holidayId: string) {
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [holiday] = await txDb.select().from(holidays).where(eq(holidays.id, holidayId)).limit(1);
+        if (!holiday) throw new Error("Trip not found");
+        if (!canTransitionTrip(holiday, "PLANNED")) {
+          throw new Error("Only a packed trip that has never started can be repacked.");
+        }
+        await txDb.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
+        await txDb.update(holidays)
+          .set({ state: "PLANNED", packedAt: null, updatedAt: Date.now() })
+          .where(eq(holidays.id, holidayId));
+      });
     },
 
     async getActiveHoliday() {
@@ -227,41 +284,102 @@ export function holidayRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {
       return active ?? null;
     },
 
+    /** Completed trips that previously used units from this physical pack. */
+    async getCompletedHolidayAllocationsForPack(packId: string) {
+      return await db.select({
+        holidayId: holidays.id,
+        destination: holidays.destination,
+        endDate: holidays.endDate,
+        originalUnits: packsForHoliday.originalUnits,
+      }).from(packsForHoliday)
+        .innerJoin(holidays, eq(packsForHoliday.holidayId, holidays.id))
+        .where(and(eq(packsForHoliday.packId, packId), eq(holidays.state, "COMPLETE")));
+    },
+
+    /** Upcoming trip reservations for one product, including the physical pack. */
+    async getUpcomingHolidayAllocationsForProduct(productId: string) {
+      return await db.select({
+        allocationId: packsForHoliday.id,
+        holidayId: holidays.id,
+        destination: holidays.destination,
+        startDate: holidays.startDate,
+        endDate: holidays.endDate,
+        state: holidays.state,
+        packId: packs.id,
+        expiry: packs.expiry,
+        ais: packs.ais,
+        units: packsForHoliday.units,
+        originalUnits: packsForHoliday.originalUnits,
+      }).from(packsForHoliday)
+        .innerJoin(holidays, eq(packsForHoliday.holidayId, holidays.id))
+        .innerJoin(packs, eq(packsForHoliday.packId, packs.id))
+        .where(and(
+          eq(packs.productId, productId),
+          inArray(holidays.state, ["PLANNED", "PACKED"]),
+        ));
+    },
+
     /** Activate a holiday. Throws if another holiday is already active. */
     async activateHoliday(holidayId: string) {
-      const existing = await this.getActiveHoliday();
-      if (existing && existing.id !== holidayId) {
-        throw new Error("Another holiday is already active. End it before activating a new one.");
-      }
-      await db.update(holidays)
-        .set({ state: "ACTIVE", updatedAt: Date.now() })
-        .where(eq(holidays.id, holidayId));
+      await db.transaction(async (tx) => {
+        const txDb = tx as unknown as typeof db;
+        const [holiday] = await txDb.select().from(holidays).where(eq(holidays.id, holidayId)).limit(1);
+        if (!holiday) throw new Error("Trip not found");
+        if (!canTransitionTrip(holiday, "ACTIVE")) {
+          throw new Error("Only a packed trip that has not previously started can be started.");
+        }
+        const [allocation] = await txDb.select({ id: packsForHoliday.id })
+          .from(packsForHoliday)
+          .where(and(eq(packsForHoliday.holidayId, holidayId), gt(packsForHoliday.units, 0)))
+          .limit(1);
+        if (!allocation) throw new Error("Pack at least one unit before starting the trip.");
+
+        const [existing] = await txDb.select({ id: holidays.id })
+          .from(holidays)
+          .where(and(eq(holidays.state, "ACTIVE"), ne(holidays.id, holidayId)))
+          .limit(1);
+        if (existing) throw new Error("Another trip is already ongoing. End it before starting a new one.");
+
+        const now = Date.now();
+        await txDb.update(holidays)
+          .set({ state: "ACTIVE", startedAt: now, updatedAt: now })
+          .where(and(eq(holidays.id, holidayId), eq(holidays.state, "PACKED")));
+      });
     },
 
     /** End an active holiday and mark it complete. */
     async endHoliday(holidayId: string) {
-      await db.update(holidays)
-        .set({ state: "COMPLETE", updatedAt: Date.now() })
-        .where(eq(holidays.id, holidayId));
+      const now = Date.now();
+      const updated = await db.update(holidays)
+        .set({ state: "COMPLETE", completedAt: now, updatedAt: now })
+        .where(and(eq(holidays.id, holidayId), eq(holidays.state, "ACTIVE")))
+        .returning({ id: holidays.id });
+      if (updated.length === 0) throw new Error("Only an ongoing trip can be ended.");
     },
 
     async markReturnHomeReconciled(holidayId: string) {
-      await db.update(holidays)
+      const updated = await db.update(holidays)
         .set({ returnHomeCompletedAt: Date.now(), updatedAt: Date.now() })
-        .where(eq(holidays.id, holidayId));
+        .where(and(eq(holidays.id, holidayId), eq(holidays.state, "COMPLETE")))
+        .returning({ id: holidays.id });
+      if (updated.length === 0) throw new Error("Only a completed trip can be reconciled.");
     },
 
     async deleteHoliday(holidayId: string) {
       await db.transaction(async (tx) => {
         const txDb = tx as unknown as typeof db;
+        const [holiday] = await txDb.select({ state: holidays.state, startedAt: holidays.startedAt })
+          .from(holidays)
+          .where(eq(holidays.id, holidayId))
+          .limit(1);
+        if (!holiday) throw new Error("Trip not found");
+        if (!canDeleteTrip(holiday)) {
+          throw new Error("A trip cannot be deleted after it has started because it is part of the consumption history.");
+        }
         await txDb.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
         await txDb.delete(packListForHoliday).where(eq(packListForHoliday.holidayId, holidayId));
         await txDb.delete(holidays).where(eq(holidays.id, holidayId));
       });
-    },
-
-    async deletePacksForHoliday(holidayId: string) {
-      await db.delete(packsForHoliday).where(eq(packsForHoliday.holidayId, holidayId));
     },
 
     /**

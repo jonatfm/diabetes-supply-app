@@ -187,6 +187,12 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
         }
 
         const now = Date.now();
+        const activeHoliday = await holidayRepo(txDb).getActiveHoliday();
+        const activeHolidayAllocation = activeHoliday
+          ? (await holidayRepo(txDb).getPacksForHoliday(activeHoliday.id)).find(
+              (allocation) => allocation.packId === packId && allocation.units > 0,
+            )
+          : undefined;
         await txDb.insert(stock_events).values({
           productId,
           packId,
@@ -196,6 +202,14 @@ export function packsRepo(db: (ExpoSQLiteDatabase<Record<string, unknown>> & {$c
           createdAt: now,
           note: "Via app",
           relatedSessionId,
+          meta: activeHoliday && activeHolidayAllocation
+            ? {
+                trip: {
+                  id: activeHoliday.id,
+                  destination: activeHoliday.destination,
+                },
+              }
+            : null,
         });
 
         // If there is an active holiday with this pack allocated, decrement the

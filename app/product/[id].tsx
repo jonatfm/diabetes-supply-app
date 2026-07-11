@@ -1,6 +1,7 @@
 import AppWrapper from "@/components/AppWrapper";
 import ColoredDot from "@/components/ColoredDot";
 import LastConsumedItemCard from "@/components/LastConsumedItemCard";
+import ProductTripAllocationsCard from "@/components/ProductTripAllocationsCard";
 import { useDatabase } from "@/db";
 import { SESSION_OUTCOMES } from "@/db/schema";
 import { coloredDotsRepo } from "@/src/data/coloredDotsRepo";
@@ -504,6 +505,8 @@ export default function ProductPage() {
           ) : null}
         </View>
 
+        <ProductTripAllocationsCard productId={id} />
+
         {/* Holiday Packing Card */}
         {holidayPackDetails && (
           <View style={{ marginBottom: 16 }}>
@@ -914,6 +917,17 @@ export default function ProductPage() {
                 
                 {consumtionDialogInfo.unitsOnHoliday ? (
                   <Text>Units on trip: <Text style={{ fontWeight: 'bold', color: theme.colors.tertiary }}>{consumtionDialogInfo.unitsOnHoliday}</Text></Text>
+                ) : null}
+
+                {consumtionDialogInfo.previousTrips.length > 0 ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={{ fontWeight: 'bold' }}>Previously packed for:</Text>
+                    {consumtionDialogInfo.previousTrips.map((trip, index) => (
+                      <Text key={`${trip.destination}-${trip.endDate ?? "unknown"}-${index}`} style={{ color: theme.colors.onSurfaceVariant }}>
+                        {trip.destination}: {trip.allocatedUnits} unit{trip.allocatedUnits === 1 ? "" : "s"} allocated{trip.endDate ? ` (ended ${new Date(trip.endDate).toLocaleDateString()})` : ""}
+                      </Text>
+                    ))}
+                  </View>
                 ) : null}
                 
                 {consumtionDialogInfo.coloredDotIds && consumtionDialogInfo.coloredDotIds.length > 0 ? (

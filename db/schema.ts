@@ -1,4 +1,4 @@
-import { foreignKey, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { foreignKey, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import uuid from "react-native-uuid";
 
 export const SESSION_OUTCOMES = [
@@ -150,6 +150,9 @@ export const holidays = sqliteTable("holidays", {
   durationDays: integer("durationDays").$default(() => 0).notNull(),
   startDate: text("startDate"),
   endDate: text("endDate"),
+  packedAt: integer("packedAt"),
+  startedAt: integer("startedAt"),
+  completedAt: integer("completedAt"),
   returnHomeCompletedAt: integer("returnHomeCompletedAt"),
   state: text("state").$type<"PLANNED" | "PACKED" | "ACTIVE" | "COMPLETE">().notNull(),
   updatedAt: integer("updatedAt").$default(() => Date.now()).notNull(),
@@ -164,6 +167,7 @@ export const packListForHoliday = sqliteTable("pack_list_for_holiday", {
   /** Snapshot of the computed amount at holiday-creation time. Null for legacy rows. */
   calculatedAmount: integer("calculatedAmount"),
 }, (table) => [
+  uniqueIndex("pack_list_for_holiday_trip_product_unique").on(table.holidayId, table.productId),
   foreignKey({
     columns: [table.holidayId],
     foreignColumns: [holidays.id],
@@ -183,6 +187,7 @@ export const packsForHoliday = sqliteTable("packs_for_holiday", {
   /** Original allocation at packing time (never changes). */
   originalUnits: integer("originalUnits").notNull().default(0),
 }, (table) => [
+  uniqueIndex("packs_for_holiday_trip_pack_unique").on(table.holidayId, table.packId),
   foreignKey({
     columns: [table.holidayId],
     foreignColumns: [holidays.id],

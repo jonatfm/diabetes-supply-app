@@ -7,7 +7,6 @@ import { useActiveHoliday } from "@/src/data/hooks/useActiveHoliday";
 import { useDeleteHoliday } from "@/src/data/hooks/useDeleteHoliday";
 import { useEndHoliday } from "@/src/data/hooks/useEndHoliday";
 import { useHolidays } from "@/src/data/hooks/useHolidays";
-import { useMarkHolidayReconciled } from "@/src/data/hooks/useMarkHolidayReconciled";
 import { packsRepo } from "@/src/data/packsRepo";
 import { qk } from "@/src/data/queryKeys";
 import { buildTripExpiryWarnings, TripExpiryWarning } from "@/src/domain/holidayPlanningService";
@@ -15,20 +14,20 @@ import { calculateHolidayNeeds, calculateHolidayNeedsSimple, HolidayNeedsSimpleR
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, View } from "react-native";
-import { Button, Card, Dialog, FAB, Icon, Portal, Text, useTheme } from "react-native-paper";
+import { SectionList, View } from "react-native";
+import { Button, Card, Dialog, FAB, Icon, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 
-function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepack: (holidayId: string) => void; onDelete: (holiday: Holiday) => void }) {
+function HolidayCard({ holiday, onRepack, onDelete, onError }: { holiday: Holiday; onRepack: (holidayId: string) => void; onDelete: (holiday: Holiday) => void; onError: (message: string) => void }) {
     const theme = useTheme();
     const router = useRouter();
     const active = holiday.state === "ACTIVE";
     const [holidayNeeds, setHolidayNeeds] = useState<HolidayNeedsSimpleResult[]>([]);
     const [totalUnitsByProduct, setTotalUnitsByProduct] = useState<Record<string, number | undefined>>({});
     const [expiryWarnings, setExpiryWarnings] = useState<TripExpiryWarning[]>([]);
+    const [isEndTripDialogVisible, setIsEndTripDialogVisible] = useState(false);
     const activateHolidayM = useActivateHoliday();
     const activeHolidayQ = useActiveHoliday();
     const endHolidayM = useEndHoliday();
-    const markReconciledM = useMarkHolidayReconciled();
 
     useEffect(() => {
         calculateHolidayNeedsSimple(holiday).then(setHolidayNeeds);
@@ -86,8 +85,15 @@ function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepa
 
     const activateHoliday = async () => {
         if (active) return;
-        if (activeHolidayQ.data && activeHolidayQ.data.id !== holiday.id) return;
-        activateHolidayM.mutate(holiday.id);
+        if (activeHolidayQ.data && activeHolidayQ.data.id !== holiday.id) {
+            onError(`End the ongoing trip to ${activeHolidayQ.data.destination} before starting another trip.`);
+            return;
+        }
+        try {
+            await activateHolidayM.mutateAsync(holiday.id);
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The trip could not be started.");
+        }
     }
  
     const borderColor = active ? theme.colors.primary : theme.colors.surfaceVariant;
@@ -99,7 +105,7 @@ function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepa
 
     return (
         <Card elevation={3} style={{marginBottom: 16, borderColor: borderColor, borderWidth: borderWidth}}>
-            <Card.Content>
+            <Card.Content style={{ paddingBottom: 16 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 }}>
                     <Icon source="map-marker" size={28} color={accentColor} />
                     <Text variant="headlineMedium" style={{ color: accentColor, fontWeight: "bold" }}>{holiday.destination}</Text>
@@ -140,9 +146,9 @@ function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepa
                     </Card>
                 )}
 
-                <View>
+                {holiday.state !== "COMPLETE" && <View style={{ marginTop: 16 }}>
                     {holiday.state === "PLANNED" && (
-                        <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                        <View style={{flex: 1, gap: 6, flexDirection: "row"}}>
                             <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
                                 Delete
                             </Button>
@@ -155,56 +161,63 @@ function HolidayCard({ holiday, onRepack, onDelete }: { holiday: Holiday; onRepa
                         </View>
                     )}
                     {holiday.state === "PACKED" && (
-                        <View style={{flex: 1, gap: 6, flexDirection: "row", marginTop: 16}}>
+                        <View style={{flex: 1, gap: 6, flexDirection: "row"}}>
                             <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
                                 Delete
                             </Button>
                             <Button icon="refresh" mode="outlined" onPress={() => onRepack(holiday.id)}>
                                 Repack
                             </Button>
-                            <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}} onPress={activateHoliday} disabled={activeHolidayQ.data && activeHolidayQ.data.id !== holiday.id}>
-                                Go!
+                            <Button icon="airplane-takeoff" mode="contained" style={{flex: 1}} onPress={activateHoliday} loading={activateHolidayM.isPending} disabled={activateHolidayM.isPending}>
+                                Start trip
                             </Button>
                         </View>
                     )}
                     {holiday.state === "ACTIVE" && (
-                        <View style={{ gap: 8, marginTop: 16 }}>
+                        <View style={{ gap: 8 }}>
                             <Button
                                 icon="airplane-landing"
                                 mode="contained"
                                 buttonColor={theme.colors.error}
-                                onPress={() => endHolidayM.mutate(holiday.id)}
+                                onPress={() => setIsEndTripDialogVisible(true)}
                             >
                                 End Trip
                             </Button>
-                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
-                                Delete Trip
-                            </Button>
                         </View>
                     )}
-                    {holiday.state === "COMPLETE" && (
-                        <View style={{ marginTop: 16, gap: 8 }}>
-                            {holiday.returnHomeCompletedAt ? (
-                                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                                    Return-home reconciliation complete.
-                                </Text>
-                            ) : (
-                                <Button
-                                    icon="home-check"
-                                    mode="contained-tonal"
-                                    onPress={() => markReconciledM.mutate(holiday.id)}
-                                    loading={markReconciledM.isPending}
-                                >
-                                    Mark return-home check done
-                                </Button>
-                            )}
-                            <Button icon="delete" mode="outlined" textColor={theme.colors.error} onPress={() => onDelete(holiday)}>
-                                Delete
-                            </Button>
-                        </View>
-                    )}
-                </View>
+                </View>}
             </Card.Content>
+            <Portal>
+                <Dialog visible={isEndTripDialogVisible} onDismiss={() => setIsEndTripDialogVisible(false)}>
+                    <Dialog.Icon icon="flag-checkered" />
+                    <Dialog.Title>End this trip?</Dialog.Title>
+                    <Dialog.Content>
+                        <Text>
+                            This marks {holiday.destination} as completed and returns consumption to the normal inventory flow.
+                        </Text>
+                        <Text style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
+                            The trip and its consumption history will be kept permanently.
+                        </Text>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button onPress={() => setIsEndTripDialogVisible(false)}>Cancel</Button>
+                        <Button
+                            onPress={async () => {
+                                try {
+                                    await endHolidayM.mutateAsync(holiday.id);
+                                    setIsEndTripDialogVisible(false);
+                                } catch (error) {
+                                    onError(error instanceof Error ? error.message : "The trip could not be ended.");
+                                }
+                            }}
+                            loading={endHolidayM.isPending}
+                            disabled={endHolidayM.isPending}
+                        >
+                            End trip
+                        </Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
         </Card>
     )
 }
@@ -217,23 +230,42 @@ export default function HolidayScreen() {
     const qc = useQueryClient();
     const [repackHolidayId, setRepackHolidayId] = useState<string | null>(null);
     const [deleteHoliday, setDeleteHoliday] = useState<Holiday | null>(null);
+    const [screenError, setScreenError] = useState<string | null>(null);
     const holidaysQ = useHolidays();
     const deleteHolidayM = useDeleteHoliday();
 
     const handleRepack = async () => {
         if (!hookDb || !repackHolidayId) return;
-        await holidayRepo(hookDb).deletePacksForHoliday(repackHolidayId);
-        await holidayRepo(hookDb).updateHolidayState(repackHolidayId, "PLANNED");
-        await qc.invalidateQueries({ queryKey: qk.packsForHoliday(repackHolidayId) });
-        await holidaysQ.refetch();
-        setRepackHolidayId(null);
+        try {
+            await holidayRepo(hookDb).repackHoliday(repackHolidayId);
+            await qc.invalidateQueries({ queryKey: qk.packsForHoliday(repackHolidayId) });
+            await qc.invalidateQueries({ queryKey: qk.upcomingHolidayAllocationsRoot() });
+            await holidaysQ.refetch();
+            setRepackHolidayId(null);
+        } catch (error) {
+            setScreenError(error instanceof Error ? error.message : "The trip could not be reset for repacking.");
+        }
     };
 
     const handleDeleteHoliday = async () => {
         if (!deleteHoliday) return;
-        await deleteHolidayM.mutateAsync(deleteHoliday.id);
-        setDeleteHoliday(null);
+        try {
+            await deleteHolidayM.mutateAsync(deleteHoliday.id);
+            setDeleteHoliday(null);
+        } catch (error) {
+            setScreenError(error instanceof Error ? error.message : "The trip could not be deleted.");
+        }
     };
+
+    const ongoingTrips = holidaysQ.data
+        ?.filter((holiday) => holiday.state === "ACTIVE")
+        .sort((a, b) => b.updatedAt - a.updatedAt) ?? [];
+    const plannedTrips = holidaysQ.data
+        ?.filter((holiday) => holiday.state === "PLANNED" || holiday.state === "PACKED")
+        .sort((a, b) => b.updatedAt - a.updatedAt) ?? [];
+    const completedTrips = holidaysQ.data
+        ?.filter((holiday) => holiday.state === "COMPLETE")
+        .sort((a, b) => b.updatedAt - a.updatedAt) ?? [];
     
     return (
         <AppWrapper bottomEdge={false}>
@@ -244,20 +276,36 @@ export default function HolidayScreen() {
 
                 {holidaysQ.data && holidaysQ.data.length > 0 ? (
                     <View style={{ flex: 1 }}>
-                            <FlatList
-                                data={holidaysQ.data
-                                    .slice()
-                                    .sort((a, b) => {
-                                        // Active holidays first
-                                        if (a.state === "ACTIVE" && b.state !== "ACTIVE") return -1;
-                                        if (a.state !== "ACTIVE" && b.state === "ACTIVE") return 1;
-                                        // Then by updatedAt descending
-                                        return b.updatedAt - a.updatedAt;
-                                    })}
-                                renderItem={({ item }) => <HolidayCard key={item.id} holiday={item} onRepack={setRepackHolidayId} onDelete={setDeleteHoliday} />}
+                            <SectionList
+                                sections={[
+                                    ...(ongoingTrips.length > 0 ? [{
+                                        title: "Ongoing",
+                                        data: ongoingTrips,
+                                    }] : []),
+                                    {
+                                        title: "Planned",
+                                        data: plannedTrips,
+                                    },
+                                    {
+                                        title: "Completed",
+                                        data: completedTrips,
+                                    }
+                                ]}
+                                renderItem={({ item }) => <HolidayCard key={item.id} holiday={item} onRepack={setRepackHolidayId} onDelete={setDeleteHoliday} onError={setScreenError} />}
+                                renderSectionHeader={({ section }) => (
+                                    <View style={{ backgroundColor: theme.colors.background, paddingTop: 8, paddingBottom: 10 }}>
+                                        <Text variant="titleLarge" style={{ fontWeight: "bold" }}>{section.title}</Text>
+                                    </View>
+                                )}
+                                renderSectionFooter={({ section }) => section.data.length === 0 ? (
+                                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16 }}>
+                                        No {section.title.toLowerCase()} trips
+                                    </Text>
+                                ) : null}
                                 keyExtractor={(item) => item.id}
                                 contentContainerStyle={{ paddingBottom: 100 }}
                                 showsVerticalScrollIndicator={false}
+                                stickySectionHeadersEnabled={false}
                                 removeClippedSubviews={true}
                                 maxToRenderPerBatch={10}
                                 updateCellsBatchingPeriod={50}
@@ -322,6 +370,9 @@ export default function HolidayScreen() {
                     </Dialog.Actions>
                 </Dialog>
             </Portal>
+            <Snackbar visible={screenError !== null} onDismiss={() => setScreenError(null)} duration={5000}>
+                {screenError}
+            </Snackbar>
         </AppWrapper>
     );
 }

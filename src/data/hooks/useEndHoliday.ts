@@ -19,6 +19,8 @@ export function useEndHoliday() {
         qc.invalidateQueries({ queryKey: qk.holidays() }),
         qc.invalidateQueries({ queryKey: qk.activeHoliday() }),
         qc.invalidateQueries({ queryKey: qk.holiday(holidayId) }),
+        qc.invalidateQueries({ queryKey: qk.packsForHolidayRoot() }),
+        qc.invalidateQueries({ queryKey: qk.upcomingHolidayAllocationsRoot() }),
       ]);
     },
   });
